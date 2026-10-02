@@ -22,7 +22,8 @@ export default async function BoardPage({
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
       <TopBar
-        name={session?.user?.name || "ผู้ใช้ LINE"}
+        name={session?.user?.physicianName || session?.user?.name || "ผู้ใช้ LINE"}
+        detail={session?.user?.specialty || undefined}
         date={date}
         today={today}
         roomId={room?.id ?? null}

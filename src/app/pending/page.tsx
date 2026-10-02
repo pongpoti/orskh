@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function PendingPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (isUserAllowed(session.user.id)) redirect("/");
+  if (isUserAllowed(session.user.id)) redirect(session.user.registered ? "/" : "/register");
 
   return (
     <main className="flex min-h-dvh items-center justify-center bg-floor px-4">

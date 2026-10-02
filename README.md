@@ -6,7 +6,7 @@ The case list is sample data, marked **ตารางตัวอย่าง**
 
 ## Stack
 
-Next.js 16, React 19, Tailwind CSS 4, Auth.js (LINE Login).
+Next.js 16, React 19, Tailwind CSS 4, Auth.js (LINE Login), Neon Postgres.
 
 ## Setup
 
@@ -19,6 +19,7 @@ Copy `.env.example` to `.env.local` and fill in:
 | `AUTH_LINE_SECRET` | LINE Login channel secret. Server only. |
 | `AUTH_TRUST_HOST` | `true` on Vercel |
 | `AUTH_LINE_ALLOWLIST` | Optional comma-separated LINE user IDs |
+| `DATABASE_URL` | Neon pooled connection string. Server only. |
 
 In the LINE Developers console, open the Login channel and add this callback:
 
@@ -28,7 +29,9 @@ The live board is [https://orskh.vercel.app](https://orskh.vercel.app). Guests a
 
 While the channel is in Developing mode, only testers and admins can sign in. Publish the channel, or add staff as testers, before a wider rollout.
 
-If `AUTH_LINE_ALLOWLIST` is empty, every successful LINE login can open the board. Set the list to lock it to staff. A signed-in account that is not on the list sees its LINE user id on `/pending`.
+If `AUTH_LINE_ALLOWLIST` is empty, every successful LINE login can continue. Set the list to lock it to staff. A signed-in account that is not on the list sees its LINE user id on `/pending`.
+
+A signed-in account that has not registered is sent to `/register`. Physicians pick their name from the department list and confirm it in a dialog. The choice is stored in `staff_registrations`, keyed by the LINE user id, so the next visit skips registration. The nurse option is shown, but there is no nurse list yet, so that choice cannot be saved. Each physician name can be claimed once.
 
 Issue a new channel secret if the current one was ever pasted into a chat, ticket, or commit.
 
@@ -37,4 +40,4 @@ npm install
 npm run dev
 ```
 
-`/preview` renders the board without LINE, and only while `NODE_ENV` is `development`.
+`/preview` renders the board without LINE, and `/preview/register` renders the registration form, both only while `NODE_ENV` is `development`.

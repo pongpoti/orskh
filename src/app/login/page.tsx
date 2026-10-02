@@ -22,7 +22,8 @@ export default async function LoginPage({
 }) {
   const session = await auth();
   if (session?.user) {
-    redirect(isUserAllowed(session.user.id) ? "/" : "/pending");
+    if (!isUserAllowed(session.user.id)) redirect("/pending");
+    redirect(session.user.registered ? "/" : "/register");
   }
 
   const params = await searchParams;

@@ -4,6 +4,7 @@ import { boardHref, formatThaiDate, shiftDate } from "@/lib/dates";
 
 export function TopBar({
   name,
+  detail,
   date,
   today,
   roomId,
@@ -12,6 +13,7 @@ export function TopBar({
   showAccount = true,
 }: {
   name: string;
+  detail?: string;
   date: string;
   today: string;
   roomId: string | null;
@@ -32,7 +34,10 @@ export function TopBar({
         </div>
         {showAccount ? (
           <div className="flex items-center gap-3 text-sm">
-            <span className="hidden max-w-40 truncate sm:inline">{name}</span>
+            <span className="hidden max-w-56 truncate sm:inline">
+              {name}
+              {detail ? <span className="text-muted"> · {detail}</span> : null}
+            </span>
             <SignOutButton />
           </div>
         ) : (

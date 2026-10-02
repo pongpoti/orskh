@@ -8,5 +8,6 @@ export default async function BoardLayout({ children }: { children: React.ReactN
   const session = await auth();
   if (!session?.user) redirect("/login");
   if (!isUserAllowed(session.user.id)) redirect("/pending");
+  if (!session.user.registered) redirect("/register");
   return children;
 }
