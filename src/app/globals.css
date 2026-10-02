@@ -1,0 +1,96 @@
+@import "tailwindcss";
+
+:root {
+  --fp-floor: #f3f6f6;
+  --fp-outer: #f4eee2;
+  --fp-or: #c9e4dd;
+  --fp-or-hover: #a8d3c9;
+  --fp-or-selected: #8ec9bb;
+  --fp-recovery: #d9ccf0;
+  --fp-recovery-hover: #c6b4e6;
+  --fp-recovery-selected: #b79adf;
+  --fp-support: #e8ecee;
+  --fp-core: #ffffff;
+  --fp-wall: #22313a;
+  --fp-detail: #6e808a;
+  --fp-grate-line: #bac7cc;
+  --fp-shell: #dce4e6;
+  --fp-label: #1f4d46;
+  --fp-counter: #7e8a92;
+  --fp-counter-edge: #5a666e;
+  --fp-ink: #22313a;
+  --fp-muted: #5a666e;
+  --fp-active: #1f7a6b;
+  --fp-delayed: #c47b2b;
+  --background: var(--fp-floor);
+  --foreground: var(--fp-ink);
+}
+
+@theme inline {
+  --font-sans: var(--font-plex), "Noto Sans Thai", sans-serif;
+  --color-floor: var(--fp-floor);
+  --color-ink: var(--fp-ink);
+  --color-label: var(--fp-label);
+  --color-muted: var(--fp-muted);
+  --color-or: var(--fp-or);
+  --color-recovery: var(--fp-recovery);
+  --color-support: var(--fp-support);
+  --color-lobby: var(--fp-outer);
+  --color-active: var(--fp-active);
+  --color-delayed: var(--fp-delayed);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.fp-bg { fill: var(--fp-floor); }
+.fp-zone-outer { fill: var(--fp-outer); }
+.fp-shell,
+.fp-grate-block { fill: url(#fp-grate); }
+.fp-grate-block { stroke: var(--fp-detail); stroke-width: 2; }
+.fp-grate-base { fill: var(--fp-shell); }
+.fp-grate-line { fill: none; stroke: var(--fp-grate-line); stroke-width: 1.2; }
+.fp-floor { stroke: none; }
+.fp-or,
+.fp-recovery { cursor: pointer; }
+.fp-or .fp-floor { fill: var(--fp-or); transition: fill 0.15s ease; }
+.fp-or:hover .fp-floor { fill: var(--fp-or-hover); }
+.fp-or.is-selected .fp-floor { fill: var(--fp-or-selected); }
+.fp-or.is-selected .fp-wall,
+.fp-or:focus-visible .fp-wall { stroke: var(--fp-label); stroke-width: 6; }
+.fp-recovery .fp-floor { fill: var(--fp-recovery); transition: fill 0.15s ease; }
+.fp-recovery:hover .fp-floor { fill: var(--fp-recovery-hover); }
+.fp-recovery.is-selected .fp-floor { fill: var(--fp-recovery-selected); }
+.fp-recovery.is-selected .fp-wall,
+.fp-recovery:focus-visible .fp-wall { stroke: #4c3d73; stroke-width: 6; }
+.fp-or:focus-visible,
+.fp-recovery:focus-visible { outline: none; }
+.fp-support .fp-floor { fill: var(--fp-support); }
+.fp-core .fp-floor { fill: var(--fp-core); }
+.fp-wall { fill: none; stroke: var(--fp-wall); stroke-width: 4; stroke-linejoin: miter; stroke-linecap: butt; }
+.fp-wall.fp-thin { stroke-width: 2.5; }
+.fp-wall.fp-outer { stroke-width: 8; }
+.fp-detail { fill: none; stroke: var(--fp-detail); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.fp-cab { fill: none; stroke: var(--fp-detail); stroke-width: 2; }
+.fp-label {
+  font-family: var(--font-plex), "Noto Sans Thai", sans-serif;
+  font-size: 60px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  fill: var(--fp-label);
+  text-anchor: middle;
+  pointer-events: none;
+}
+.fp-label-sm { font-size: 36px; fill: #4c3d73; }
+.fp-counter-top { fill: var(--fp-counter); stroke: var(--fp-counter-edge); stroke-width: 2; stroke-linejoin: round; }
+.fp-mark { stroke: #fff; stroke-width: 4; pointer-events: none; }
+.fp-mark-active { fill: var(--fp-active); }
+.fp-mark-delayed { fill: var(--fp-delayed); }
+
+@media (prefers-reduced-motion: reduce) {
+  .fp-or .fp-floor,
+  .fp-recovery .fp-floor,
+  .room-sheet { transition: none; }
+}
