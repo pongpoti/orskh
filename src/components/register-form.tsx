@@ -47,7 +47,7 @@ export function RegisterForm({ preview = false }: { preview?: boolean }) {
       onSubmit={requestConfirm}
     >
       <label className="block text-sm">
-        <span className="font-medium">อาชีพ</span>
+        <span className="font-medium">ตำแหน่ง</span>
         <select
           name="job"
           required
@@ -60,7 +60,7 @@ export function RegisterForm({ preview = false }: { preview?: boolean }) {
           }}
           className="mt-1 w-full rounded-xl border border-ink/15 bg-white px-3 py-2"
         >
-          <option value="">เลือกอาชีพ</option>
+          <option value="">เลือกตำแหน่ง</option>
           {JOBS.map((item) => (
             <option key={item.id} value={item.id}>
               {item.label}
@@ -98,7 +98,7 @@ export function RegisterForm({ preview = false }: { preview?: boolean }) {
 
       {job === "nurse" ? (
         <p className="rounded-xl bg-floor px-3 py-3 text-sm text-muted">
-          ยังไม่มีรายชื่อพยาบาล จึงยังลงทะเบียนอาชีพนี้ไม่ได้
+          ยังไม่มีรายชื่อพยาบาล จึงยังลงทะเบียนตำแหน่งนี้ไม่ได้
         </p>
       ) : null}
 
@@ -135,7 +135,7 @@ export function RegisterForm({ preview = false }: { preview?: boolean }) {
         </p>
         <p className="text-sm leading-6 text-muted">สาขา {physician?.specialty}</p>
         <p className="mt-2 text-sm leading-6 text-muted">
-          ชื่อนี้จะผูกกับบัญชี LINE นี้ และครั้งถัดไปจะเข้าบอร์ดได้เลย
+          ชื่อนี้จะผูกกับบัญชี LINE นี้ และครั้งถัดไปจะเข้าใช้งานได้เลย
         </p>
         <div className="mt-6 flex justify-end gap-2">
           <button

@@ -18,7 +18,7 @@ export default async function RegisterPage() {
         <p className="text-sm font-medium text-label">orskh</p>
         <h1 className="mt-2 text-2xl font-semibold">ลงทะเบียน</h1>
         <p className="mt-2 text-sm leading-6 text-muted">
-          เลือกอาชีพและชื่อให้ตรงกับตัวคุณ ระบบจะจำบัญชี LINE นี้ไว้ ครั้งถัดไปไม่ต้องลงทะเบียนอีก
+          เลือกตำแหน่งและชื่อให้ตรงกับตัวคุณ ระบบจะจำบัญชี LINE นี้ไว้ ครั้งถัดไปไม่ต้องลงทะเบียนอีก
         </p>
         {session.user.name ? (
           <p className="mt-4 text-sm">
