@@ -10,7 +10,7 @@ export function LineLoginButton() {
     >
       <button
         type="submit"
-        className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#06C755] px-4 py-3 text-base font-medium text-white transition hover:bg-[#05b34c]"
+        className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#06C755] px-4 py-3 text-base font-medium text-white transition duration-150 ease-out hover:bg-[#05b34c] active:scale-[0.97] active:bg-[#049a42] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#049a42]"
       >
         <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
           <path
