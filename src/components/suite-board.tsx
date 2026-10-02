@@ -95,12 +95,6 @@ export function SuiteBoard({
             <FloorPlan selectedId={roomId} marks={marks} onSelect={onSelect} />
           </div>
         </div>
-        <ul className="pointer-events-none absolute bottom-3 left-3 z-10 flex flex-wrap gap-x-3 gap-y-1 rounded-2xl bg-white/90 px-3 py-2 text-xs text-ink shadow-sm">
-          <li className="flex items-center gap-1.5"><span className="size-3 rounded-sm bg-or" />ห้องผ่าตัด</li>
-          <li className="flex items-center gap-1.5"><span className="size-3 rounded-sm bg-recovery" />ห้องพักฟื้น</li>
-          <li className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-active" />กำลังทำ</li>
-          <li className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-delayed" />เลื่อน</li>
-        </ul>
       </div>
 
       {room ? (

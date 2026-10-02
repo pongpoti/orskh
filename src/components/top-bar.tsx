@@ -53,6 +53,12 @@ export function TopBar({
           </Link>
         ) : null}
         <span className="text-muted">อัปเดต {updatedAt}</span>
+        <ul className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+          <li className="flex items-center gap-1.5"><span className="size-3 rounded-sm bg-or" />ห้องผ่าตัด</li>
+          <li className="flex items-center gap-1.5"><span className="size-3 rounded-sm bg-recovery" />ห้องพักฟื้น</li>
+          <li className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-active" />กำลังทำ</li>
+          <li className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-delayed" />เลื่อน</li>
+        </ul>
       </div>
     </header>
   );

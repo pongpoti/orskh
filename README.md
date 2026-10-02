@@ -22,7 +22,9 @@ Copy `.env.example` to `.env.local` and fill in:
 
 In the LINE Developers console, open the Login channel and add this callback:
 
-`https://<your-domain>/api/auth/callback/line`
+`https://orskh.vercel.app/api/auth/callback/line`
+
+The live board is [https://orskh.vercel.app](https://orskh.vercel.app). Guests are sent to the LINE sign-in page.
 
 While the channel is in Developing mode, only testers and admins can sign in. Publish the channel, or add staff as testers, before a wider rollout.
 
