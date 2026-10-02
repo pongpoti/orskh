@@ -32,12 +32,10 @@ export default async function LoginPage({
 
   return (
     <main className="flex min-h-dvh items-center justify-center bg-floor px-4">
-      <div className="w-full max-w-md rounded-3xl border border-ink/10 bg-white p-8 shadow-sm">
-        <p className="text-sm font-medium text-label">orskh</p>
-        <h1 className="mt-2 text-2xl font-semibold">แผนกห้องผ่าตัด</h1>
-        <p className="mt-2 text-sm leading-6 text-muted">
-          เข้าสู่ระบบด้วย LINE เพื่อดูแปลนห้องและรายการผ่าตัดของแต่ละห้อง
-        </p>
+      <div className="w-full max-w-md rounded-3xl border border-ink/10 bg-white p-8 text-center shadow-sm">
+        <p className="text-xl font-semibold tracking-wide text-label">ORSKH.APP</p>
+        <h1 className="mt-3 text-2xl font-semibold">ตารางห้องผ่าตัด</h1>
+        <p className="mt-2 text-sm leading-6 text-muted">เข้าสู่ระบบ เพื่อดูเคสผ่าตัดของวันนี้</p>
         {error ? (
           <p className="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-950" role="alert">
             {error}
