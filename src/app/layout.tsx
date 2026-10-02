@@ -10,7 +10,7 @@ const plex = IBM_Plex_Sans_Thai({
 });
 
 export const metadata: Metadata = {
-  title: "orskh แผนกห้องผ่าตัด",
+  title: "ORSKH.APP ตารางห้องผ่าตัด",
   description: "แปลนห้องผ่าตัดและรายการของแต่ละห้อง สำหรับเจ้าหน้าที่ที่เข้าสู่ระบบด้วย LINE",
   robots: { index: false, follow: false },
 };
