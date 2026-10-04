@@ -12,7 +12,7 @@ export function SignOutButton() {
         type="submit"
         aria-label="ออกจากระบบ"
         title="ออกจากระบบ"
-        className="inline-flex size-9 items-center justify-center rounded-full border border-ink/10 bg-white/50 text-ink transition hover:bg-white/80 hover:text-label"
+        className="btn btn-secondary size-10 min-h-0 shrink-0 rounded-full p-0 hover:text-label"
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path

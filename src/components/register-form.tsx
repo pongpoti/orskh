@@ -58,7 +58,7 @@ export function RegisterForm({ preview = false }: { preview?: boolean }) {
             if (next !== "physician") setPhysicianId("");
             setConfirmedPreview(false);
           }}
-          className="mt-1 w-full rounded-xl border border-ink/15 bg-white px-3 py-2"
+          className="field"
         >
           <option value="">เลือกตำแหน่ง</option>
           {JOBS.map((item) => (
@@ -80,7 +80,7 @@ export function RegisterForm({ preview = false }: { preview?: boolean }) {
               setPhysicianId(event.target.value);
               setConfirmedPreview(false);
             }}
-            className="mt-1 w-full rounded-xl border border-ink/15 bg-white px-3 py-2"
+            className="field"
           >
             <option value="">เลือกชื่อ</option>
             {PHYSICIAN_GROUPS.map((group) => (
@@ -103,13 +103,13 @@ export function RegisterForm({ preview = false }: { preview?: boolean }) {
       ) : null}
 
       {state?.error ? (
-        <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-950" role="alert">
+        <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950" role="alert">
           {state.error}
         </p>
       ) : null}
 
       {confirmedPreview && physician ? (
-        <p className="rounded-xl bg-or px-3 py-2 text-sm text-label" role="status">
+        <p className="rounded-xl border border-active/20 bg-or/60 px-3 py-2 text-sm text-label" role="status">
           ยืนยันชื่อ {physician.name} แล้วในโหมดตัวอย่าง ยังไม่ได้บันทึก
         </p>
       ) : null}
@@ -117,7 +117,7 @@ export function RegisterForm({ preview = false }: { preview?: boolean }) {
       <button
         type="submit"
         disabled={!canSubmit || pending}
-        className="w-full rounded-full bg-label px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+        className="btn btn-primary w-full"
       >
         {pending ? "กำลังบันทึก" : "ลงทะเบียน"}
       </button>
@@ -125,7 +125,7 @@ export function RegisterForm({ preview = false }: { preview?: boolean }) {
       <dialog
         ref={dialogRef}
         aria-labelledby="confirm-title"
-        className="m-auto w-[min(24rem,calc(100%-2rem))] rounded-3xl border border-ink/10 bg-white p-6 shadow-lg backdrop:bg-ink/40"
+        className="m-auto w-[min(24rem,calc(100%-2rem))] rounded-3xl border border-ink/10 bg-white p-6 shadow-[0_20px_50px_rgba(34,49,58,0.18)] backdrop:bg-ink/40 backdrop:backdrop-blur-[2px]"
       >
         <h2 id="confirm-title" className="text-lg font-semibold">
           ยืนยันการลงทะเบียน
@@ -143,7 +143,7 @@ export function RegisterForm({ preview = false }: { preview?: boolean }) {
             autoFocus
             disabled={pending}
             onClick={() => dialogRef.current?.close()}
-            className="rounded-full border border-ink/15 px-4 py-2 text-sm"
+            className="btn btn-secondary"
           >
             กลับไปแก้
           </button>
@@ -151,7 +151,7 @@ export function RegisterForm({ preview = false }: { preview?: boolean }) {
             type="button"
             disabled={pending}
             onClick={confirm}
-            className="rounded-full bg-label px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
+            className="btn btn-primary"
           >
             {pending ? "กำลังบันทึก" : "ยืนยัน"}
           </button>
