@@ -19,17 +19,13 @@ function profileImageSrc(image: string | null | undefined): string | null {
 export function TopBar({
   name,
   image,
-  detail,
   today,
-  updatedAt,
   pathname = "/",
   showAccount = true,
 }: {
   name: string;
   image?: string | null;
-  detail?: string;
   today: string;
-  updatedAt: string;
   pathname?: string;
   showAccount?: boolean;
 }) {
@@ -37,29 +33,23 @@ export function TopBar({
   const initial = name.trim().slice(0, 1) || "•";
 
   return (
-    <header className="glass z-30 flex flex-col gap-2 border-b border-white/40 px-4 py-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
+    <header className="glass z-30 border-b border-white/40 px-4 py-3">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+        <div className="min-w-0 justify-self-start">
           <Link href={boardHref(today, null, pathname)} className="brand-glow text-lg font-semibold tracking-[0.04em] text-label">
             ORSKH.APP
           </Link>
         </div>
-        <div className="flex min-w-0 items-center gap-3 text-sm">
+        <p className="justify-self-center text-center text-sm font-medium whitespace-nowrap">
+          {formatThaiDate(today)}
+        </p>
+        <div className="flex min-w-0 items-center justify-self-end gap-3 text-sm">
           <span className="flex min-w-0 items-center gap-2">
             <ProfileAvatar src={src} initial={initial} />
-            <span className="min-w-0 leading-tight">
-              <span className="block max-w-28 truncate font-medium sm:max-w-48">{name}</span>
-              {detail ? (
-                <span className="block max-w-28 truncate text-xs text-muted sm:max-w-48">{detail}</span>
-              ) : null}
-            </span>
+            <span className="block max-w-28 truncate font-medium sm:max-w-48">{name}</span>
           </span>
           {showAccount ? <SignOutButton /> : null}
         </div>
-      </div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-        <span className="font-medium">{formatThaiDate(today)}</span>
-        <span className="text-muted">อัปเดต {updatedAt}</span>
       </div>
     </header>
   );

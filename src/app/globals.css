@@ -107,13 +107,15 @@ body {
 .fp-floor { stroke: none; }
 .fp-or,
 .fp-recovery { cursor: pointer; }
+.fp-recovery.is-static,
+.fp-recovery.is-static .fp-floor { cursor: default; }
 .fp-or .fp-floor { fill: var(--fp-or); transition: fill 0.15s ease; }
 .fp-or:hover .fp-floor { fill: var(--fp-or-hover); }
 .fp-or.is-selected .fp-floor { fill: var(--fp-or-selected); }
 .fp-or.is-selected .fp-wall,
 .fp-or:focus-visible .fp-wall { stroke: var(--fp-label); stroke-width: 6; }
-.fp-recovery .fp-floor { fill: var(--fp-recovery); transition: fill 0.15s ease; }
-.fp-recovery:hover .fp-floor { fill: var(--fp-recovery-hover); }
+.fp-recovery .fp-floor { fill: var(--fp-recovery); }
+.fp-recovery:not(.is-static):hover .fp-floor { fill: var(--fp-recovery-hover); }
 .fp-recovery.is-selected .fp-floor { fill: var(--fp-recovery-selected); }
 .fp-recovery.is-selected .fp-wall,
 .fp-recovery:focus-visible .fp-wall { stroke: #4c3d73; stroke-width: 6; }

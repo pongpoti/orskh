@@ -1,7 +1,7 @@
 "use client";
 
 import { FloorScenery } from "@/components/floor-scenery";
-import { roomLabel, ROOMS } from "@/lib/rooms";
+import { isSelectableRoom, roomLabel, ROOMS } from "@/lib/rooms";
 import type { RoomMark } from "@/lib/schedule";
 
 export function FloorPlan({
@@ -20,27 +20,33 @@ export function FloorPlan({
         {ROOMS.map((room) => {
           const selected = room.id === selectedId;
           const mark = marks[room.id];
+          const selectable = isSelectableRoom(room);
           return (
             <g
               key={room.id}
               id={room.id}
               data-zone={room.zone}
-              className={`${room.kind === "or" ? "fp-or" : "fp-recovery"}${selected ? " is-selected" : ""}`}
+              className={`${room.kind === "or" ? "fp-or" : "fp-recovery"}${selected ? " is-selected" : ""}${selectable ? "" : " is-static"}`}
             >
               <path
                 className="fp-floor"
                 d={room.d}
-                role="button"
-                tabIndex={0}
-                aria-pressed={selected}
-                aria-label={roomLabel(room)}
-                onClick={() => onSelect(room.id)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    onSelect(room.id);
-                  }
-                }}
+                role={selectable ? "button" : undefined}
+                tabIndex={selectable ? 0 : undefined}
+                aria-pressed={selectable ? selected : undefined}
+                aria-label={selectable ? roomLabel(room) : undefined}
+                aria-hidden={selectable ? undefined : true}
+                onClick={selectable ? () => onSelect(room.id) : undefined}
+                onKeyDown={
+                  selectable
+                    ? (event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          onSelect(room.id);
+                        }
+                      }
+                    : undefined
+                }
               />
               <path className="fp-wall" d={room.d} pointerEvents="none" />
               {room.kind === "or" ? (
@@ -48,11 +54,11 @@ export function FloorPlan({
                   {room.number}
                 </text>
               ) : null}
-              {mark ? (
+              {mark && selectable ? (
                 <circle
                   className={mark === "active" ? "fp-mark fp-mark-active" : "fp-mark fp-mark-delayed"}
                   cx={room.labelX}
-                  cy={room.kind === "or" ? room.labelY + 48 : room.labelY}
+                  cy={room.labelY + 48}
                   r="12"
                 />
               ) : null}
