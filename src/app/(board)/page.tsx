@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { SuiteBoard } from "@/components/suite-board";
 import { TopBar } from "@/components/top-bar";
-import { bangkokToday, formatBangkokTime, parseBoardDate } from "@/lib/dates";
+import { bangkokToday, formatBangkokTime } from "@/lib/dates";
 import { getRoom } from "@/lib/rooms";
 import { getSchedule } from "@/lib/schedule";
 
@@ -10,11 +10,10 @@ export const dynamic = "force-dynamic";
 export default async function BoardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string; room?: string }>;
+  searchParams: Promise<{ room?: string }>;
 }) {
   const params = await searchParams;
   const today = bangkokToday();
-  const date = parseBoardDate(params.date);
   const room = getRoom(params.room);
   const session = await auth();
 
@@ -26,12 +25,10 @@ export default async function BoardPage({
         detail={
           [session?.user?.physicianName, session?.user?.specialty].filter(Boolean).join(" · ") || undefined
         }
-        date={date}
         today={today}
-        roomId={room?.id ?? null}
         updatedAt={formatBangkokTime()}
       />
-      <SuiteBoard date={date} roomId={room?.id ?? null} operations={getSchedule(date)} />
+      <SuiteBoard date={today} roomId={room?.id ?? null} operations={getSchedule(today)} />
     </div>
   );
 }
