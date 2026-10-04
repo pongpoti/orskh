@@ -4,7 +4,7 @@ import "./globals.css";
 
 const plex = IBM_Plex_Sans_Thai({
   subsets: ["thai", "latin"],
-  weight: ["400", "500", "600"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-plex",
   display: "swap",
 });

@@ -34,26 +34,6 @@ const STATUS_CARD: Record<CaseStatus, string> = {
   recovery: "border-l-[#8b74c9] bg-[#f6f2fc]",
 };
 
-const LEGEND = [
-  { label: "ห้องผ่าตัด", swatch: "bg-or ring-1 ring-ink/25" },
-  { label: "พักฟื้น", swatch: "bg-recovery ring-1 ring-ink/25" },
-  { label: "กำลังใช้งาน", swatch: "bg-active ring-2 ring-white" },
-  { label: "มีเคสเลื่อน", swatch: "bg-delayed ring-2 ring-white" },
-] as const;
-
-function Legend({ className = "" }: { className?: string }) {
-  return (
-    <ul aria-label="สัญลักษณ์บนแปลน" className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted ${className}`}>
-      {LEGEND.map((item) => (
-        <li key={item.label} className="flex items-center gap-1.5">
-          <span aria-hidden className={`size-3 rounded-full ${item.swatch}`} />
-          {item.label}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 export function SuiteBoard({
   date,
   roomId = null,
@@ -143,7 +123,6 @@ export function SuiteBoard({
   return (
     <div ref={rootRef} className="relative flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-        <Legend className="justify-center px-4 pt-2 lg:hidden" />
         <div className="plan-stage flex min-h-0 flex-1 justify-center overflow-hidden px-3 pt-3">
           <FloorPlan selectedId={selectedId} marks={marks} onSelect={onSelect} />
         </div>
@@ -211,7 +190,6 @@ export function SuiteBoard({
             </div>
           </div>
         )}
-        <Legend className="hidden shrink-0 border-t border-ink/10 px-5 py-3 lg:flex" />
       </aside>
     </div>
   );
