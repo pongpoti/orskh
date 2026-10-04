@@ -11,7 +11,7 @@ export default async function PendingPage() {
   if (isUserAllowed(session.user.id)) redirect(session.user.registered ? "/" : "/register");
 
   return (
-    <main className="flex h-dvh overflow-y-auto overscroll-contain bg-floor px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+    <main className="flex h-dvh overflow-y-auto overscroll-contain bg-canvas px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       <div className="glass m-auto w-full max-w-md rounded-3xl border border-white/60 p-6 sm:p-8">
         <p className="brand-glow text-sm font-medium tracking-[0.04em] text-label">ORSKH.APP</p>
         <h1 className="mt-2 text-2xl font-semibold">ยังไม่ได้รับสิทธิ์</h1>
@@ -19,7 +19,7 @@ export default async function PendingPage() {
           เข้าสู่ระบบแล้ว แต่บัญชีนี้ยังไม่อยู่ในรายชื่อเจ้าหน้าที่ ส่งรหัสด้านล่างให้ผู้ดูแลเพื่อเพิ่มใน AUTH_LINE_ALLOWLIST
         </p>
         <p className="mt-4 text-xs text-muted">รหัสผู้ใช้ LINE</p>
-        <p className="mt-1 break-all rounded-xl bg-floor px-3 py-2 font-mono text-sm">{session.user.id || "ไม่มีรหัส"}</p>
+        <p className="mt-1 break-all rounded-xl bg-canvas px-3 py-2 font-mono text-sm">{session.user.id || "ไม่มีรหัส"}</p>
         <div className="mt-6">
           <SignOutButton />
         </div>

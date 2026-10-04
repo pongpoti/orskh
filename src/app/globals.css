@@ -2,6 +2,8 @@
 
 :root {
   --fp-floor: #f3f6f6;
+  /* Page background: the OR mint (#c9e4dd) at ~45% over white. */
+  --fp-canvas: #e8f3f0;
   --fp-outer: #f4eee2;
   --fp-or: #c9e4dd;
   --fp-or-hover: #a8d3c9;
@@ -22,13 +24,14 @@
   --fp-muted: #5a666e;
   --fp-active: #1f7a6b;
   --fp-delayed: #c47b2b;
-  --background: var(--fp-floor);
+  --background: var(--fp-canvas);
   --foreground: var(--fp-ink);
 }
 
 @theme inline {
   --font-sans: var(--font-plex), "Noto Sans Thai", sans-serif;
   --color-floor: var(--fp-floor);
+  --color-canvas: var(--fp-canvas);
   --color-ink: var(--fp-ink);
   --color-label: var(--fp-label);
   --color-muted: var(--fp-muted);

@@ -97,7 +97,7 @@ export function RegisterForm({ preview = false }: { preview?: boolean }) {
       ) : null}
 
       {job === "nurse" ? (
-        <p className="rounded-xl bg-floor px-3 py-3 text-sm text-muted">
+        <p className="rounded-xl bg-canvas px-3 py-3 text-sm text-muted">
           ยังไม่มีรายชื่อพยาบาล จึงยังลงทะเบียนตำแหน่งนี้ไม่ได้
         </p>
       ) : null}

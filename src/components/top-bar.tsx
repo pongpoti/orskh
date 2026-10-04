@@ -33,26 +33,25 @@ export function TopBar({
   const initial = name.trim().slice(0, 1) || "•";
 
   return (
-    <header className="glass glass-bar z-30 border-b border-ink/10 px-4 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] sm:py-3">
-      {/* Phones: brand over date on the left, account on the right. sm+: one row, date centred. */}
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 sm:grid-cols-[1fr_auto_1fr]">
+    <header className="glass glass-bar z-30 border-b border-ink/10 px-4 pt-[max(0.625rem,env(safe-area-inset-top))] pb-2 sm:pt-3">
+      <div className="flex items-center justify-between gap-3">
         <Link
           href={boardHref(today, null, pathname)}
-          className="brand-glow col-start-1 row-start-1 w-fit text-lg leading-tight font-semibold tracking-[0.04em] text-label"
+          className="brand-glow w-fit text-lg leading-tight font-semibold tracking-[0.04em] text-label"
         >
           ORSKH.APP
         </Link>
-        <p className="col-start-1 row-start-2 truncate text-xs text-muted sm:col-start-2 sm:row-start-1 sm:text-center sm:text-sm sm:font-medium sm:whitespace-nowrap sm:text-ink">
-          {formatThaiDate(today)}
-        </p>
-        <div className="col-start-2 row-span-2 row-start-1 flex min-w-0 items-center gap-2.5 text-sm sm:col-start-3 sm:row-span-1 sm:justify-self-end sm:gap-3">
+        <div className="flex min-w-0 items-center gap-2.5 text-sm sm:gap-3">
           <span className="flex min-w-0 items-center gap-2">
             <ProfileAvatar src={src} initial={initial} />
-            <span className="block max-w-24 truncate font-medium sm:max-w-48">{name}</span>
+            <span className="block max-w-32 truncate font-medium sm:max-w-48">{name}</span>
           </span>
           {showAccount ? <SignOutButton /> : null}
         </div>
       </div>
+      <p className="mt-2 border-t border-ink/10 pt-2 text-center text-xl font-bold text-ink sm:text-2xl">
+        {formatThaiDate(today)}
+      </p>
     </header>
   );
 }
