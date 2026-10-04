@@ -33,7 +33,7 @@ export default async function LoginPage({
   return (
     <main className="flex h-dvh items-center justify-center overflow-y-auto overscroll-contain bg-floor px-4">
       <div className="glass w-full max-w-md rounded-3xl border border-white/50 p-8 text-center">
-        <p className="text-xl font-semibold tracking-wide text-label">ORSKH.APP</p>
+        <p className="brand-glow text-xl font-semibold tracking-[0.04em] text-label">ORSKH.APP</p>
         <h1 className="mt-3 text-2xl font-semibold">ตารางห้องผ่าตัด</h1>
         <p className="mt-2 text-sm leading-6 text-muted">เข้าสู่ระบบ เพื่อดูเคสผ่าตัดของวันนี้</p>
         {error ? (

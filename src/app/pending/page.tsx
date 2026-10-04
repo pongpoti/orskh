@@ -13,7 +13,7 @@ export default async function PendingPage() {
   return (
     <main className="flex h-dvh items-center justify-center overflow-y-auto overscroll-contain bg-floor px-4">
       <div className="glass w-full max-w-md rounded-3xl border border-white/50 p-8">
-        <p className="text-sm font-medium text-label">orskh</p>
+        <p className="brand-glow text-sm font-medium tracking-[0.04em] text-label">ORSKH.APP</p>
         <h1 className="mt-2 text-2xl font-semibold">ยังไม่ได้รับสิทธิ์</h1>
         <p className="mt-2 text-sm leading-6 text-muted">
           เข้าสู่ระบบแล้ว แต่บัญชีนี้ยังไม่อยู่ในรายชื่อเจ้าหน้าที่ ส่งรหัสด้านล่างให้ผู้ดูแลเพื่อเพิ่มใน AUTH_LINE_ALLOWLIST
