@@ -1,8 +1,9 @@
+import { memo } from "react";
 import { FloorScenery } from "@/components/floor-scenery";
 import { roomLabel, ROOMS } from "@/lib/rooms";
 import type { RoomMark } from "@/lib/schedule";
 
-export function FloorPlan({
+export const FloorPlan = memo(function FloorPlan({
   selectedId,
   marks,
   onSelect,
@@ -38,19 +39,16 @@ export function FloorPlan({
             >
               <path className="fp-floor" d={room.d} />
               <path className="fp-wall" d={room.d} />
-              <text
-                className={room.kind === "or" ? "fp-label" : "fp-label fp-label-sm"}
-                x={room.labelX}
-                y={room.labelY}
-                dy="0.35em"
-              >
-                {room.kind === "or" ? room.number : `พ${room.number}`}
-              </text>
+              {room.kind === "or" ? (
+                <text className="fp-label" x={room.labelX} y={room.labelY} dy="0.35em">
+                  {room.number}
+                </text>
+              ) : null}
               {mark ? (
                 <circle
                   className={mark === "active" ? "fp-mark fp-mark-active" : "fp-mark fp-mark-delayed"}
                   cx={room.labelX}
-                  cy={room.labelY + 48}
+                  cy={room.kind === "or" ? room.labelY + 48 : room.labelY}
                   r="12"
                 />
               ) : null}
@@ -61,4 +59,4 @@ export function FloorPlan({
       <rect className="fp-wall fp-outer" x="20" y="20" width="1167" height="1666" pointerEvents="none" />
     </svg>
   );
-}
+});

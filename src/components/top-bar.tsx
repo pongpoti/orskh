@@ -41,13 +41,13 @@ export function TopBar({
   const initial = name.trim().slice(0, 1) || "•";
 
   return (
-    <header className="z-30 flex flex-col gap-2 border-b border-ink/10 bg-white/90 px-4 py-3 backdrop-blur">
+    <header className="glass z-30 flex flex-col gap-2 border-b border-white/40 px-4 py-3">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <Link href={boardHref(today, null, pathname)} className="text-lg font-semibold tracking-tight text-label">
             orskh
           </Link>
-          <span className="truncate rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-950">
+          <span className="truncate rounded-full bg-amber-100/80 px-2 py-0.5 text-xs font-medium text-amber-950">
             ตารางตัวอย่าง
           </span>
         </div>
@@ -73,17 +73,11 @@ export function TopBar({
           วันถัดไป
         </Link>
         {date !== today ? (
-          <Link className="rounded-full bg-or px-2 py-0.5 text-label" href={boardHref(today, roomId, pathname)}>
+          <Link className="rounded-full bg-or/80 px-2 py-0.5 text-label" href={boardHref(today, roomId, pathname)}>
             วันนี้
           </Link>
         ) : null}
         <span className="text-muted">อัปเดต {updatedAt}</span>
-        <ul className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
-          <li className="flex items-center gap-1.5"><span className="size-3 rounded-sm bg-or" />ห้องผ่าตัด</li>
-          <li className="flex items-center gap-1.5"><span className="size-3 rounded-sm bg-recovery" />ห้องพักฟื้น</li>
-          <li className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-active" />กำลังทำ</li>
-          <li className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-delayed" />เลื่อน</li>
-        </ul>
       </div>
     </header>
   );

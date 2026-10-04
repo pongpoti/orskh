@@ -11,8 +11,8 @@ export default async function PendingPage() {
   if (isUserAllowed(session.user.id)) redirect(session.user.registered ? "/" : "/register");
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-floor px-4">
-      <div className="w-full max-w-md rounded-3xl border border-ink/10 bg-white p-8 shadow-sm">
+    <main className="flex h-dvh items-center justify-center overflow-y-auto overscroll-contain bg-floor px-4">
+      <div className="glass w-full max-w-md rounded-3xl border border-white/50 p-8">
         <p className="text-sm font-medium text-label">orskh</p>
         <h1 className="mt-2 text-2xl font-semibold">ยังไม่ได้รับสิทธิ์</h1>
         <p className="mt-2 text-sm leading-6 text-muted">
