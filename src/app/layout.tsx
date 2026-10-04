@@ -21,12 +21,13 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
+  themeColor: "#e8f3f0",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="th" className={`${plex.variable} h-full overflow-hidden antialiased`}>
-      <body className="h-full overflow-hidden touch-manipulation bg-floor font-sans text-ink">{children}</body>
+      <body className="h-full overflow-hidden touch-manipulation bg-canvas font-sans text-ink">{children}</body>
     </html>
   );
 }

@@ -31,7 +31,7 @@ export default async function LoginPage({
   const configured = lineLoginConfigured();
 
   return (
-    <main className="flex h-dvh overflow-y-auto overscroll-contain bg-floor px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+    <main className="flex h-dvh overflow-y-auto overscroll-contain bg-canvas px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       <div className="glass m-auto w-full max-w-md rounded-3xl border border-white/60 p-6 sm:p-8 text-center">
         <p className="brand-glow text-xl font-semibold tracking-[0.04em] text-label">ORSKH.APP</p>
         <h1 className="mt-3 text-2xl font-semibold">ตารางห้องผ่าตัด</h1>
@@ -45,7 +45,7 @@ export default async function LoginPage({
           {configured ? (
             <LineLoginButton />
           ) : (
-            <p className="rounded-xl bg-floor px-3 py-3 text-sm text-muted">
+            <p className="rounded-xl bg-canvas px-3 py-3 text-sm text-muted">
               ยังไม่ได้ตั้งค่า LINE Login บนเซิร์ฟเวอร์
             </p>
           )}
