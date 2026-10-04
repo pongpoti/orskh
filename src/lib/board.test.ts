@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { isUserAllowed } from "./allowlist.ts";
 import { parseBoardDate, shiftDate } from "./dates.ts";
-import { getRoom } from "./rooms.ts";
+import { getRoom, isSelectableRoom, roomLabel } from "./rooms.ts";
 import { casesForRoom, getSchedule, roomMark } from "./schedule.ts";
 
 const now = new Date("2026-10-02T03:00:00.000Z");
@@ -40,4 +40,13 @@ test("sample schedule marks rooms and keeps names off the list", () => {
   for (const item of day) {
     assert.equal("patient" in item, false);
   }
+});
+
+test("OR rooms are selectable and labeled OR N", () => {
+  const or7 = getRoom("or-7");
+  const rr1 = getRoom("r-1");
+  assert.equal(roomLabel(or7!), "OR 7");
+  assert.equal(roomLabel(rr1!), "RR 1");
+  assert.equal(isSelectableRoom(or7!), true);
+  assert.equal(isSelectableRoom(rr1!), false);
 });

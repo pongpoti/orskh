@@ -34,7 +34,9 @@ export function getRoom(id: string | undefined | null): Room | null {
 }
 
 export function roomLabel(room: Room): string {
-  return room.kind === "or"
-    ? `ห้องผ่าตัด ${room.number}`
-    : `ห้องพักฟื้น ${room.number}`;
+  return room.kind === "or" ? `OR ${room.number}` : `RR ${room.number}`;
+}
+
+export function isSelectableRoom(room: Room): boolean {
+  return room.kind === "or";
 }

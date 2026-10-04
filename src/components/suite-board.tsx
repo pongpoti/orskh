@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { FloorPlan } from "@/components/floor-plan";
 import { boardHref } from "@/lib/dates";
-import { getRoom, roomLabel } from "@/lib/rooms";
+import { getRoom, isSelectableRoom, roomLabel } from "@/lib/rooms";
 import { casesForRoom, roomMark, type CaseStatus, type Operation } from "@/lib/schedule";
 
 const STATUS_LABEL: Record<CaseStatus, string> = {
@@ -46,7 +46,8 @@ export function SuiteBoard({
   pathname?: string;
 }) {
   const router = useRouter();
-  const initialRoomId = getRoom(roomId)?.id ?? null;
+  const initialRoom = getRoom(roomId);
+  const initialRoomId = initialRoom && isSelectableRoom(initialRoom) ? initialRoom.id : null;
   const [selectedId, setSelectedId] = useState<string | null>(initialRoomId);
   const [prevRoomId, setPrevRoomId] = useState(initialRoomId);
   const room = getRoom(selectedId);
@@ -61,12 +62,18 @@ export function SuiteBoard({
     const next: Record<string, ReturnType<typeof roomMark>> = {};
     for (const item of operations) {
       if (next[item.roomId]) continue;
+      const target = getRoom(item.roomId);
+      if (!target || !isSelectableRoom(target)) continue;
       next[item.roomId] = roomMark(casesForRoom(operations, item.roomId));
     }
     return next;
   }, [operations]);
 
   function choose(id: string | null) {
+    if (id) {
+      const next = getRoom(id);
+      if (!next || !isSelectableRoom(next)) return;
+    }
     setSelectedId(id);
     startTransition(() => {
       router.replace(boardHref(date, id, pathname), { scroll: false });
@@ -119,7 +126,6 @@ export function SuiteBoard({
           <div className="flex min-h-0 flex-1 flex-col">
             <div className="flex items-start justify-between gap-3 border-b border-ink/10 px-5 py-4">
               <div>
-                <p className="text-xs tracking-wide text-muted uppercase">โซน {room.zone}</p>
                 <h2 ref={headingRef} tabIndex={-1} className="text-xl font-semibold text-label outline-none">
                   {roomLabel(room)}
                 </h2>
@@ -155,7 +161,7 @@ export function SuiteBoard({
         ) : (
           <div className="hidden h-full flex-col justify-center px-6 lg:flex">
             <p className="font-medium">เลือกห้องบนแปลน</p>
-            <p className="mt-1 text-sm text-muted">ห้องผ่าตัด 1–13 และห้องพักฟื้นแสดงรายการของวันนั้น</p>
+            <p className="mt-1 text-sm text-muted">OR 1–13 แสดงรายการของวันนี้</p>
           </div>
         )}
       </aside>
