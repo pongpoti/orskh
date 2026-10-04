@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
 import { SuiteBoard } from "@/components/suite-board";
 import { TopBar } from "@/components/top-bar";
 import { bangkokToday, formatBangkokTime, parseBoardDate } from "@/lib/dates";
@@ -33,9 +32,12 @@ export default async function PreviewPage({
         pathname="/preview"
         showAccount={false}
       />
-      <Suspense fallback={<div className="flex-1 bg-floor" />}>
-        <SuiteBoard date={date} operations={getSchedule(date)} pathname="/preview" />
-      </Suspense>
+      <SuiteBoard
+        date={date}
+        roomId={room?.id ?? null}
+        operations={getSchedule(date)}
+        pathname="/preview"
+      />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { FloorPlan } from "@/components/floor-plan";
 import { boardHref } from "@/lib/dates";
@@ -36,24 +36,25 @@ const STATUS_BORDER: Record<CaseStatus, string> = {
 
 export function SuiteBoard({
   date,
+  roomId = null,
   operations,
   pathname = "/",
 }: {
   date: string;
+  roomId?: string | null;
   operations: Operation[];
   pathname?: string;
 }) {
   const router = useRouter();
-  const params = useSearchParams();
-  const urlRoomId = getRoom(params.get("room"))?.id ?? null;
-  const [selectedId, setSelectedId] = useState<string | null>(urlRoomId);
-  const [prevUrlRoomId, setPrevUrlRoomId] = useState(urlRoomId);
+  const initialRoomId = getRoom(roomId)?.id ?? null;
+  const [selectedId, setSelectedId] = useState<string | null>(initialRoomId);
+  const [prevRoomId, setPrevRoomId] = useState(initialRoomId);
   const room = getRoom(selectedId);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
-  if (urlRoomId !== prevUrlRoomId) {
-    setPrevUrlRoomId(urlRoomId);
-    setSelectedId(urlRoomId);
+  if (initialRoomId !== prevRoomId) {
+    setPrevRoomId(initialRoomId);
+    setSelectedId(initialRoomId);
   }
 
   const marks = useMemo(() => {
@@ -97,7 +98,7 @@ export function SuiteBoard({
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
       <div className="relative min-h-0 flex-1 overflow-hidden">
-        <div className="flex h-full touch-none justify-center overflow-hidden p-3">
+        <div className="flex h-full justify-center overflow-hidden p-3">
           <FloorPlan selectedId={selectedId} marks={marks} onSelect={onSelect} />
         </div>
       </div>

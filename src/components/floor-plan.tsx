@@ -1,9 +1,10 @@
-import { memo } from "react";
+"use client";
+
 import { FloorScenery } from "@/components/floor-scenery";
 import { roomLabel, ROOMS } from "@/lib/rooms";
 import type { RoomMark } from "@/lib/schedule";
 
-export const FloorPlan = memo(function FloorPlan({
+export function FloorPlan({
   selectedId,
   marks,
   onSelect,
@@ -25,20 +26,23 @@ export const FloorPlan = memo(function FloorPlan({
               id={room.id}
               data-zone={room.zone}
               className={`${room.kind === "or" ? "fp-or" : "fp-recovery"}${selected ? " is-selected" : ""}`}
-              role="button"
-              tabIndex={0}
-              aria-pressed={selected}
-              aria-label={roomLabel(room)}
-              onClick={() => onSelect(room.id)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  onSelect(room.id);
-                }
-              }}
             >
-              <path className="fp-floor" d={room.d} />
-              <path className="fp-wall" d={room.d} />
+              <path
+                className="fp-floor"
+                d={room.d}
+                role="button"
+                tabIndex={0}
+                aria-pressed={selected}
+                aria-label={roomLabel(room)}
+                onClick={() => onSelect(room.id)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onSelect(room.id);
+                  }
+                }}
+              />
+              <path className="fp-wall" d={room.d} pointerEvents="none" />
               {room.kind === "or" ? (
                 <text className="fp-label" x={room.labelX} y={room.labelY} dy="0.35em">
                   {room.number}
@@ -59,4 +63,4 @@ export const FloorPlan = memo(function FloorPlan({
       <rect className="fp-wall fp-outer" x="20" y="20" width="1167" height="1666" pointerEvents="none" />
     </svg>
   );
-});
+}

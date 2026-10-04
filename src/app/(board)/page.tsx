@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import { auth } from "@/auth";
 import { SuiteBoard } from "@/components/suite-board";
 import { TopBar } from "@/components/top-bar";
@@ -32,9 +31,7 @@ export default async function BoardPage({
         roomId={room?.id ?? null}
         updatedAt={formatBangkokTime()}
       />
-      <Suspense fallback={<div className="flex-1 bg-floor" />}>
-        <SuiteBoard date={date} operations={getSchedule(date)} />
-      </Suspense>
+      <SuiteBoard date={date} roomId={room?.id ?? null} operations={getSchedule(date)} />
     </div>
   );
 }
