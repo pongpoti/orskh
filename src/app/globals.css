@@ -62,11 +62,127 @@ body {
   box-shadow: 0 10px 30px rgba(34, 49, 58, 0.08);
 }
 
+/* Unlayered like .glass, so it wins over the Tailwind shadow utilities. */
+.glass-bar {
+  box-shadow:
+    0 1px 0 rgba(34, 49, 58, 0.06),
+    0 6px 18px rgba(34, 49, 58, 0.05);
+}
+
 .room-sheet.glass {
   background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(16px) saturate(1.2) brightness(1.05);
   -webkit-backdrop-filter: blur(16px) saturate(1.2) brightness(1.05);
   box-shadow: 0 12px 34px rgba(34, 49, 58, 0.1);
+}
+
+@media (max-width: 1023.98px) {
+  .room-sheet.glass {
+    box-shadow: 0 -10px 30px rgba(34, 49, 58, 0.14);
+  }
+}
+
+/* On phones the sheet covers the bottom of the board. Its height is published
+   as --sheet-h so the plan shrinks to the space left above it. */
+.plan-stage {
+  padding-bottom: calc(0.75rem + var(--sheet-h, 0px));
+}
+
+@media (min-width: 1024px) {
+  .plan-stage {
+    padding-bottom: 0.75rem;
+  }
+}
+
+@layer components {
+  .btn {
+    display: inline-flex;
+    min-height: 2.75rem;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.75rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition:
+      background-color 0.15s ease,
+      transform 0.15s ease,
+      opacity 0.15s ease;
+  }
+  .btn:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+  .btn:focus-visible {
+    outline: 2px solid var(--fp-active);
+    outline-offset: 2px;
+  }
+  .btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+  }
+  .btn-primary {
+    background: var(--fp-label);
+    color: #fff;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: #173b36;
+  }
+  .btn-secondary {
+    border: 1px solid color-mix(in srgb, var(--fp-ink) 15%, transparent);
+    background: rgba(255, 255, 255, 0.7);
+    color: var(--fp-ink);
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background: #fff;
+  }
+
+  .field {
+    margin-top: 0.25rem;
+    min-height: 2.75rem;
+    width: 100%;
+    appearance: none;
+    border-radius: 0.75rem;
+    border: 1px solid color-mix(in srgb, var(--fp-ink) 15%, transparent);
+    background-color: #fff;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235a666e' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-repeat: no-repeat;
+    padding: 0.5rem 2.5rem 0.5rem 0.75rem;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+  .field:hover {
+    border-color: color-mix(in srgb, var(--fp-ink) 30%, transparent);
+  }
+  .field:focus-visible {
+    border-color: var(--fp-active);
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--fp-active) 25%, transparent);
+  }
+}
+
+dialog[open] {
+  animation: dialog-in 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+dialog[open]::backdrop {
+  animation: backdrop-in 0.18s ease-out;
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
 }
 
 .brand-glow {
@@ -110,12 +226,16 @@ body {
 .fp-recovery.is-static,
 .fp-recovery.is-static .fp-floor { cursor: default; }
 .fp-or .fp-floor { fill: var(--fp-or); transition: fill 0.15s ease; }
-.fp-or:hover .fp-floor { fill: var(--fp-or-hover); }
+/* Hover only where a pointer exists, so a tap does not leave the room tinted. */
+@media (hover: hover) {
+  .fp-or:hover .fp-floor { fill: var(--fp-or-hover); }
+  .fp-recovery:not(.is-static):hover .fp-floor { fill: var(--fp-recovery-hover); }
+}
+.fp-or:active .fp-floor { fill: var(--fp-or-hover); }
 .fp-or.is-selected .fp-floor { fill: var(--fp-or-selected); }
 .fp-or.is-selected .fp-wall,
 .fp-or:focus-visible .fp-wall { stroke: var(--fp-label); stroke-width: 6; }
 .fp-recovery .fp-floor { fill: var(--fp-recovery); }
-.fp-recovery:not(.is-static):hover .fp-floor { fill: var(--fp-recovery-hover); }
 .fp-recovery.is-selected .fp-floor { fill: var(--fp-recovery-selected); }
 .fp-recovery.is-selected .fp-wall,
 .fp-recovery:focus-visible .fp-wall { stroke: #4c3d73; stroke-width: 6; }
@@ -146,7 +266,13 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .fp-or .fp-floor,
   .fp-recovery .fp-floor,
-  .room-sheet {
+  .room-sheet,
+  .btn,
+  .field {
     transition: none;
+  }
+  dialog[open],
+  dialog[open]::backdrop {
+    animation: none;
   }
 }

@@ -59,7 +59,7 @@ export function FloorPlan({
                   className={mark === "active" ? "fp-mark fp-mark-active" : "fp-mark fp-mark-delayed"}
                   cx={room.labelX}
                   cy={room.labelY + 48}
-                  r="12"
+                  r="15"
                 />
               ) : null}
             </g>

@@ -31,13 +31,13 @@ export default async function LoginPage({
   const configured = lineLoginConfigured();
 
   return (
-    <main className="flex h-dvh items-center justify-center overflow-y-auto overscroll-contain bg-floor px-4">
-      <div className="glass w-full max-w-md rounded-3xl border border-white/50 p-8 text-center">
+    <main className="flex h-dvh overflow-y-auto overscroll-contain bg-floor px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+      <div className="glass m-auto w-full max-w-md rounded-3xl border border-white/60 p-6 sm:p-8 text-center">
         <p className="brand-glow text-xl font-semibold tracking-[0.04em] text-label">ORSKH.APP</p>
         <h1 className="mt-3 text-2xl font-semibold">ตารางห้องผ่าตัด</h1>
         <p className="mt-2 text-sm leading-6 text-muted">เข้าสู่ระบบ เพื่อดูเคสผ่าตัดของวันนี้</p>
         {error ? (
-          <p className="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-950" role="alert">
+          <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950" role="alert">
             {error}
           </p>
         ) : null}
