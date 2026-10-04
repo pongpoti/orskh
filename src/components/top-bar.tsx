@@ -44,12 +44,9 @@ export function TopBar({
     <header className="glass z-30 flex flex-col gap-2 border-b border-white/40 px-4 py-3">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <Link href={boardHref(today, null, pathname)} className="text-lg font-semibold tracking-tight text-label">
-            orskh
+          <Link href={boardHref(today, null, pathname)} className="brand-glow text-lg font-semibold tracking-[0.04em] text-label">
+            ORSKH.APP
           </Link>
-          <span className="truncate rounded-full bg-amber-100/80 px-2 py-0.5 text-xs font-medium text-amber-950">
-            ตารางตัวอย่าง
-          </span>
         </div>
         <div className="flex min-w-0 items-center gap-3 text-sm">
           <span className="flex min-w-0 items-center gap-2">
