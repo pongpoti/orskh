@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ProfileAvatar } from "@/components/profile-avatar";
 import { SignOutButton } from "@/components/sign-out-button";
-import { boardHref, formatThaiDate, shiftDate } from "@/lib/dates";
+import { boardHref, formatThaiDate } from "@/lib/dates";
 
 function profileImageSrc(image: string | null | undefined): string | null {
   if (!image) return null;
@@ -20,9 +20,7 @@ export function TopBar({
   name,
   image,
   detail,
-  date,
   today,
-  roomId,
   updatedAt,
   pathname = "/",
   showAccount = true,
@@ -30,9 +28,7 @@ export function TopBar({
   name: string;
   image?: string | null;
   detail?: string;
-  date: string;
   today: string;
-  roomId: string | null;
   updatedAt: string;
   pathname?: string;
   showAccount?: boolean;
@@ -62,18 +58,7 @@ export function TopBar({
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-        <Link className="text-label underline-offset-2 hover:underline" href={boardHref(shiftDate(date, -1), roomId, pathname)}>
-          วันก่อน
-        </Link>
-        <span className="font-medium">{formatThaiDate(date)}</span>
-        <Link className="text-label underline-offset-2 hover:underline" href={boardHref(shiftDate(date, 1), roomId, pathname)}>
-          วันถัดไป
-        </Link>
-        {date !== today ? (
-          <Link className="rounded-full bg-or/80 px-2 py-0.5 text-label" href={boardHref(today, roomId, pathname)}>
-            วันนี้
-          </Link>
-        ) : null}
+        <span className="font-medium">{formatThaiDate(today)}</span>
         <span className="text-muted">อัปเดต {updatedAt}</span>
       </div>
     </header>

@@ -60,7 +60,7 @@ export function boardHref(
   pathname = "/",
 ): string {
   const query = new URLSearchParams();
-  query.set("date", date);
   if (room) query.set("room", room);
-  return `${pathname}?${query.toString()}`;
+  const qs = query.toString();
+  return qs ? `${pathname}?${qs}` : pathname;
 }
