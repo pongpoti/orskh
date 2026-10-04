@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans_Thai } from "next/font/google";
 import "./globals.css";
 
@@ -15,10 +15,18 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+};
+
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="th" className={`${plex.variable} h-full antialiased`}>
-      <body className="min-h-full bg-floor font-sans text-ink">{children}</body>
+    <html lang="th" className={`${plex.variable} h-full overflow-hidden antialiased`}>
+      <body className="h-full overflow-hidden touch-manipulation bg-floor font-sans text-ink">{children}</body>
     </html>
   );
 }

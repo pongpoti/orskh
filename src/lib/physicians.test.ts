@@ -10,10 +10,13 @@ test("physician list matches the supplied departments", () => {
     obgyn: 13,
     ent: 8,
     eye: 7,
+    anesthesia: 7,
   });
   const people = listPhysicians();
-  assert.equal(people.length, 76);
-  assert.equal(new Set(people.map((person) => person.id)).size, 76);
+  assert.equal(people.length, 83);
+  assert.equal(new Set(people.map((person) => person.id)).size, 83);
   assert.equal(getPhysician("orthopedic-1")?.name, "เฉลิมพล กินรี");
+  assert.equal(getPhysician("anesthesia-1")?.name, "ชุลีพร สายยืนยง");
+  assert.equal(getPhysician("anesthesia-7")?.name, "รวิจิต ชวิตรานุรักษ์");
   assert.equal(getPhysician("missing"), null);
 });
