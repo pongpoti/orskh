@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { startTransition, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { FloorPlan } from "@/components/floor-plan";
 import { allocationFor, type Department } from "@/lib/allocation";
 import { boardHref } from "@/lib/dates";
@@ -17,31 +17,74 @@ const STATUS_LABEL: Record<CaseStatus, string> = {
   recovery: "พักฟื้น",
 };
 
-const STATUS_PILL: Record<CaseStatus, string> = {
-  scheduled: "bg-slate-100 text-slate-700",
-  "in-progress": "bg-[#d7efe8] text-label",
-  delayed: "bg-amber-100 text-amber-950",
-  done: "bg-slate-100 text-slate-600",
-  cancelled: "bg-slate-100 text-slate-600",
-  recovery: "bg-[#efe8fb] text-[#4c3d73]",
+/** 16px glyphs inside a circle; each status has its own so colour is never the only cue. */
+const STATUS_ICON: Record<CaseStatus, ReactNode> = {
+  scheduled: (
+    <>
+      <circle cx="8" cy="8" r="6" />
+      <path d="M8 4.9V8l2.2 1.4" />
+    </>
+  ),
+  "in-progress": (
+    <>
+      <circle cx="8" cy="8" r="6" />
+      <circle cx="8" cy="8" r="2.2" fill="currentColor" stroke="none" />
+    </>
+  ),
+  delayed: (
+    <>
+      <circle cx="8" cy="8" r="6" />
+      <path d="M6.5 5.6v4.8M9.5 5.6v4.8" />
+    </>
+  ),
+  done: (
+    <>
+      <circle cx="8" cy="8" r="6" />
+      <path d="M5.4 8.2l1.8 1.8 3.4-3.6" />
+    </>
+  ),
+  cancelled: (
+    <>
+      <circle cx="8" cy="8" r="6" />
+      <path d="M5.8 5.8l4.4 4.4M10.2 5.8l-4.4 4.4" />
+    </>
+  ),
+  recovery: (
+    <>
+      <circle cx="8" cy="8" r="6" />
+      <path d="M8 5.2v5.6M5.2 8h5.6" />
+    </>
+  ),
 };
 
-const STATUS_CARD: Record<CaseStatus, string> = {
-  scheduled: "border-l-or bg-white/70",
-  "in-progress": "border-l-active bg-[#eef8f5]",
-  delayed: "border-l-delayed bg-amber-50/70",
-  done: "border-l-ink/20 bg-white/50",
-  cancelled: "border-l-ink/10 bg-white/50",
-  recovery: "border-l-[#8b74c9] bg-[#f6f2fc]",
-};
+function StatusBadge({ status }: { status: CaseStatus }) {
+  return (
+    <span className={`badge badge-${status}`}>
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 16 16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        {STATUS_ICON[status]}
+      </svg>
+      {STATUS_LABEL[status]}
+    </span>
+  );
+}
 
 function Owner({ dept, part }: { dept: Department | null; part?: string }) {
   return (
-    <span className="flex items-center gap-1.5">
-      {part ? <span className="text-muted">{part}</span> : null}
+    <span className="flex items-center gap-2">
+      {part ? <span className="w-8 shrink-0 text-muted">{part}</span> : null}
       {dept ? (
         <>
-          <span aria-hidden className="size-3 shrink-0 rounded-[4px] ring-1 ring-ink/20" style={{ background: dept.color }} />
+          <span aria-hidden className="size-3.5 shrink-0 rounded ring-1 ring-ink/30" style={{ background: dept.color }} />
           {dept.name}
         </>
       ) : (
@@ -121,7 +164,7 @@ export function SuiteBoard({
   const allocation = room ? allocationFor(room.id, date) : null;
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
+    <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="flex min-h-0 flex-1 justify-center overflow-hidden p-3">
           <FloorPlan selectedId={selectedId} marks={marks} date={date} onSelect={onSelect} />
@@ -138,18 +181,19 @@ export function SuiteBoard({
       ) : null}
 
       <aside
-        className={`room-sheet glass z-20 flex min-h-0 flex-col max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:max-h-[50dvh] max-lg:rounded-t-3xl max-lg:border-t max-lg:border-white/60 lg:static lg:h-full lg:w-96 lg:shrink-0 lg:border-l lg:border-ink/10 ${room ? "is-open" : "max-lg:pointer-events-none"}`}
+        aria-label="รายการผ่าตัดของห้อง"
+        className={`room-sheet z-20 flex min-h-0 flex-col max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:max-h-[50dvh] max-lg:rounded-t-[1.25rem] lg:static lg:h-full lg:w-96 lg:shrink-0 ${room ? "is-open" : "max-lg:pointer-events-none"}`}
       >
         {room ? (
           <div className="flex min-h-0 flex-1 flex-col">
-            <span aria-hidden className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-ink/15 lg:hidden" />
-            <div className="flex items-center justify-between gap-3 border-b border-ink/10 px-5 pt-2 pb-3 lg:py-4">
-              <div>
-                <h2 ref={headingRef} tabIndex={-1} className="text-xl leading-tight font-semibold text-label outline-none">
+            <span aria-hidden className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-line-strong lg:hidden" />
+            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-line px-5 pt-2 pb-3.5 lg:py-4">
+              <div className="min-w-0">
+                <h2 ref={headingRef} tabIndex={-1} className="text-xl leading-tight font-bold text-ink outline-none">
                   {roomLabel(room)}
                 </h2>
                 {allocation ? (
-                  <div className="mt-0.5 text-sm font-medium">
+                  <div className="mt-1 space-y-0.5 text-sm font-medium text-ink-2">
                     {allocation.split ? (
                       <>
                         <Owner part="เช้า" dept={allocation.am} />
@@ -160,48 +204,55 @@ export function SuiteBoard({
                     )}
                   </div>
                 ) : null}
-                <p className="text-sm text-muted">{cases.length} รายการ</p>
+                <p className="mt-0.5 text-sm text-muted">{cases.length} รายการ</p>
               </div>
-              <button type="button" className="btn btn-secondary min-h-10 px-4 lg:hidden" onClick={() => choose(null)}>
-                ปิด
+              <button
+                type="button"
+                className="btn btn-secondary size-11 min-h-0 shrink-0 p-0 lg:hidden"
+                aria-label="ปิด"
+                title="ปิด"
+                onClick={() => choose(null)}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
               </button>
             </div>
             {cases.length === 0 ? (
               <p className="px-5 py-8 pb-[max(2rem,env(safe-area-inset-bottom))] text-sm text-muted">ไม่มีรายการในวันนี้</p>
             ) : (
-              <ol className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-                {cases.map((item) => {
-                  const cancelled = item.status === "cancelled";
-                  return (
-                    <li key={item.id} className={`rounded-xl border border-l-4 border-ink/10 px-3 py-2.5 ${STATUS_CARD[item.status]}`}>
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm font-medium tabular-nums">{item.start}–{item.end}</p>
-                        <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_PILL[item.status]}`}>
-                          {STATUS_LABEL[item.status]}
-                        </span>
-                      </div>
-                      <p className={`mt-1 font-medium ${cancelled ? "text-muted line-through" : ""}`}>{item.procedure}</p>
-                      <p className="text-sm text-muted">{item.surgeon}</p>
-                    </li>
-                  );
-                })}
+              <ol className="min-h-0 flex-1 divide-y divide-line overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)]">
+                {cases.map((item) => (
+                  <li key={item.id} data-status={item.status} className="case-row">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-semibold text-ink tabular-nums">
+                        {item.start}–{item.end}
+                      </p>
+                      <StatusBadge status={item.status} />
+                    </div>
+                    <p className={`mt-1.5 font-semibold ${item.status === "cancelled" ? "text-muted line-through" : "text-ink"}`}>
+                      {item.procedure}
+                    </p>
+                    <p className="text-sm text-muted">{item.surgeon}</p>
+                  </li>
+                ))}
               </ol>
             )}
           </div>
         ) : (
           <div className="hidden flex-1 flex-col items-center justify-center gap-3 px-8 text-center lg:flex">
-            <span aria-hidden className="flex size-12 items-center justify-center rounded-full bg-or/60 text-label">
+            <span aria-hidden className="flex size-12 items-center justify-center rounded-full bg-brand-tint text-brand">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 3l14 7-6 2.2L10.8 19z" />
               </svg>
             </span>
             <div>
-              <p className="font-medium">เลือกห้องบนแปลน</p>
+              <p className="font-semibold text-ink">เลือกห้องบนแปลน</p>
               <p className="mt-1 text-sm text-muted">OR 1–13 แสดงรายการของวันนี้</p>
             </div>
           </div>
         )}
       </aside>
-    </div>
+    </main>
   );
 }

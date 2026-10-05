@@ -9,7 +9,7 @@ export function ProfileAvatar({ src, initial }: { src: string | null; initial: s
     return (
       <span
         aria-hidden
-        className="flex size-8 shrink-0 items-center justify-center rounded-full bg-or text-xs font-medium text-label"
+        className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-tint text-sm font-semibold text-brand ring-1 ring-line"
       >
         {initial}
       </span>
@@ -17,12 +17,13 @@ export function ProfileAvatar({ src, initial }: { src: string | null; initial: s
   }
 
   return (
+    // eslint-disable-next-line @next/next/no-img-element -- LINE profile pictures come from arbitrary hosts
     <img
       src={src}
       alt=""
       referrerPolicy="no-referrer"
       onError={() => setFailed(true)}
-      className="size-8 shrink-0 rounded-full object-cover"
+      className="size-9 shrink-0 rounded-full object-cover ring-1 ring-line"
     />
   );
 }

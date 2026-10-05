@@ -4,6 +4,7 @@ import {
   allocationFor,
   allocationText,
   DEPARTMENTS,
+  INK,
   readableTextOn,
   weekdayIndex,
   weekOfMonth,
@@ -103,7 +104,7 @@ test("keeps the report's colours and plan labels", () => {
   assert.equal(DEPARTMENTS.GENSX.color, "#0E5E6F");
   assert.equal(DEPARTMENTS.URO.color, "#3FA37A");
   assert.equal(DEPARTMENTS.INFECT.label, "dressing");
-  assert.equal(DEPARTMENTS.EMER.label, "ฉุกเฉิน");
+  assert.equal(DEPARTMENTS.EMER.label, "EMER");
   assert.equal(DEPARTMENTS.PLASTIC.label, "PLASTIC");
 });
 
@@ -111,9 +112,24 @@ test("picks white or ink text, whichever reads better", () => {
   assert.equal(readableTextOn("#0E5E6F"), "#ffffff");
   assert.equal(readableTextOn("#1D3F8F"), "#ffffff");
   assert.equal(readableTextOn("#B3261E"), "#ffffff");
-  assert.equal(readableTextOn("#C9D86A"), "#22313a");
-  assert.equal(readableTextOn("#E3A21A"), "#22313a");
-  assert.equal(readableTextOn("#E3E8EA"), "#22313a");
+  assert.equal(readableTextOn("#C9D86A"), INK);
+  assert.equal(readableTextOn("#E3A21A"), INK);
+  assert.equal(readableTextOn("#E3E8EA"), INK);
+});
+
+test("every department label meets 4.5:1 contrast", () => {
+  const luminance = (hex: string) => {
+    const [r, g, b] = [1, 3, 5].map((i) => {
+      const v = parseInt(hex.slice(i, i + 2), 16) / 255;
+      return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  for (const dept of Object.values(DEPARTMENTS)) {
+    const text = readableTextOn(dept.color);
+    const [a, b] = [luminance(dept.color), luminance(text)].sort((x, y) => y - x);
+    assert.ok((a + 0.05) / (b + 0.05) >= 4.5, `${dept.code} ${dept.color} with ${text}`);
+  }
 });
 
 test("room outlines enclose their label point", () => {

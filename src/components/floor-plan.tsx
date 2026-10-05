@@ -9,56 +9,96 @@ import type { RoomMark } from "@/lib/schedule";
 /** Weekday room that the schedule leaves unallocated. */
 const UNALLOCATED_FILL = "#e8ecee";
 
+const MARK_LABEL: Record<Exclude<RoomMark, null>, string> = {
+  active: "กำลังใช้งาน",
+  delayed: "มีเคสเลื่อน",
+};
+
 function floorFill(room: Room, allocation: RoomAllocation | null): string | undefined {
   if (!allocation) return undefined;
   if (allocation.split) return `url(#fp-split-${room.id})`;
   return allocation.am?.color ?? UNALLOCATED_FILL;
 }
 
-function DeptText({ x, y, dept, size }: { x: number; y: number; dept: Department | null; size: number }) {
+/** Rough advance of a bold label glyph, in em: capitals are wide, lowercase and Thai are narrower. */
+function advance(text: string): number {
+  return /^[A-Z]+$/.test(text) ? 0.72 : 0.58;
+}
+
+/** Largest font size, up to `max`, at which `text` still fits `width`. */
+function fitSize(text: string, width: number, max: number, min: number): number {
+  return Math.max(min, Math.min(max, width / (advance(text) * text.length)));
+}
+
+function DeptText({
+  x,
+  y,
+  dept,
+  width,
+  max,
+  min,
+}: {
+  x: number;
+  y: number;
+  dept: Department | null;
+  width: number;
+  max: number;
+  min: number;
+}) {
+  const text = dept ? dept.label : "ไม่จัดสรร";
   return (
     <text
       className="fp-dept"
       x={x}
       y={y}
       dy="0.35em"
-      style={{ fontSize: size, fill: dept ? readableTextOn(dept.color) : "var(--fp-muted)" }}
+      style={{ fontSize: fitSize(text, width, max, min), fill: dept ? readableTextOn(dept.color) : "var(--fp-muted)" }}
     >
-      {dept ? dept.label : "ไม่จัดสรร"}
+      {text}
     </text>
   );
 }
 
 /** Room number in a white badge, with the owning department(s) beside it. */
 function RoomLabel({ room, allocation }: { room: Room; allocation: RoomAllocation | null }) {
-  const { minY, maxY } = roomBounds(room);
+  const { minX, maxX, minY, maxY } = roomBounds(room);
   const { labelX: x, labelY: y } = room;
+  const width = maxX - minX - 48;
 
   if (allocation?.split) {
     // Two bands (morning above, afternoon below) with the badge on the seam.
-    const radius = 30;
+    const radius = 32;
     return (
       <>
-        <DeptText x={x} y={(minY + (y - radius)) / 2} dept={allocation.am} size={28} />
-        <DeptText x={x} y={(y + radius + maxY) / 2} dept={allocation.pm} size={28} />
+        <DeptText x={x} y={(minY + (y - radius)) / 2} dept={allocation.am} width={width} max={30} min={22} />
+        <DeptText x={x} y={(y + radius + maxY) / 2} dept={allocation.pm} width={width} max={30} min={22} />
         <circle className="fp-badge" cx={x} cy={y} r={radius} />
-        <text className="fp-label" x={x} y={y} dy="0.35em" style={{ fontSize: 38 }}>
+        <text className="fp-label" x={x} y={y} dy="0.35em" style={{ fontSize: 40 }}>
           {room.number}
         </text>
       </>
     );
   }
 
-  const badgeY = allocation ? y - 30 : y;
+  const badgeY = allocation ? y - 32 : y;
   return (
     <>
-      <circle className="fp-badge" cx={x} cy={badgeY} r={38} />
+      <circle className="fp-badge" cx={x} cy={badgeY} r={42} />
       <text className="fp-label" x={x} y={badgeY} dy="0.35em">
         {room.number}
       </text>
-      {allocation ? <DeptText x={x} y={y + 44} dept={allocation.am} size={allocation.am ? 32 : 28} /> : null}
+      {allocation ? (
+        <DeptText x={x} y={y + 48} dept={allocation.am} width={width} max={allocation.am ? 38 : 30} min={24} />
+      ) : null}
     </>
   );
+}
+
+/** Live is a circle and delayed is a diamond, so the two differ by shape as well as by colour. */
+function StatusMark({ kind, cx, cy }: { kind: Exclude<RoomMark, null>; cx: number; cy: number }) {
+  if (kind === "active") return <circle className="fp-mark fp-mark-active" cx={cx} cy={cy} r={16} />;
+  const d = 20;
+  return <path className="fp-mark fp-mark-delayed" d={`M${cx} ${cy - d}L${cx + d} ${cy}L${cx} ${cy + d}L${cx - d} ${cy}Z`} />;
 }
 
 export function FloorPlan({
@@ -100,7 +140,9 @@ export function FloorPlan({
           const allocation = allocations[room.id] ?? null;
           const fill = floorFill(room, allocation);
           const bounds = roomBounds(room);
-          const name = allocation ? `${roomLabel(room)} ${allocationText(allocation)}` : roomLabel(room);
+          const parts = [roomLabel(room)];
+          if (allocation) parts.push(allocationText(allocation));
+          if (mark && selectable) parts.push(MARK_LABEL[mark]);
           return (
             <g
               key={room.id}
@@ -115,7 +157,7 @@ export function FloorPlan({
                 role={selectable ? "button" : undefined}
                 tabIndex={selectable ? 0 : undefined}
                 aria-pressed={selectable ? selected : undefined}
-                aria-label={selectable ? name : undefined}
+                aria-label={selectable ? parts.join(" · ") : undefined}
                 aria-hidden={selectable ? undefined : true}
                 onClick={selectable ? () => onSelect(room.id) : undefined}
                 onKeyDown={
@@ -132,11 +174,10 @@ export function FloorPlan({
               <path className="fp-wall" d={room.d} pointerEvents="none" />
               {room.kind === "or" ? <RoomLabel room={room} allocation={allocation} /> : null}
               {mark && selectable ? (
-                <circle
-                  className={mark === "active" ? "fp-mark fp-mark-active" : "fp-mark fp-mark-delayed"}
+                <StatusMark
+                  kind={mark}
                   cx={bounds.maxX - 34}
                   cy={allocation?.split ? (bounds.minY + bounds.maxY) / 2 : bounds.minY + 34}
-                  r="15"
                 />
               ) : null}
             </g>

@@ -30,7 +30,7 @@ export type Department = {
   code: DeptCode;
   /** Full Thai name, as in the report's abbreviation key. */
   name: string;
-  /** Short text drawn on the plan. The report writes "dressing" and "ฉุกเฉิน" for ORs 1 and 8. */
+  /** Short text drawn on the plan: the code, except OR 1 which the report writes as "dressing". */
   label: string;
   color: string;
 };
@@ -55,7 +55,7 @@ export const DEPARTMENTS: Record<DeptCode, Department> = {
   CVT: dept("CVT", "ศัลยกรรมหัวใจและทรวงอก", "#9A9A94"),
   MAXILLO: dept("MAXILLO", "ศัลยกรรมแม๊กซิลโลเฟเชียล", "#E8825A"),
   INFECT: dept("INFECT", "ห้องติดเชื้อ / dressing", "#B3261E", "dressing"),
-  EMER: dept("EMER", "เคสฉุกเฉิน", "#B5179E", "ฉุกเฉิน"),
+  EMER: dept("EMER", "เคสฉุกเฉิน", "#B5179E"),
   MINOR: dept("MINOR", "หัตถการเล็ก (minor)", "#E3E8EA"),
 };
 
@@ -169,7 +169,8 @@ export function allocationText(allocation: RoomAllocation): string {
   return allocation.am?.name ?? "ไม่จัดสรร";
 }
 
-const INK = "#22313a";
+/** Same as the UI ink. Dark text on every department colour clears 4.5:1 at this value. */
+export const INK = "#14262c";
 
 function luminance(hex: string): number {
   const channel = (offset: number) => {

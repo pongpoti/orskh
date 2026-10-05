@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { registerStaff } from "@/app/register/actions";
+import { Notice } from "@/components/auth-shell";
 import { JOBS, PHYSICIAN_GROUPS, getPhysician, type JobId } from "@/lib/physicians";
 
 export function RegisterForm({ preview = false }: { preview?: boolean }) {
@@ -42,12 +43,12 @@ export function RegisterForm({ preview = false }: { preview?: boolean }) {
   return (
     <form
       ref={formRef}
-      className="mt-6 space-y-4"
+      className="mt-5 space-y-5"
       action={preview ? undefined : submitRegistration}
       onSubmit={requestConfirm}
     >
-      <label className="block text-sm">
-        <span className="font-medium">ตำแหน่ง</span>
+      <label className="block">
+        <span className="text-sm font-semibold text-ink">ตำแหน่ง</span>
         <select
           name="job"
           required
@@ -58,7 +59,7 @@ export function RegisterForm({ preview = false }: { preview?: boolean }) {
             if (next !== "physician") setPhysicianId("");
             setConfirmedPreview(false);
           }}
-          className="field"
+          className="field mt-1.5"
         >
           <option value="">เลือกตำแหน่ง</option>
           {JOBS.map((item) => (
@@ -70,8 +71,8 @@ export function RegisterForm({ preview = false }: { preview?: boolean }) {
       </label>
 
       {job === "physician" ? (
-        <label className="block text-sm">
-          <span className="font-medium">ชื่อแพทย์</span>
+        <label className="block">
+          <span className="text-sm font-semibold text-ink">ชื่อแพทย์</span>
           <select
             name="physicianId"
             required
@@ -80,7 +81,7 @@ export function RegisterForm({ preview = false }: { preview?: boolean }) {
               setPhysicianId(event.target.value);
               setConfirmedPreview(false);
             }}
-            className="field"
+            className="field mt-1.5"
           >
             <option value="">เลือกชื่อ</option>
             {PHYSICIAN_GROUPS.map((group) => (
@@ -97,47 +98,47 @@ export function RegisterForm({ preview = false }: { preview?: boolean }) {
       ) : null}
 
       {job === "nurse" ? (
-        <p className="rounded-xl bg-canvas px-3 py-3 text-sm text-muted">
-          ยังไม่มีรายชื่อพยาบาล จึงยังลงทะเบียนตำแหน่งนี้ไม่ได้
-        </p>
+        <Notice tone="info">ยังไม่มีรายชื่อพยาบาล จึงยังลงทะเบียนตำแหน่งนี้ไม่ได้</Notice>
       ) : null}
 
       {state?.error ? (
-        <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950" role="alert">
+        <Notice tone="warning" role="alert">
           {state.error}
-        </p>
+        </Notice>
       ) : null}
 
       {confirmedPreview && physician ? (
-        <p className="rounded-xl border border-active/20 bg-or/60 px-3 py-2 text-sm text-label" role="status">
+        <Notice tone="success" role="status">
           ยืนยันชื่อ {physician.name} แล้วในโหมดตัวอย่าง ยังไม่ได้บันทึก
-        </p>
+        </Notice>
       ) : null}
 
-      <button
-        type="submit"
-        disabled={!canSubmit || pending}
-        className="btn btn-primary w-full"
-      >
+      <button type="submit" disabled={!canSubmit || pending} className="btn btn-primary w-full">
         {pending ? "กำลังบันทึก" : "ลงทะเบียน"}
       </button>
 
       <dialog
         ref={dialogRef}
         aria-labelledby="confirm-title"
-        className="m-auto w-[min(24rem,calc(100%-2rem))] rounded-3xl border border-ink/10 bg-white p-6 shadow-[0_20px_50px_rgba(34,49,58,0.18)] backdrop:bg-ink/40 backdrop:backdrop-blur-[2px]"
+        className="m-auto w-[min(26rem,calc(100%-2rem))] rounded-2xl border border-line bg-surface p-6 text-ink shadow-[0_24px_60px_rgb(20_38_44/0.28)] backdrop:bg-ink/55"
       >
-        <h2 id="confirm-title" className="text-lg font-semibold">
+        <h2 id="confirm-title" className="text-lg font-bold">
           ยืนยันการลงทะเบียน
         </h2>
-        <p className="mt-3 text-sm leading-6">
-          คุณเลือกชื่อ <span className="font-medium">{physician?.name}</span>
-        </p>
-        <p className="text-sm leading-6 text-muted">สาขา {physician?.specialty}</p>
-        <p className="mt-2 text-sm leading-6 text-muted">
+        <dl className="mt-4 space-y-3 rounded-xl border border-line bg-surface-2 p-4 text-sm">
+          <div>
+            <dt className="text-muted">ชื่อที่เลือก</dt>
+            <dd className="mt-0.5 font-semibold text-ink">{physician?.name}</dd>
+          </div>
+          <div>
+            <dt className="text-muted">สาขา</dt>
+            <dd className="mt-0.5 font-semibold text-ink">{physician?.specialty}</dd>
+          </div>
+        </dl>
+        <p className="mt-4 text-sm leading-6 text-muted">
           ชื่อนี้จะผูกกับบัญชี LINE นี้ และครั้งถัดไปจะเข้าใช้งานได้เลย
         </p>
-        <div className="mt-6 flex justify-end gap-2">
+        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button
             type="button"
             autoFocus
@@ -147,12 +148,7 @@ export function RegisterForm({ preview = false }: { preview?: boolean }) {
           >
             กลับไปแก้
           </button>
-          <button
-            type="button"
-            disabled={pending}
-            onClick={confirm}
-            className="btn btn-primary"
-          >
+          <button type="button" disabled={pending} onClick={confirm} className="btn btn-primary">
             {pending ? "กำลังบันทึก" : "ยืนยัน"}
           </button>
         </div>
