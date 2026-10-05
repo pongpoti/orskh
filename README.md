@@ -4,6 +4,8 @@ Operating-suite board. Staff sign in with LINE, then pick a room on the floor pl
 
 The case list is sample data, marked **ตารางตัวอย่าง** on the board. It is not a live theatre system.
 
+Room colours and labels come from the weekly allocation table in the FY2569 utilisation report (`src/lib/allocation.ts`, schedule updated 5 Aug 2567): each OR takes its department's colour and code, ORs 7 and 9 are split morning/afternoon, and OR 5 alternates by week of the month. Weekends show plain rooms. The sample cases are not matched to the department that owns the room.
+
 ## Stack
 
 Next.js 16, React 19, Tailwind CSS 4, Auth.js (LINE Login), Neon Postgres.

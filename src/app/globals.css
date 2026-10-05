@@ -6,8 +6,6 @@
   --fp-canvas: #e8f3f0;
   --fp-outer: #f4eee2;
   --fp-or: #c9e4dd;
-  --fp-or-hover: #a8d3c9;
-  --fp-or-selected: #8ec9bb;
   --fp-recovery: #d9ccf0;
   --fp-recovery-hover: #c6b4e6;
   --fp-recovery-selected: #b79adf;
@@ -163,6 +161,10 @@ dialog[open]::backdrop {
   animation: backdrop-in 0.18s ease-out;
 }
 
+.scrim {
+  animation: backdrop-in 0.18s ease-out;
+}
+
 @keyframes dialog-in {
   from {
     opacity: 0;
@@ -216,16 +218,17 @@ dialog[open]::backdrop {
 .fp-recovery { cursor: pointer; }
 .fp-recovery.is-static,
 .fp-recovery.is-static .fp-floor { cursor: default; }
-.fp-or .fp-floor { fill: var(--fp-or); transition: fill 0.15s ease; }
+/* An OR takes its department's colour from --rf (set per room); mint when the schedule is silent. */
+.fp-or .fp-floor { fill: var(--rf, var(--fp-or)); transition: filter 0.15s ease; }
 /* Hover only where a pointer exists, so a tap does not leave the room tinted. */
 @media (hover: hover) {
-  .fp-or:hover .fp-floor { fill: var(--fp-or-hover); }
+  .fp-or:hover .fp-floor { filter: brightness(0.9); }
   .fp-recovery:not(.is-static):hover .fp-floor { fill: var(--fp-recovery-hover); }
 }
-.fp-or:active .fp-floor { fill: var(--fp-or-hover); }
-.fp-or.is-selected .fp-floor { fill: var(--fp-or-selected); }
+.fp-or:active .fp-floor { filter: brightness(0.9); }
+.fp-or.is-selected { filter: drop-shadow(0 0 9px rgb(34 49 58 / 0.5)); }
 .fp-or.is-selected .fp-wall,
-.fp-or:focus-visible .fp-wall { stroke: var(--fp-label); stroke-width: 6; }
+.fp-or:focus-visible .fp-wall { stroke: var(--fp-ink); stroke-width: 9; }
 .fp-recovery .fp-floor { fill: var(--fp-recovery); }
 .fp-recovery.is-selected .fp-floor { fill: var(--fp-recovery-selected); }
 .fp-recovery.is-selected .fp-wall,
@@ -239,18 +242,27 @@ dialog[open]::backdrop {
 .fp-wall.fp-outer { stroke-width: 8; }
 .fp-detail { fill: none; stroke: var(--fp-detail); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .fp-cab { fill: none; stroke: var(--fp-detail); stroke-width: 2; }
+/* Room number sits in a white badge so it reads on any department colour. */
+.fp-badge { fill: #fff; stroke: var(--fp-wall); stroke-width: 2.5; pointer-events: none; }
 .fp-label {
   font-family: var(--font-plex), "Noto Sans Thai", sans-serif;
-  font-size: 60px;
-  font-weight: 600;
+  font-size: 46px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
-  fill: var(--fp-label);
+  fill: var(--fp-ink);
+  text-anchor: middle;
+  pointer-events: none;
+}
+.fp-dept {
+  font-family: var(--font-plex), "Noto Sans Thai", sans-serif;
+  font-weight: 700;
   text-anchor: middle;
   pointer-events: none;
 }
 .fp-label-sm { font-size: 36px; fill: #4c3d73; }
 .fp-counter-top { fill: var(--fp-counter); stroke: var(--fp-counter-edge); stroke-width: 2; stroke-linejoin: round; }
-.fp-mark { stroke: #fff; stroke-width: 4; pointer-events: none; }
+/* The dark halo keeps the dot visible on any department colour. */
+.fp-mark { stroke: #fff; stroke-width: 5; filter: drop-shadow(0 0 2px rgb(34 49 58 / 0.6)); pointer-events: none; }
 .fp-mark-active { fill: var(--fp-active); }
 .fp-mark-delayed { fill: var(--fp-delayed); }
 
@@ -262,6 +274,7 @@ dialog[open]::backdrop {
   .field {
     transition: none;
   }
+  .scrim,
   dialog[open],
   dialog[open]::backdrop {
     animation: none;

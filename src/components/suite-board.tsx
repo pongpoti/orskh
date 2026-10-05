@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { FloorPlan } from "@/components/floor-plan";
+import { allocationFor, type Department } from "@/lib/allocation";
 import { boardHref } from "@/lib/dates";
 import { getRoom, isSelectableRoom, roomLabel } from "@/lib/rooms";
 import { casesForRoom, roomMark, type CaseStatus, type Operation } from "@/lib/schedule";
@@ -33,6 +34,22 @@ const STATUS_CARD: Record<CaseStatus, string> = {
   cancelled: "border-l-ink/10 bg-white/50",
   recovery: "border-l-[#8b74c9] bg-[#f6f2fc]",
 };
+
+function Owner({ dept, part }: { dept: Department | null; part?: string }) {
+  return (
+    <span className="flex items-center gap-1.5">
+      {part ? <span className="text-muted">{part}</span> : null}
+      {dept ? (
+        <>
+          <span aria-hidden className="size-3 shrink-0 rounded-[4px] ring-1 ring-ink/20" style={{ background: dept.color }} />
+          {dept.name}
+        </>
+      ) : (
+        <span className="text-muted">ไม่จัดสรร</span>
+      )}
+    </span>
+  );
+}
 
 export function SuiteBoard({
   date,
@@ -101,19 +118,20 @@ export function SuiteBoard({
   }
 
   const cases = room ? casesForRoom(operations, room.id) : [];
+  const allocation = room ? allocationFor(room.id, date) : null;
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="flex min-h-0 flex-1 justify-center overflow-hidden p-3">
-          <FloorPlan selectedId={selectedId} marks={marks} onSelect={onSelect} />
+          <FloorPlan selectedId={selectedId} marks={marks} date={date} onSelect={onSelect} />
         </div>
       </div>
 
       {room ? (
         <button
           type="button"
-          className="fixed inset-0 z-10 cursor-default bg-ink/10 lg:hidden"
+          className="scrim fixed inset-0 z-10 cursor-default bg-ink/50 lg:hidden"
           aria-label="ปิดรายการห้อง"
           onClick={() => choose(null)}
         />
@@ -130,6 +148,18 @@ export function SuiteBoard({
                 <h2 ref={headingRef} tabIndex={-1} className="text-xl leading-tight font-semibold text-label outline-none">
                   {roomLabel(room)}
                 </h2>
+                {allocation ? (
+                  <div className="mt-0.5 text-sm font-medium">
+                    {allocation.split ? (
+                      <>
+                        <Owner part="เช้า" dept={allocation.am} />
+                        <Owner part="บ่าย" dept={allocation.pm} />
+                      </>
+                    ) : (
+                      <Owner dept={allocation.am} />
+                    )}
+                  </div>
+                ) : null}
                 <p className="text-sm text-muted">{cases.length} รายการ</p>
               </div>
               <button type="button" className="btn btn-secondary min-h-10 px-4 lg:hidden" onClick={() => choose(null)}>

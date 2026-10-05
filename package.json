@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test src/lib/board.test.ts src/lib/access.test.ts src/lib/physicians.test.ts"
+    "test": "node --experimental-strip-types --test src/lib/board.test.ts src/lib/access.test.ts src/lib/physicians.test.ts src/lib/allocation.test.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",

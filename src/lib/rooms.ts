@@ -40,3 +40,25 @@ export function roomLabel(room: Room): string {
 export function isSelectableRoom(room: Room): boolean {
   return room.kind === "or";
 }
+
+export type RoomBounds = { minX: number; minY: number; maxX: number; maxY: number };
+
+const boundsCache = new Map<string, RoomBounds>();
+
+/** Bounding box of the room outline, read from its M/L path. */
+export function roomBounds(room: Room): RoomBounds {
+  const cached = boundsCache.get(room.id);
+  if (cached) return cached;
+
+  const numbers = (room.d.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
+  const xs = numbers.filter((_, index) => index % 2 === 0);
+  const ys = numbers.filter((_, index) => index % 2 === 1);
+  const bounds = {
+    minX: Math.min(...xs),
+    minY: Math.min(...ys),
+    maxX: Math.max(...xs),
+    maxY: Math.max(...ys),
+  };
+  boundsCache.set(room.id, bounds);
+  return bounds;
+}
