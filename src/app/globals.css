@@ -1,46 +1,86 @@
 @import "tailwindcss";
 
+/*
+ * Design tokens. One brand colour (the deep green of the app icon), a cool
+ * neutral scale, and status colours whose text clears 4.5:1 on their tint.
+ */
 :root {
-  --fp-floor: #f3f6f6;
-  /* Page background: the OR mint (#c9e4dd) at ~45% over white. */
-  --fp-canvas: #e8f3f0;
+  color-scheme: light;
+
+  --brand: #1b5e54;
+  --brand-strong: #134039;
+  --brand-tint: #e2f0ec;
+
+  --canvas: #ebf2f0;
+  --surface: #ffffff;
+  --surface-2: #f4f8f7;
+  --line: #d4dfdc;
+  --line-strong: #a9bab6;
+
+  --ink: #14262c;
+  --ink-2: #3a4f56;
+  --ink-3: #566a71;
+  --focus: #1d4ed8;
+
+  --live: #0b5d4f;
+  --live-tint: #dcf0ea;
+  --wait: #33474f;
+  --wait-tint: #e8eef0;
+  --late: #8a4b00;
+  --late-tint: #fdecd0;
+  --done: #4a5a60;
+  --done-tint: #eceff0;
+  --stop: #8a2a24;
+  --stop-tint: #fbe5e3;
+  --rest: #4c3d73;
+  --rest-tint: #eee8fa;
+
+  --shadow-sm: 0 1px 2px rgb(20 38 44 / 0.06), 0 1px 1px rgb(20 38 44 / 0.04);
+  --shadow-md: 0 4px 14px rgb(20 38 44 / 0.1), 0 1px 3px rgb(20 38 44 / 0.06);
+  --shadow-up: 0 -8px 28px rgb(20 38 44 / 0.18), 0 -1px 3px rgb(20 38 44 / 0.08);
+
+  /* Floor plan */
+  --fp-floor: #f4f7f7;
   --fp-outer: #f4eee2;
-  --fp-or: #c9e4dd;
-  --fp-or-hover: #a8d3c9;
-  --fp-or-selected: #8ec9bb;
+  --fp-or: #cfe3de;
   --fp-recovery: #d9ccf0;
   --fp-recovery-hover: #c6b4e6;
   --fp-recovery-selected: #b79adf;
   --fp-support: #e8ecee;
   --fp-core: #ffffff;
-  --fp-wall: #22313a;
+  --fp-wall: var(--ink);
   --fp-detail: #6e808a;
   --fp-grate-line: #bac7cc;
   --fp-shell: #dce4e6;
-  --fp-label: #1f4d46;
   --fp-counter: #7e8a92;
   --fp-counter-edge: #5a666e;
-  --fp-ink: #22313a;
-  --fp-muted: #5a666e;
-  --fp-active: #1f7a6b;
-  --fp-delayed: #c47b2b;
-  --background: var(--fp-canvas);
-  --foreground: var(--fp-ink);
+  --fp-ink: var(--ink);
+  --fp-muted: var(--ink-3);
+  --fp-active: #17806e;
+  --fp-delayed: #c8761a;
+
+  --background: var(--canvas);
+  --foreground: var(--ink);
 }
 
 @theme inline {
   --font-sans: var(--font-plex), "Noto Sans Thai", sans-serif;
-  --color-floor: var(--fp-floor);
-  --color-canvas: var(--fp-canvas);
-  --color-ink: var(--fp-ink);
-  --color-label: var(--fp-label);
-  --color-muted: var(--fp-muted);
-  --color-or: var(--fp-or);
-  --color-recovery: var(--fp-recovery);
-  --color-support: var(--fp-support);
-  --color-lobby: var(--fp-outer);
-  --color-active: var(--fp-active);
-  --color-delayed: var(--fp-delayed);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--ink-3);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-tint: var(--brand-tint);
+  --color-live: var(--live);
+  --color-live-tint: var(--live-tint);
+  --color-late: var(--late);
+  --color-late-tint: var(--late-tint);
+  --color-focus: var(--focus);
 }
 
 html,
@@ -56,36 +96,29 @@ body {
 body {
   background: var(--background);
   color: var(--foreground);
+  font-feature-settings: "tnum" 0;
 }
 
-.glass {
-  background: color-mix(in srgb, white 62%, transparent);
-  backdrop-filter: blur(16px) saturate(1.25);
-  -webkit-backdrop-filter: blur(16px) saturate(1.25);
-  box-shadow: 0 10px 30px rgba(34, 49, 58, 0.08);
-}
-
-/* Unlayered like .glass, so it wins over the Tailwind shadow utilities. */
-.glass-bar {
-  box-shadow:
-    0 1px 0 rgba(34, 49, 58, 0.06),
-    0 6px 18px rgba(34, 49, 58, 0.05);
-}
-
-.room-sheet.glass {
-  background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(16px) saturate(1.2) brightness(1.05);
-  -webkit-backdrop-filter: blur(16px) saturate(1.2) brightness(1.05);
-  box-shadow: 0 12px 34px rgba(34, 49, 58, 0.1);
-}
-
-@media (max-width: 1023.98px) {
-  .room-sheet.glass {
-    box-shadow: 0 -10px 30px rgba(34, 49, 58, 0.14);
-  }
+/* One focus indicator for everything interactive (tabindex=-1 targets such as the card heading are not controls): a blue ring that stays visible on teal, white and tinted surfaces. */
+:where(a, button, select, input, textarea, [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
 }
 
 @layer components {
+  .appbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 1rem;
+    box-shadow: var(--shadow-md);
+  }
+
   .btn {
     display: inline-flex;
     min-height: 2.75rem;
@@ -93,66 +126,104 @@ body {
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    border-radius: 0.75rem;
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-    font-weight: 500;
+    border-radius: 0.625rem;
+    padding: 0.5rem 1.125rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    line-height: 1.25;
+    -webkit-tap-highlight-color: transparent;
     transition:
       background-color 0.15s ease,
-      transform 0.15s ease,
-      opacity 0.15s ease;
+      border-color 0.15s ease,
+      transform 0.1s ease;
   }
   .btn:active:not(:disabled) {
-    transform: scale(0.97);
-  }
-  .btn:focus-visible {
-    outline: 2px solid var(--fp-active);
-    outline-offset: 2px;
+    transform: translateY(1px);
   }
   .btn:disabled {
     cursor: not-allowed;
-    opacity: 0.4;
+    opacity: 0.5;
   }
   .btn-primary {
-    background: var(--fp-label);
+    background: var(--brand);
     color: #fff;
+    box-shadow: var(--shadow-sm);
   }
   .btn-primary:hover:not(:disabled) {
-    background: #173b36;
+    background: var(--brand-strong);
   }
   .btn-secondary {
-    border: 1px solid color-mix(in srgb, var(--fp-ink) 15%, transparent);
-    background: rgba(255, 255, 255, 0.7);
-    color: var(--fp-ink);
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--line-strong);
   }
   .btn-secondary:hover:not(:disabled) {
-    background: #fff;
+    background: var(--surface-2);
+    border-color: var(--ink-3);
   }
 
+  /* 16px text keeps iOS from zooming the page when a field is focused. */
   .field {
-    margin-top: 0.25rem;
     min-height: 2.75rem;
     width: 100%;
     appearance: none;
-    border-radius: 0.75rem;
-    border: 1px solid color-mix(in srgb, var(--fp-ink) 15%, transparent);
-    background-color: #fff;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235a666e' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-    background-position: right 0.75rem center;
+    border-radius: 0.625rem;
+    border: 1px solid var(--line-strong);
+    background-color: var(--surface);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23566a71' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-position: right 0.875rem center;
     background-repeat: no-repeat;
-    padding: 0.5rem 2.5rem 0.5rem 0.75rem;
-    transition:
-      border-color 0.15s ease,
-      box-shadow 0.15s ease;
+    padding: 0.5rem 2.5rem 0.5rem 0.875rem;
+    font-size: 1rem;
+    color: var(--ink);
+    transition: border-color 0.15s ease;
   }
   .field:hover {
-    border-color: color-mix(in srgb, var(--fp-ink) 30%, transparent);
+    border-color: var(--ink-3);
   }
-  .field:focus-visible {
-    border-color: var(--fp-active);
-    outline: none;
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--fp-active) 25%, transparent);
+
+  /* Status pills carry an icon and a word, so colour is never the only signal. */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    border-radius: 999px;
+    padding: 0.125rem 0.625rem 0.125rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.25rem;
+    white-space: nowrap;
   }
+  .badge-scheduled { background: var(--wait-tint); color: var(--wait); }
+  .badge-in-progress { background: var(--live-tint); color: var(--live); }
+  .badge-delayed { background: var(--late-tint); color: var(--late); }
+  .badge-done { background: var(--done-tint); color: var(--done); }
+  .badge-cancelled { background: var(--stop-tint); color: var(--stop); }
+  .badge-recovery { background: var(--rest-tint); color: var(--rest); }
+
+  .case-row {
+    border-left: 4px solid var(--line-strong);
+    padding: 0.875rem 1.25rem 0.875rem 1rem;
+  }
+  .case-row[data-status="in-progress"] { border-left-color: var(--live); background: color-mix(in srgb, var(--live-tint) 55%, var(--surface)); }
+  .case-row[data-status="delayed"] { border-left-color: var(--late); }
+  .case-row[data-status="done"] { border-left-color: var(--line); }
+  .case-row[data-status="cancelled"] { border-left-color: var(--stop); }
+  .case-row[data-status="recovery"] { border-left-color: var(--rest); }
+
+  .notice {
+    display: flex;
+    gap: 0.625rem;
+    border: 1px solid;
+    border-radius: 0.75rem;
+    padding: 0.75rem 0.875rem;
+    font-size: 0.875rem;
+    line-height: 1.45;
+  }
+  .notice > svg { margin-top: 0.1rem; flex: none; }
+  .notice-warning { background: #fff6e6; border-color: #f0cf94; color: #5c3a00; }
+  .notice-info { background: var(--surface-2); border-color: var(--line); color: var(--ink-2); }
+  .notice-success { background: var(--live-tint); border-color: #a9d8cb; color: var(--live); }
 }
 
 dialog[open] {
@@ -160,6 +231,10 @@ dialog[open] {
 }
 
 dialog[open]::backdrop {
+  animation: backdrop-in 0.18s ease-out;
+}
+
+.scrim {
   animation: backdrop-in 0.18s ease-out;
 }
 
@@ -176,16 +251,8 @@ dialog[open]::backdrop {
   }
 }
 
-.brand-glow {
-  color: var(--fp-label);
-  text-shadow:
-    0 0 6px color-mix(in srgb, #8ec9bb 85%, transparent),
-    0 0 16px color-mix(in srgb, #8ec9bb 65%, transparent),
-    0 0 32px color-mix(in srgb, #c9e4dd 80%, transparent),
-    0 0 48px color-mix(in srgb, #a8d3c9 55%, transparent);
-}
-
 .room-sheet {
+  background: var(--surface);
   transform: translate3d(0, 100%, 0);
   transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
   will-change: transform;
@@ -196,11 +263,19 @@ dialog[open]::backdrop {
   transform: translate3d(0, 0, 0);
 }
 
+@media (max-width: 1023.98px) {
+  .room-sheet {
+    border-top: 1px solid var(--line);
+    box-shadow: var(--shadow-up);
+  }
+}
+
 @media (min-width: 1024px) {
   .room-sheet {
     transform: none;
     transition: none;
     will-change: auto;
+    border-left: 1px solid var(--line);
   }
 }
 
@@ -216,22 +291,23 @@ dialog[open]::backdrop {
 .fp-recovery { cursor: pointer; }
 .fp-recovery.is-static,
 .fp-recovery.is-static .fp-floor { cursor: default; }
-.fp-or .fp-floor { fill: var(--fp-or); transition: fill 0.15s ease; }
+/* An OR takes its department's colour from --rf (set per room); mint when the schedule is silent. */
+.fp-or .fp-floor { fill: var(--rf, var(--fp-or)); transition: filter 0.15s ease; }
 /* Hover only where a pointer exists, so a tap does not leave the room tinted. */
 @media (hover: hover) {
-  .fp-or:hover .fp-floor { fill: var(--fp-or-hover); }
+  .fp-or:hover .fp-floor { filter: brightness(0.9); }
   .fp-recovery:not(.is-static):hover .fp-floor { fill: var(--fp-recovery-hover); }
 }
-.fp-or:active .fp-floor { fill: var(--fp-or-hover); }
-.fp-or.is-selected .fp-floor { fill: var(--fp-or-selected); }
-.fp-or.is-selected .fp-wall,
-.fp-or:focus-visible .fp-wall { stroke: var(--fp-label); stroke-width: 6; }
+.fp-or:active .fp-floor { filter: brightness(0.9); }
+.fp-or.is-selected { filter: drop-shadow(0 0 9px rgb(34 49 58 / 0.5)); }
+.fp-or.is-selected .fp-wall { stroke: var(--fp-ink); stroke-width: 9; }
 .fp-recovery .fp-floor { fill: var(--fp-recovery); }
 .fp-recovery.is-selected .fp-floor { fill: var(--fp-recovery-selected); }
-.fp-recovery.is-selected .fp-wall,
-.fp-recovery:focus-visible .fp-wall { stroke: #4c3d73; stroke-width: 6; }
-.fp-or:focus-visible,
-.fp-recovery:focus-visible { outline: none; }
+.fp-recovery.is-selected .fp-wall { stroke: #4c3d73; stroke-width: 6; }
+/* Keyboard focus lands on the floor path; show it as a blue wall instead of a box around the shape. */
+.fp-floor:focus-visible { outline: none; }
+.fp-or:has(.fp-floor:focus-visible) .fp-wall,
+.fp-recovery:has(.fp-floor:focus-visible) .fp-wall { stroke: var(--focus); stroke-width: 10; }
 .fp-support .fp-floor { fill: var(--fp-support); }
 .fp-core .fp-floor { fill: var(--fp-core); }
 .fp-wall { fill: none; stroke: var(--fp-wall); stroke-width: 4; stroke-linejoin: miter; stroke-linecap: butt; }
@@ -239,18 +315,28 @@ dialog[open]::backdrop {
 .fp-wall.fp-outer { stroke-width: 8; }
 .fp-detail { fill: none; stroke: var(--fp-detail); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .fp-cab { fill: none; stroke: var(--fp-detail); stroke-width: 2; }
+/* Room number sits in a white badge so it reads on any department colour. */
+.fp-badge { fill: #fff; stroke: var(--fp-wall); stroke-width: 2.5; pointer-events: none; }
 .fp-label {
   font-family: var(--font-plex), "Noto Sans Thai", sans-serif;
-  font-size: 60px;
-  font-weight: 600;
+  font-size: 50px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
-  fill: var(--fp-label);
+  fill: var(--fp-ink);
+  text-anchor: middle;
+  pointer-events: none;
+}
+.fp-dept {
+  font-family: var(--font-plex), "Noto Sans Thai", sans-serif;
+  font-weight: 700;
   text-anchor: middle;
   pointer-events: none;
 }
 .fp-label-sm { font-size: 36px; fill: #4c3d73; }
 .fp-counter-top { fill: var(--fp-counter); stroke: var(--fp-counter-edge); stroke-width: 2; stroke-linejoin: round; }
-.fp-mark { stroke: #fff; stroke-width: 4; pointer-events: none; }
+/* Live is a circle and delayed is a diamond, so the two differ by shape as well as colour.
+   The dark halo keeps either visible on any department colour. */
+.fp-mark { stroke: #fff; stroke-width: 5; stroke-linejoin: round; filter: drop-shadow(0 0 2px rgb(20 38 44 / 0.6)); pointer-events: none; }
 .fp-mark-active { fill: var(--fp-active); }
 .fp-mark-delayed { fill: var(--fp-delayed); }
 
@@ -262,6 +348,7 @@ dialog[open]::backdrop {
   .field {
     transition: none;
   }
+  .scrim,
   dialog[open],
   dialog[open]::backdrop {
     animation: none;

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { AuthShell } from "@/components/auth-shell";
 import { RegisterForm } from "@/components/register-form";
 import { SignOutButton } from "@/components/sign-out-button";
 import { isUserAllowed } from "@/lib/allowlist";
@@ -13,23 +14,19 @@ export default async function RegisterPage() {
   if (session.user.registered) redirect("/");
 
   return (
-    <main className="flex h-dvh overflow-y-auto overscroll-contain bg-canvas px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-      <div className="glass m-auto w-full max-w-md rounded-3xl border border-white/60 p-6 sm:p-8">
-        <p className="brand-glow text-sm font-medium tracking-[0.04em] text-label">ORSKH.APP</p>
-        <h1 className="mt-2 text-2xl font-semibold">ลงทะเบียน</h1>
-        <p className="mt-2 text-sm leading-6 text-muted">
-          เลือกตำแหน่งและชื่อให้ตรงกับตัวคุณ ระบบจะจำบัญชี LINE นี้ไว้ ครั้งถัดไปไม่ต้องลงทะเบียนอีก
+    <AuthShell
+      title="ลงทะเบียน"
+      description="เลือกตำแหน่งและชื่อให้ตรงกับตัวคุณ ระบบจะจำบัญชี LINE นี้ไว้ ครั้งถัดไปไม่ต้องลงทะเบียนอีก"
+    >
+      {session.user.name ? (
+        <p className="rounded-xl border border-line bg-surface-2 px-3 py-2.5 text-sm text-ink-2">
+          บัญชี LINE <span className="font-semibold text-ink">{session.user.name}</span>
         </p>
-        {session.user.name ? (
-          <p className="mt-4 text-sm">
-            บัญชี LINE <span className="font-medium">{session.user.name}</span>
-          </p>
-        ) : null}
-        <RegisterForm />
-        <div className="mt-4">
-          <SignOutButton />
-        </div>
+      ) : null}
+      <RegisterForm />
+      <div className="mt-3">
+        <SignOutButton showLabel />
       </div>
-    </main>
+    </AuthShell>
   );
 }

@@ -4,6 +4,18 @@ Operating-suite board. Staff sign in with LINE, then pick a room on the floor pl
 
 The case list is sample data, marked **ตารางตัวอย่าง** on the board. It is not a live theatre system.
 
+Room colours and labels come from the weekly allocation table in the FY2569 utilisation report (`src/lib/allocation.ts`, schedule updated 5 Aug 2567): each OR takes its department's colour and code, ORs 7 and 9 are split morning/afternoon, and OR 5 alternates by week of the month. Weekends show plain rooms. The sample cases are not matched to the department that owns the room.
+
+## Design
+
+Tokens (colour, surfaces, status, shadows) live at the top of `src/app/globals.css`; shared pieces are `.btn`, `.field`, `.card`, `.badge` and `.notice`, plus `AuthShell` and `BrandMark` in `src/components`. The app is built to be usable by everyone:
+
+- Text and status pairs meet WCAG AA (4.5:1); department labels are checked by a test.
+- One blue focus ring on every control, and keyboard focus on a room outlines its wall.
+- Touch targets are at least 44px. Pinch-zoom is left on.
+- Colour is never the only cue: case statuses and room markers also differ by icon or shape (live = circle, delayed = diamond), and rooms carry a text code.
+- The LINE button keeps LINE's own green and white, which is the one deliberate exception to the contrast rule.
+
 ## Stack
 
 Next.js 16, React 19, Tailwind CSS 4, Auth.js (LINE Login), Neon Postgres.
