@@ -52,8 +52,6 @@ export function SuiteBoard({
   const [prevRoomId, setPrevRoomId] = useState(initialRoomId);
   const room = getRoom(selectedId);
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const sheetRef = useRef<HTMLElement>(null);
 
   if (initialRoomId !== prevRoomId) {
     setPrevRoomId(initialRoomId);
@@ -86,22 +84,6 @@ export function SuiteBoard({
     if (room) headingRef.current?.focus({ preventScroll: true });
   }, [room]);
 
-  // Phones: tell the plan how much of the bottom the open sheet covers.
-  useEffect(() => {
-    const root = rootRef.current;
-    const sheet = sheetRef.current;
-    if (!root || !sheet) return;
-    if (!room) {
-      root.style.setProperty("--sheet-h", "0px");
-      return;
-    }
-    const sync = () => root.style.setProperty("--sheet-h", `${sheet.offsetHeight}px`);
-    sync();
-    const observer = new ResizeObserver(sync);
-    observer.observe(sheet);
-    return () => observer.disconnect();
-  }, [room]);
-
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
@@ -121,9 +103,9 @@ export function SuiteBoard({
   const cases = room ? casesForRoom(operations, room.id) : [];
 
   return (
-    <div ref={rootRef} className="relative flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="plan-stage flex min-h-0 flex-1 justify-center overflow-hidden px-3 pt-3">
+        <div className="flex min-h-0 flex-1 justify-center overflow-hidden p-3">
           <FloorPlan selectedId={selectedId} marks={marks} onSelect={onSelect} />
         </div>
       </div>
@@ -138,7 +120,6 @@ export function SuiteBoard({
       ) : null}
 
       <aside
-        ref={sheetRef}
         className={`room-sheet glass z-20 flex min-h-0 flex-col max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:max-h-[50dvh] max-lg:rounded-t-3xl max-lg:border-t max-lg:border-white/60 lg:static lg:h-full lg:w-96 lg:shrink-0 lg:border-l lg:border-ink/10 ${room ? "is-open" : "max-lg:pointer-events-none"}`}
       >
         {room ? (
