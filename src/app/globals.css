@@ -85,18 +85,6 @@ body {
   }
 }
 
-/* On phones the sheet covers the bottom of the board. Its height is published
-   as --sheet-h so the plan shrinks to the space left above it. */
-.plan-stage {
-  padding-bottom: calc(0.75rem + var(--sheet-h, 0px));
-}
-
-@media (min-width: 1024px) {
-  .plan-stage {
-    padding-bottom: 0.75rem;
-  }
-}
-
 @layer components {
   .btn {
     display: inline-flex;
