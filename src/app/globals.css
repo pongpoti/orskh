@@ -238,6 +238,28 @@ dialog[open]::backdrop {
   animation: backdrop-in 0.18s ease-out;
 }
 
+.day-slide-next {
+  animation: day-in-next 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.day-slide-prev {
+  animation: day-in-prev 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes day-in-next {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+}
+
+@keyframes day-in-prev {
+  from {
+    opacity: 0;
+    transform: translateX(-28px);
+  }
+}
+
 @keyframes dialog-in {
   from {
     opacity: 0;
@@ -349,6 +371,8 @@ dialog[open]::backdrop {
     transition: none;
   }
   .scrim,
+  .day-slide-next,
+  .day-slide-prev,
   dialog[open],
   dialog[open]::backdrop {
     animation: none;

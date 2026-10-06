@@ -3,7 +3,6 @@ import { BrandMark } from "@/components/brand-mark";
 import { Wordmark } from "@/components/auth-shell";
 import { ProfileAvatar } from "@/components/profile-avatar";
 import { SignOutButton } from "@/components/sign-out-button";
-import { boardHref, formatThaiDate } from "@/lib/dates";
 
 function profileImageSrc(image: string | null | undefined): string | null {
   if (!image) return null;
@@ -21,13 +20,11 @@ function profileImageSrc(image: string | null | undefined): string | null {
 export function TopBar({
   name,
   image,
-  today,
   pathname = "/",
   showAccount = true,
 }: {
   name: string;
   image?: string | null;
-  today: string;
   pathname?: string;
   showAccount?: boolean;
 }) {
@@ -38,7 +35,7 @@ export function TopBar({
     <header className="appbar z-30">
       <div className="flex items-center justify-between gap-3 px-4 pt-[max(0.5rem,env(safe-area-inset-top))] pb-2 sm:pt-2.5">
         <Link
-          href={boardHref(today, null, pathname)}
+          href={pathname}
           className="flex min-w-0 items-center gap-2.5 rounded-lg"
           aria-label="ORSKH.APP หน้าแรก"
         >
@@ -53,12 +50,6 @@ export function TopBar({
           {showAccount ? <SignOutButton /> : null}
         </div>
       </div>
-      <time
-        dateTime={today}
-        className="block border-t border-line bg-surface-2 px-4 py-2 text-center text-xl font-bold text-ink sm:text-2xl"
-      >
-        {formatThaiDate(today)}
-      </time>
     </header>
   );
 }
