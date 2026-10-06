@@ -2,7 +2,8 @@
  * Which department owns each operating room, Monday to Friday.
  *
  * Source: the schedule page of "รายงานวิเคราะห์การใช้งานห้องผ่าตัด ปีงบประมาณ 2569"
- * (ตารางจัดสรรห้องผ่าตัด, updated 5 August 2567) and its department colours.
+ * (ตารางจัดสรรห้องผ่าตัด, updated 5 August 2567). The plan shows each department in one
+ * teal-green tone with its own gradient; the report's department hues are not used.
  * ORs 7 and 9 are split: morning 08:00–12:00, afternoon 13:00–16:00. OR 5
  * alternates by week of the month on Tuesday and Thursday.
  */
@@ -32,31 +33,42 @@ export type Department = {
   name: string;
   /** Short text drawn on the plan: the code, except OR 1 which the report writes as "dressing". */
   label: string;
+  /** Mid-tone, used to pick readable text and for flat swatches. */
   color: string;
+  /** Gradient ends, top-left to bottom-right. Every department stays in one surgical teal-green tone. */
+  gradient: readonly [string, string];
 };
 
-function dept(code: DeptCode, name: string, color: string, label: string = code): Department {
-  return { code, name, label, color };
+function dept(code: DeptCode, name: string, from: string, to: string, label: string = code): Department {
+  return { code, name, label, color: mix(from, to), gradient: [from, to] };
+}
+
+function mix(a: string, b: string): string {
+  const channel = (offset: number) =>
+    Math.round((parseInt(a.slice(offset, offset + 2), 16) + parseInt(b.slice(offset, offset + 2), 16)) / 2)
+      .toString(16)
+      .padStart(2, "0");
+  return `#${channel(1)}${channel(3)}${channel(5)}`.toUpperCase();
 }
 
 export const DEPARTMENTS: Record<DeptCode, Department> = {
-  GENSX: dept("GENSX", "ศัลยกรรมทั่วไป", "#0E5E6F"),
-  SCOPE: dept("SCOPE", "ศัลย์ scope", "#B79CED"),
-  VAS: dept("VAS", "ศัลยกรรมหลอดเลือด", "#1D3F8F"),
-  ORTHO: dept("ORTHO", "ศัลยกรรมกระดูกและข้อ", "#E3A21A"),
-  OBGYN: dept("OBGYN", "สูติ-นรีเวชกรรม", "#C9D86A"),
-  EYE: dept("EYE", "จักษุวิทยา", "#81D4FA"),
-  URO: dept("URO", "ศัลยกรรมระบบปัสสาวะ", "#3FA37A"),
-  PLASTIC: dept("PLASTIC", "ศัลยกรรมตกแต่ง", "#8E5BA8"),
-  ENT: dept("ENT", "โสต ศอ นาสิก", "#5A92D6"),
-  NEPHRO: dept("NEPHRO", "อายุรกรรมโรคไต", "#16A5B8"),
-  PEDSX: dept("PEDSX", "ศัลยกรรมเด็ก", "#E0607E"),
-  NEURO: dept("NEURO", "ศัลยกรรมระบบประสาท", "#A8662A"),
-  CVT: dept("CVT", "ศัลยกรรมหัวใจและทรวงอก", "#9A9A94"),
-  MAXILLO: dept("MAXILLO", "ศัลยกรรมแม๊กซิลโลเฟเชียล", "#E8825A"),
-  INFECT: dept("INFECT", "ห้องติดเชื้อ / dressing", "#B3261E", "dressing"),
-  EMER: dept("EMER", "เคสฉุกเฉิน", "#B5179E"),
-  MINOR: dept("MINOR", "หัตถการเล็ก (minor)", "#E3E8EA"),
+  GENSX: dept("GENSX", "ศัลยกรรมทั่วไป", "#0E3C31", "#072018"),
+  SCOPE: dept("SCOPE", "ศัลย์ scope", "#F7FCFC", "#D4F2ED"),
+  VAS: dept("VAS", "ศัลยกรรมหลอดเลือด", "#104444", "#082826"),
+  ORTHO: dept("ORTHO", "ศัลยกรรมกระดูกและข้อ", "#ECF9F6", "#C8EFE3"),
+  OBGYN: dept("OBGYN", "สูติ-นรีเวชกรรม", "#124C46", "#0A312A"),
+  EYE: dept("EYE", "จักษุวิทยา", "#E0F5F5", "#BCEBE8"),
+  URO: dept("URO", "ศัลยกรรมระบบปัสสาวะ", "#145546", "#0C392C"),
+  PLASTIC: dept("PLASTIC", "ศัลยกรรมตกแต่ง", "#D5F1EE", "#B0E8DD"),
+  ENT: dept("ENT", "โสต ศอ นาสิก", "#165F5F", "#0E4440"),
+  NEPHRO: dept("NEPHRO", "อายุรกรรมโรคไต", "#C9EDE5", "#A5E4D1"),
+  PEDSX: dept("PEDSX", "ศัลยกรรมเด็ก", "#196960", "#104E43"),
+  NEURO: dept("NEURO", "ศัลยกรรมระบบประสาท", "#BEE9E9", "#99E1DC"),
+  CVT: dept("CVT", "ศัลยกรรมหัวใจและทรวงอก", "#1B745F", "#125944"),
+  MAXILLO: dept("MAXILLO", "ศัลยกรรมแม๊กซิลโลเฟเชียล", "#B3E6E0", "#8DDDCE"),
+  INFECT: dept("INFECT", "ห้องติดเชื้อ / dressing", "#1E7E7E", "#14635E", "dressing"),
+  EMER: dept("EMER", "เคสฉุกเฉิน", "#A7E2D4", "#81D9BF"),
+  MINOR: dept("MINOR", "หัตถการเล็ก (minor)", "#9CDED6", "#76D6C4"),
 };
 
 /** A department holding the room on a given day. `nth` limits it to those occurrences of the weekday in the month. */

@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { FloorScenery } from "@/components/floor-scenery";
-import { allocationFor, allocationText, readableTextOn, type Department, type RoomAllocation } from "@/lib/allocation";
+import { allocationFor, allocationText, DEPARTMENTS, readableTextOn, type Department, type RoomAllocation } from "@/lib/allocation";
 import { isSelectableRoom, roomBounds, roomLabel, ROOMS, type Room } from "@/lib/rooms";
 import type { RoomMark } from "@/lib/schedule";
 
@@ -14,10 +14,19 @@ const MARK_LABEL: Record<Exclude<RoomMark, null>, string> = {
   delayed: "มีเคสเลื่อน",
 };
 
+/** Gradient direction per department (x1, y1, x2, y2 on the room's bounding box), so neighbouring rooms do not look alike. */
+const DIRECTIONS = [
+  [0, 0, 1, 1],
+  [0, 1, 1, 0],
+  [0, 0, 0, 1],
+  [0, 0, 1, 0],
+] as const;
+const DEPT_ORDER = Object.keys(DEPARTMENTS);
+
 function floorFill(room: Room, allocation: RoomAllocation | null): string | undefined {
   if (!allocation) return undefined;
   if (allocation.split) return `url(#fp-split-${room.id})`;
-  return allocation.am?.color ?? UNALLOCATED_FILL;
+  return allocation.am ? `url(#fp-grad-${allocation.am.code})` : UNALLOCATED_FILL;
 }
 
 /** Rough advance of a bold label glyph, in em: capitals are wide, lowercase and Thai are narrower. */
@@ -117,17 +126,35 @@ export function FloorPlan({
     if (room.kind === "or") allocations[room.id] = allocationFor(room.id, date);
   }
 
+  const usedDepartments = new Map<string, Department>();
+  for (const allocation of Object.values(allocations)) {
+    for (const dept of [allocation?.am, allocation?.pm]) if (dept) usedDepartments.set(dept.code, dept);
+  }
+
   return (
     <svg viewBox="0 0 1207 1706" className="h-full w-auto max-w-none" role="group" aria-label="แปลนห้องผ่าตัด">
       <FloorScenery />
       <defs>
+        {[...usedDepartments.values()].map((dept) => {
+          const [x1, y1, x2, y2] = DIRECTIONS[DEPT_ORDER.indexOf(dept.code) % DIRECTIONS.length];
+          return (
+            <linearGradient key={dept.code} id={`fp-grad-${dept.code}`} x1={x1} y1={y1} x2={x2} y2={y2}>
+              <stop offset="0" stopColor={dept.gradient[0]} />
+              <stop offset="1" stopColor={dept.gradient[1]} />
+            </linearGradient>
+          );
+        })}
         {ROOMS.map((room) => {
           const allocation = allocations[room.id];
           if (!allocation?.split) return null;
+          const [amFrom, amTo] = allocation.am?.gradient ?? [UNALLOCATED_FILL, UNALLOCATED_FILL];
+          const [pmFrom, pmTo] = allocation.pm?.gradient ?? [UNALLOCATED_FILL, UNALLOCATED_FILL];
           return (
             <linearGradient key={room.id} id={`fp-split-${room.id}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0.5" stopColor={allocation.am?.color ?? UNALLOCATED_FILL} />
-              <stop offset="0.5" stopColor={allocation.pm?.color ?? UNALLOCATED_FILL} />
+              <stop offset="0" stopColor={amFrom} />
+              <stop offset="0.5" stopColor={amTo} />
+              <stop offset="0.5" stopColor={pmFrom} />
+              <stop offset="1" stopColor={pmTo} />
             </linearGradient>
           );
         })}

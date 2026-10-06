@@ -84,7 +84,7 @@ function Owner({ dept, part }: { dept: Department | null; part?: string }) {
       {part ? <span className="w-8 shrink-0 text-muted">{part}</span> : null}
       {dept ? (
         <>
-          <span aria-hidden className="size-3.5 shrink-0 rounded ring-1 ring-ink/30" style={{ background: dept.color }} />
+          <span aria-hidden className="size-3.5 shrink-0 rounded ring-1 ring-ink/30" style={{ background: `linear-gradient(135deg, ${dept.gradient[0]}, ${dept.gradient[1]})` }} />
           {dept.name}
         </>
       ) : (
