@@ -11,6 +11,14 @@ import {
 } from "./allocation.ts";
 import { ROOMS, roomBounds } from "./rooms.ts";
 
+function rgbHue(r: number, g: number, b: number): number {
+  const max = Math.max(r, g, b);
+  const d = max - Math.min(r, g, b);
+  if (d === 0) return 0;
+  const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return Math.round(((h * 60) + 360) % 360);
+}
+
 const MON = "2026-10-05";
 const WEEK = ["2026-10-05", "2026-10-06", "2026-10-07", "2026-10-08", "2026-10-09"];
 const code = (roomId: string, date: string, part: "am" | "pm" = "am") =>
@@ -100,12 +108,25 @@ test("covers every OR on every weekday, with one gap", () => {
   assert.equal(gaps, 1);
 });
 
-test("keeps the report's colours and plan labels", () => {
-  assert.equal(DEPARTMENTS.GENSX.color, "#0E5E6F");
-  assert.equal(DEPARTMENTS.URO.color, "#3FA37A");
+test("keeps the plan labels", () => {
   assert.equal(DEPARTMENTS.INFECT.label, "dressing");
   assert.equal(DEPARTMENTS.EMER.label, "EMER");
   assert.equal(DEPARTMENTS.PLASTIC.label, "PLASTIC");
+});
+
+test("every department is its own gradient in one teal-green tone", () => {
+  const seen = new Set<string>();
+  for (const dept of Object.values(DEPARTMENTS)) {
+    const key = dept.gradient.join(">");
+    assert.ok(!seen.has(key), `${dept.code} repeats a gradient`);
+    seen.add(key);
+    for (const end of dept.gradient) {
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(end.slice(i, i + 2), 16));
+      const hue = rgbHue(r, g, b);
+      assert.ok(hue >= 155 && hue <= 190, `${dept.code} ${end} hue ${hue}`);
+    }
+  }
+  assert.equal(seen.size, 17);
 });
 
 test("picks white or ink text, whichever reads better", () => {
@@ -117,7 +138,7 @@ test("picks white or ink text, whichever reads better", () => {
   assert.equal(readableTextOn("#E3E8EA"), INK);
 });
 
-test("every department label meets 4.5:1 contrast", () => {
+test("every department label meets 4.5:1 contrast at both ends of its gradient", () => {
   const luminance = (hex: string) => {
     const [r, g, b] = [1, 3, 5].map((i) => {
       const v = parseInt(hex.slice(i, i + 2), 16) / 255;
@@ -127,8 +148,10 @@ test("every department label meets 4.5:1 contrast", () => {
   };
   for (const dept of Object.values(DEPARTMENTS)) {
     const text = readableTextOn(dept.color);
-    const [a, b] = [luminance(dept.color), luminance(text)].sort((x, y) => y - x);
-    assert.ok((a + 0.05) / (b + 0.05) >= 4.5, `${dept.code} ${dept.color} with ${text}`);
+    for (const end of dept.gradient) {
+      const [a, b] = [luminance(end), luminance(text)].sort((x, y) => y - x);
+      assert.ok((a + 0.05) / (b + 0.05) >= 4.5, `${dept.code} ${end} with ${text}`);
+    }
   }
 });
 

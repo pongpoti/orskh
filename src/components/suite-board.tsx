@@ -1,12 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { startTransition, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState, type ReactNode, type TouchEvent } from "react";
 import { FloorPlan } from "@/components/floor-plan";
 import { allocationFor, type Department } from "@/lib/allocation";
-import { boardHref } from "@/lib/dates";
+import { DayBar } from "@/components/day-bar";
+import { boardHref, DAY_KEYS, UNPLACED_ID } from "@/lib/days";
 import { getRoom, isSelectableRoom, roomLabel } from "@/lib/rooms";
-import { casesForRoom, roomMark, type CaseStatus, type Operation } from "@/lib/schedule";
+import { casesForRoom, roomMark, type CaseStatus } from "@/lib/schedule";
+import type { DayBoard } from "@/lib/week";
 
 const STATUS_LABEL: Record<CaseStatus, string> = {
   scheduled: "รอ",
@@ -84,7 +86,7 @@ function Owner({ dept, part }: { dept: Department | null; part?: string }) {
       {part ? <span className="w-8 shrink-0 text-muted">{part}</span> : null}
       {dept ? (
         <>
-          <span aria-hidden className="size-3.5 shrink-0 rounded ring-1 ring-ink/30" style={{ background: dept.color }} />
+          <span aria-hidden className="size-3.5 shrink-0 rounded ring-1 ring-ink/30" style={{ background: `linear-gradient(135deg, ${dept.gradient[0]}, ${dept.gradient[1]})` }} />
           {dept.name}
         </>
       ) : (
@@ -94,84 +96,139 @@ function Owner({ dept, part }: { dept: Department | null; part?: string }) {
   );
 }
 
+/** Horizontal travel, in px, that counts as a swipe. */
+const SWIPE_DISTANCE = 56;
+
 export function SuiteBoard({
-  date,
+  week,
+  dayIndex = 0,
   roomId = null,
-  operations,
   pathname = "/",
 }: {
-  date: string;
+  week: DayBoard[];
+  dayIndex?: number;
   roomId?: string | null;
-  operations: Operation[];
   pathname?: string;
 }) {
   const router = useRouter();
-  const initialRoom = getRoom(roomId);
-  const initialRoomId = initialRoom && isSelectableRoom(initialRoom) ? initialRoom.id : null;
-  const [selectedId, setSelectedId] = useState<string | null>(initialRoomId);
-  const [prevRoomId, setPrevRoomId] = useState(initialRoomId);
-  const room = getRoom(selectedId);
+  const urlDay = Math.min(Math.max(dayIndex, 0), week.length - 1);
+  const urlRoom = roomId === UNPLACED_ID ? UNPLACED_ID : (() => {
+    const found = getRoom(roomId);
+    return found && isSelectableRoom(found) ? found.id : null;
+  })();
+  const [day, setDay] = useState(urlDay);
+  const [selectedId, setSelectedId] = useState<string | null>(urlRoom);
+  const [prevUrl, setPrevUrl] = useState(`${urlDay}|${urlRoom}`);
+  const [slide, setSlide] = useState<"next" | "prev" | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const touch = useRef<{ x: number; y: number } | null>(null);
 
-  if (initialRoomId !== prevRoomId) {
-    setPrevRoomId(initialRoomId);
-    setSelectedId(initialRoomId);
+  if (prevUrl !== `${urlDay}|${urlRoom}`) {
+    setPrevUrl(`${urlDay}|${urlRoom}`);
+    setDay(urlDay);
+    setSelectedId(urlRoom);
   }
+
+  const board = week[day];
+  const unplacedSelected = selectedId === UNPLACED_ID;
+  const room = unplacedSelected ? null : getRoom(selectedId);
+  const open = unplacedSelected || room !== null;
 
   const marks = useMemo(() => {
     const next: Record<string, ReturnType<typeof roomMark>> = {};
-    for (const item of operations) {
+    for (const item of board.operations) {
       if (next[item.roomId]) continue;
       const target = getRoom(item.roomId);
       if (!target || !isSelectableRoom(target)) continue;
-      next[item.roomId] = roomMark(casesForRoom(operations, item.roomId));
+      next[item.roomId] = roomMark(casesForRoom(board.operations, item.roomId));
     }
     return next;
-  }, [operations]);
+  }, [board]);
 
-  function choose(id: string | null) {
-    if (id) {
-      const next = getRoom(id);
-      if (!next || !isSelectableRoom(next)) return;
-    }
-    setSelectedId(id);
+  function go(nextDay: number, nextRoom: string | null = selectedId) {
+    const clamped = Math.min(Math.max(nextDay, 0), week.length - 1);
+    if (clamped !== day) setSlide(clamped > day ? "next" : "prev");
+    setDay(clamped);
+    setSelectedId(nextRoom);
     startTransition(() => {
-      router.replace(boardHref(date, id, pathname), { scroll: false });
+      router.replace(boardHref(DAY_KEYS[clamped], nextRoom, pathname), { scroll: false });
     });
   }
 
+  function choose(id: string | null) {
+    if (id && id !== UNPLACED_ID) {
+      const next = getRoom(id);
+      if (!next || !isSelectableRoom(next)) return;
+    }
+    go(day, id);
+  }
+
   useEffect(() => {
-    if (room) headingRef.current?.focus({ preventScroll: true });
-  }, [room]);
+    if (open) headingRef.current?.focus({ preventScroll: true });
+  }, [open, selectedId]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      if (event.key !== "Escape") return;
-      setSelectedId(null);
-      startTransition(() => {
-        router.replace(boardHref(date, null, pathname), { scroll: false });
-      });
+      if (event.key === "Escape") {
+        go(day, null);
+        return;
+      }
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("input, select, textarea, [contenteditable='true']")) return;
+      go(day + (event.key === "ArrowRight" ? 1 : -1));
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [date, pathname, router]);
+  });
 
   function onSelect(id: string) {
     choose(selectedId === id ? null : id);
   }
 
-  const cases = room ? casesForRoom(operations, room.id) : [];
-  const allocation = room ? allocationFor(room.id, date) : null;
+  function onTouchStart(event: TouchEvent) {
+    // The card scrolls and has its own controls; only the plan and its backdrop swipe between days.
+    const point = event.touches.length === 1 && !(event.target as HTMLElement).closest("aside") ? event.touches[0] : null;
+    touch.current = point ? { x: point.clientX, y: point.clientY } : null;
+  }
+
+  function onTouchEnd(event: TouchEvent) {
+    const start = touch.current;
+    touch.current = null;
+    if (!start || (window.visualViewport?.scale ?? 1) > 1.05) return; // a zoomed-in drag pans, it does not change day
+    const point = event.changedTouches[0];
+    const dx = point.clientX - start.x;
+    const dy = point.clientY - start.y;
+    if (Math.abs(dx) < SWIPE_DISTANCE || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    go(day + (dx < 0 ? 1 : -1));
+  }
+
+  const cases = unplacedSelected ? board.unplaced : room ? casesForRoom(board.operations, room.id) : [];
+  const allocation = room ? allocationFor(room.id, board.date) : null;
 
   return (
-    <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
+    <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+      <DayBar index={day} onChange={(next) => go(next)} />
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="flex min-h-0 flex-1 justify-center overflow-hidden p-3">
-          <FloorPlan selectedId={selectedId} marks={marks} date={date} onSelect={onSelect} />
+        {board.unplaced.length > 0 ? (
+          <button
+            type="button"
+            aria-pressed={unplacedSelected}
+            onClick={() => onSelect(UNPLACED_ID)}
+            className="btn btn-secondary absolute top-3 left-3 z-10 min-h-10 gap-1.5 px-3 text-sm"
+          >
+            ไม่ระบุห้อง
+            <span className="rounded-full bg-brand-tint px-2 text-xs font-bold text-brand tabular-nums">{board.unplaced.length}</span>
+          </button>
+        ) : null}
+        <div key={day} className={`flex min-h-0 flex-1 justify-center overflow-hidden p-3 ${slide ? `day-slide-${slide}` : ""}`}>
+          <FloorPlan selectedId={unplacedSelected ? null : selectedId} marks={marks} date={board.date} onSelect={onSelect} />
         </div>
       </div>
 
-      {room ? (
+      {open ? (
         <button
           type="button"
           className="scrim fixed inset-0 z-10 cursor-default bg-ink/50 lg:hidden"
@@ -182,15 +239,15 @@ export function SuiteBoard({
 
       <aside
         aria-label="รายการผ่าตัดของห้อง"
-        className={`room-sheet z-20 flex min-h-0 flex-col max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:max-h-[50dvh] max-lg:rounded-t-[1.25rem] lg:static lg:h-full lg:w-96 lg:shrink-0 ${room ? "is-open" : "max-lg:pointer-events-none"}`}
+        className={`room-sheet z-20 flex min-h-0 flex-col max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:max-h-[50dvh] max-lg:rounded-t-[1.25rem] lg:static lg:h-full lg:w-96 lg:shrink-0 ${open ? "is-open" : "max-lg:pointer-events-none"}`}
       >
-        {room ? (
+        {open ? (
           <div className="flex min-h-0 flex-1 flex-col">
             <span aria-hidden className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-line-strong lg:hidden" />
             <div className="flex shrink-0 items-start justify-between gap-3 border-b border-line px-5 pt-2 pb-3.5 lg:py-4">
               <div className="min-w-0">
                 <h2 ref={headingRef} tabIndex={-1} className="text-xl leading-tight font-bold text-ink outline-none">
-                  {roomLabel(room)}
+                  {room ? roomLabel(room) : "ไม่ระบุห้อง"}
                 </h2>
                 {allocation ? (
                   <div className="mt-1 space-y-0.5 text-sm font-medium text-ink-2">
@@ -203,6 +260,9 @@ export function SuiteBoard({
                       <Owner dept={allocation.am} />
                     )}
                   </div>
+                ) : null}
+                {unplacedSelected ? (
+                  <p className="mt-1 text-sm text-ink-2">ไม่มีห้องตามตารางจัดสรรของวันนี้ และไฟล์ไม่ระบุห้อง</p>
                 ) : null}
                 <p className="mt-0.5 text-sm text-muted">{cases.length} รายการ</p>
               </div>
@@ -225,15 +285,18 @@ export function SuiteBoard({
                 {cases.map((item) => (
                   <li key={item.id} data-status={item.status} className="case-row">
                     <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-semibold text-ink tabular-nums">
-                        {item.start}–{item.end}
+                      <p className="flex items-center gap-2 text-sm font-semibold text-ink">
+                        <span className="tabular-nums">ลำดับ {item.order}</span>
+                        {item.shift === "out" ? (
+                          <span className="rounded bg-late-tint px-1.5 py-0.5 text-xs font-semibold text-late">นอกเวลา</span>
+                        ) : null}
                       </p>
                       <StatusBadge status={item.status} />
                     </div>
                     <p className={`mt-1.5 font-semibold ${item.status === "cancelled" ? "text-muted line-through" : "text-ink"}`}>
                       {item.procedure}
                     </p>
-                    <p className="text-sm text-muted">{item.surgeon}</p>
+                    <p className="text-sm text-muted">{item.specialty ? `${item.surgeon} · ${item.specialty}` : item.surgeon}</p>
                   </li>
                 ))}
               </ol>
@@ -253,6 +316,7 @@ export function SuiteBoard({
           </div>
         )}
       </aside>
+      </div>
     </main>
   );
 }
