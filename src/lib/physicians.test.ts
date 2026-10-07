@@ -40,7 +40,8 @@ test("knows each general-surgery sub-specialty team", () => {
   assert.equal(teamOf("พีรวิชญ์ ศรียารันต์"), "CVT");
   assert.equal(teamOf("พีรวิชญ์ ส่งศิริ"), "PEDSX");
   assert.equal(teamOf("ฐิติกร หอทิมาวรกุล"), "URO");
-  assert.equal(teamOf("ขจรศักดิ์ โภคสมบัติ"), null);
+  assert.equal(teamOf("ขจรศักดิ์ โภคสมบัติ"), "GENSX"); // no sub-specialty listed
+  assert.equal(teamOf("เฉลิมพล กินรี"), null); // not in the surgery group
   const all = Object.values(SURGICAL_TEAMS).flat() as string[];
   assert.equal(all.length, 22);
   const surgeons = new Set(PHYSICIAN_GROUPS.find((group) => group.id === "surgery")?.names);

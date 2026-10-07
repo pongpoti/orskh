@@ -337,7 +337,7 @@ export const PHYSICIAN_GROUPS = [
   },
 ] as const;
 
-/** Sub-specialty teams within general surgery, as supplied by the hospital. Surgeons not listed are general surgery. */
+/** Sub-specialty teams within general surgery, as supplied by the hospital. Surgeons not listed here are GENSX. */
 export const SURGICAL_TEAMS = {
   CVT: [
     "พีรวิชญ์ ศรียารันต์",
@@ -377,12 +377,13 @@ export const SURGICAL_TEAMS = {
 
 export type SurgicalTeam = keyof typeof SURGICAL_TEAMS;
 
-/** The sub-specialty team of a general-surgery physician, or null. */
-export function teamOf(name: string): SurgicalTeam | null {
+/** The team of a general-surgery physician: a listed sub-specialty, otherwise GENSX. Null for anyone outside the group. */
+export function teamOf(name: string): SurgicalTeam | "GENSX" | null {
   for (const [code, members] of Object.entries(SURGICAL_TEAMS)) {
     if ((members as readonly string[]).includes(name)) return code as SurgicalTeam;
   }
-  return null;
+  const surgeons = PHYSICIAN_GROUPS.find((group) => group.id === "surgery")?.names as readonly string[] | undefined;
+  return surgeons?.includes(name) ? "GENSX" : null;
 }
 
 export type Physician = {
