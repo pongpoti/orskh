@@ -103,3 +103,15 @@ test("matches surgeons to the physician list, including a spelling variant", () 
   assert.equal(resolveSurgeon("วันทนันท์ หล่อวัฒนกิจชัย", "นพ.").specialty, "ศัลยกรรมออร์โธปิดิกส์");
   assert.deepEqual(resolveSurgeon("ไม่มี ในรายชื่อ", "พญ."), { label: "พญ. ไม่มี ในรายชื่อ", specialty: null });
 });
+
+test("flags a case placed in a room its department does not hold that day", () => {
+  const data = fixture([
+    { room: 4, dept: "GENSX" }, // OR 4 is OBGYN on Monday
+    { room: 4, dept: "OBGYN" },
+    { room: 3, dept: "GENSX" }, // SCOPE room, same general-surgery team
+    { room: 8, dept: "GENSX" }, // emergency room takes any department
+    { room: 1, dept: "ORTHO" }, // dressing room too
+    { room: 4, dept: null },
+  ]);
+  assert.deepEqual(weekBoard(data)[0].operations.map((item) => item.offSchedule), [true, false, false, false, false, false]);
+});

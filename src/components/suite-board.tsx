@@ -235,6 +235,9 @@ export function SuiteBoard({
                         {item.shift === "out" ? (
                           <span className="rounded bg-late-tint px-1.5 py-0.5 text-xs font-semibold text-late">นอกเวลา</span>
                         ) : null}
+                        {item.offSchedule ? (
+                          <span className="rounded bg-late-tint px-1.5 py-0.5 text-xs font-semibold text-late">นอกตารางจัดสรร</span>
+                        ) : null}
                       </p>
                       <span className="sr-only">{STATUS_LABEL[item.status]}</span>
                     </div>

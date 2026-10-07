@@ -64,3 +64,5 @@ npm run dev
 ```
 
 `/preview` renders the board without LINE, and `/preview/register` renders the registration form, both only while `NODE_ENV` is `development`.
+
+- A case placed (by the export) in a room that, per the schedule, belongs to another department carries a "นอกตารางจัดสรร" tag in the room card. OR 1 and OR 8 take any department, and general surgery and SCOPE count as one team.

@@ -73,6 +73,21 @@ function inferRoom(item: WeekCase, date: string, load: Map<string, number>): str
   return rooms.reduce((best, room) => ((load.get(room) ?? 0) < (load.get(best) ?? 0) ? room : best));
 }
 
+/** SCOPE is general surgery done endoscopically, so a general-surgery case fits a SCOPE room and the reverse. */
+const SAME_TEAM: Partial<Record<string, string>> = { GENSX: "SCOPE", SCOPE: "GENSX" };
+
+/**
+ * Whether the room's department, by the schedule, differs from the case's own. OR 1 (dressing)
+ * and OR 8 (emergency) take cases from any department, as the report's rules say, so they never flag.
+ */
+function isOffSchedule(item: WeekCase, roomId: string, date: string): boolean {
+  if (!item.dept || roomId === "or-1" || roomId === "or-8") return false;
+  const allocation = allocationFor(roomId, date);
+  if (!allocation) return false;
+  const fits = (code: string | undefined) => code === item.dept || code === SAME_TEAM[item.dept as string];
+  return !fits(allocation.am?.code) && !fits(allocation.pm?.code);
+}
+
 export function weekBoard(data: WeekFile = WEEK_DATA): DayBoard[] {
   return DAY_KEYS.map((key, day) => {
     const date = data.meta.days[day];
@@ -111,6 +126,7 @@ export function weekBoard(data: WeekFile = WEEK_DATA): DayBoard[] {
         specialty: surgeon.specialty,
         status: item.status,
         shift: item.shift,
+        offSchedule: roomId ? isOffSchedule(item, roomId, date) : false,
       };
       (roomId ? operations : unplaced).push(operation);
     });
