@@ -8,8 +8,6 @@ import type { CaseStatus, Operation, Shift } from "./schedule.ts";
 export type WeekCase = {
   /** 0 = Monday … 4 = Friday. */
   day: number;
-  /** OR number the export recorded, or null when it left the room blank. */
-  room: number | null;
   dept: DeptCode | null;
   surgeon: string;
   title: string;
@@ -49,12 +47,12 @@ export type DayBoard = {
   /** Calendar date behind the day. It decides which department holds each room, not what the header shows. */
   date: string;
   operations: Operation[];
-  /** Cases the export gave no room and the allocation table cannot place. */
+  /** Cases the schedule gives no correct room: their department holds none that day. */
   unplaced: Operation[];
 };
 
 /**
- * Where a case with no recorded room goes, by the report's rules: dressing cases use OR 1,
+ * Where a case goes, by the report's rules alone (the export's room column is ignored): dressing cases use OR 1,
  * emergency cases OR 8 (obstetrics-gynaecology stays in its own room), and anything else
  * the room its department holds that day. A department with several rooms is pooled, so
  * the case goes to the one with the fewest cases so far.
@@ -73,21 +71,6 @@ function inferRoom(item: WeekCase, date: string, load: Map<string, number>): str
   return rooms.reduce((best, room) => ((load.get(room) ?? 0) < (load.get(best) ?? 0) ? room : best));
 }
 
-/** SCOPE is general surgery done endoscopically, so a general-surgery case fits a SCOPE room and the reverse. */
-const SAME_TEAM: Partial<Record<string, string>> = { GENSX: "SCOPE", SCOPE: "GENSX" };
-
-/**
- * Whether the room's department, by the schedule, differs from the case's own. OR 1 (dressing)
- * and OR 8 (emergency) take cases from any department, as the report's rules say, so they never flag.
- */
-function isOffSchedule(item: WeekCase, roomId: string, date: string): boolean {
-  if (!item.dept || roomId === "or-1" || roomId === "or-8") return false;
-  const allocation = allocationFor(roomId, date);
-  if (!allocation) return false;
-  const fits = (code: string | undefined) => code === item.dept || code === SAME_TEAM[item.dept as string];
-  return !fits(allocation.am?.code) && !fits(allocation.pm?.code);
-}
-
 export function weekBoard(data: WeekFile = WEEK_DATA): DayBoard[] {
   return DAY_KEYS.map((key, day) => {
     const date = data.meta.days[day];
@@ -95,15 +78,8 @@ export function weekBoard(data: WeekFile = WEEK_DATA): DayBoard[] {
     const load = new Map<string, number>();
     const placed = new Map<WeekCase, string | null>();
 
-    // Rooms the export recorded come first, so inferred cases balance around them.
+    // The export's room column is not trusted: every case is placed by the schedule's rules alone.
     for (const item of rows) {
-      if (item.room === null) continue;
-      const roomId = `or-${item.room}`;
-      placed.set(item, roomId);
-      load.set(roomId, (load.get(roomId) ?? 0) + 1);
-    }
-    for (const item of rows) {
-      if (item.room !== null) continue;
       const roomId = inferRoom(item, date, load);
       placed.set(item, roomId);
       if (roomId) load.set(roomId, (load.get(roomId) ?? 0) + 1);
@@ -126,7 +102,6 @@ export function weekBoard(data: WeekFile = WEEK_DATA): DayBoard[] {
         specialty: surgeon.specialty,
         status: item.status,
         shift: item.shift,
-        offSchedule: roomId ? isOffSchedule(item, roomId, date) : false,
       };
       (roomId ? operations : unplaced).push(operation);
     });

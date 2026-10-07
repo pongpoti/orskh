@@ -20,8 +20,6 @@ export type Operation = {
   specialty: string | null;
   status: CaseStatus;
   shift: Shift | null;
-  /** Placed in a room whose department, by the schedule, is not the case's own. */
-  offSchedule: boolean;
 };
 
 export type RoomMark = "active" | "delayed" | null;
