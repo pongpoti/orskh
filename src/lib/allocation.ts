@@ -56,7 +56,7 @@ export const DEPARTMENTS: Record<DeptCode, Department> = {
   CVT: dept("CVT", "ศัลยกรรมหัวใจและทรวงอก", "#9A9A94"),
   MAXILLO: dept("MAXILLO", "ศัลยกรรมแม๊กซิลโลเฟเชียล", "#E8825A"),
   INFECT: dept("INFECT", "ห้องติดเชื้อ / dressing", "#B3261E", "dressing"),
-  EMER: dept("EMER", "เคสฉุกเฉิน", "#B5179E"),
+  EMER: dept("EMER", "เคส emer", "#B5179E"),
   MINOR: dept("MINOR", "หัตถการเล็ก (minor)", "#E3E8EA"),
 };
 
