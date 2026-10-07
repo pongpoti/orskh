@@ -81,7 +81,6 @@ SPECIFIC = {
     "สูติกรรม": "OBGYN", "ศัลยกรรมตกแต่ง": "PLASTIC", "ศัลยกรรมหัวใจและหลอดเลือด": "CVT",
     "ศัลยกรรมหัวใจและทรวงอก": "CVT", "ศัลยกรรมทรวงอก": "CVT",
 }
-SCOPE = re.compile(r"(egd|colonoscop|gastroscop|sigmoidoscop|endoscop|ercp|panendoscop)", re.I)
 DRESSING = re.compile(
     r"(dressing|(?<![a-z])d/s(?![a-z])|(?<![a-z])ds(?![a-z])|(?<![a-z])dw(?![a-z])|ทำแผล|ล้างแผล|เปลี่ยนแผล|change\s*vac|vac\s*d)",
     re.I,
@@ -111,8 +110,6 @@ for i, row in rows.iterrows():
     day = days.index(done_on[i])
     kind, name = text(cell(row, "kind")), text(cell(row, "dept_name"))
     dept = SPECIFIC.get(name) or KIND.get(kind) or ("GENSX" if name == "ศัลยกรรม" else None)
-    if dept == "GENSX" and SCOPE.search(proc_raw):
-        dept = "SCOPE"
     if dept == "VAS" and day in (1, 2, 3):
         dropped["vascular Tue-Thu (Tha Chalom quota)"] += 1
         continue
@@ -143,7 +140,7 @@ for i, row in rows.iterrows():
 # A case with no department takes the one its surgeon works in most often.
 usual = collections.defaultdict(collections.Counter)
 for item in out:
-    if item["dept"] and item["dept"] != "SCOPE":
+    if item["dept"]:
         usual[item["surgeon"]][item["dept"]] += 1
 for item in out:
     if not item["dept"] and usual[item["surgeon"]]:

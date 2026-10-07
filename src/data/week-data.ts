@@ -77,7 +77,7 @@ export const WEEK_DATA: WeekFile = {
   },
   {
    "day": 2,
-   "dept": "SCOPE",
+   "dept": "GENSX",
    "surgeon": "ศาศวัต วิริยะประสิทธิ์",
    "title": "นพ.",
    "proc": "EGD SMC",
@@ -495,7 +495,7 @@ export const WEEK_DATA: WeekFile = {
   },
   {
    "day": 0,
-   "dept": "SCOPE",
+   "dept": "GENSX",
    "surgeon": "สรวิศ โรจน์ชีวิน",
    "title": "นพ.",
    "proc": "colonoscope ODSสมุทรสาคร",
@@ -506,7 +506,7 @@ export const WEEK_DATA: WeekFile = {
   },
   {
    "day": 1,
-   "dept": "SCOPE",
+   "dept": "GENSX",
    "surgeon": "ภานุมาต จตุรานนท์",
    "title": "นพ.",
    "proc": "colonoscopy",
@@ -671,7 +671,7 @@ export const WEEK_DATA: WeekFile = {
   },
   {
    "day": 1,
-   "dept": "SCOPE",
+   "dept": "GENSX",
    "surgeon": "ภานุมาต จตุรานนท์",
    "title": "นพ.",
    "proc": "Colonoscope",
@@ -847,7 +847,7 @@ export const WEEK_DATA: WeekFile = {
   },
   {
    "day": 1,
-   "dept": "SCOPE",
+   "dept": "GENSX",
    "surgeon": "ขจรศักดิ์ โภคสมบัติ",
    "title": "นพ.",
    "proc": "colonoscope ODSสมุทรสาคร",
@@ -858,7 +858,7 @@ export const WEEK_DATA: WeekFile = {
   },
   {
    "day": 1,
-   "dept": "SCOPE",
+   "dept": "GENSX",
    "surgeon": "ขจรศักดิ์ โภคสมบัติ",
    "title": "นพ.",
    "proc": "colonoscope ODSสมุทรสาคร",
@@ -880,7 +880,7 @@ export const WEEK_DATA: WeekFile = {
   },
   {
    "day": 1,
-   "dept": "SCOPE",
+   "dept": "GENSX",
    "surgeon": "ขจรศักดิ์ โภคสมบัติ",
    "title": "นพ.",
    "proc": "sigmoidoscopy ส่องลึก 40 ซม.",
@@ -913,7 +913,7 @@ export const WEEK_DATA: WeekFile = {
   },
   {
    "day": 1,
-   "dept": "SCOPE",
+   "dept": "GENSX",
    "surgeon": "ขจรศักดิ์ โภคสมบัติ",
    "title": "นพ.",
    "proc": "EGD",
@@ -979,7 +979,7 @@ export const WEEK_DATA: WeekFile = {
   },
   {
    "day": 1,
-   "dept": "SCOPE",
+   "dept": "GENSX",
    "surgeon": "ภานุมาต จตุรานนท์",
    "title": "นพ.",
    "proc": "Esophagogastroduodenoscopy [EGD]",
@@ -1034,7 +1034,7 @@ export const WEEK_DATA: WeekFile = {
   },
   {
    "day": 1,
-   "dept": "SCOPE",
+   "dept": "GENSX",
    "surgeon": "ภานุมาต จตุรานนท์",
    "title": "นพ.",
    "proc": "EGD colonoscope ODSสมุทรสาคร",
@@ -1045,7 +1045,7 @@ export const WEEK_DATA: WeekFile = {
   },
   {
    "day": 2,
-   "dept": "SCOPE",
+   "dept": "GENSX",
    "surgeon": "สรวิศ โรจน์ชีวิน",
    "title": "นพ.",
    "proc": "ERCP",
@@ -1166,7 +1166,7 @@ export const WEEK_DATA: WeekFile = {
   },
   {
    "day": 2,
-   "dept": "SCOPE",
+   "dept": "GENSX",
    "surgeon": "ปวริศ จิรวรพัฒน์",
    "title": "นพ.",
    "proc": "colonoscopy",
@@ -1364,7 +1364,7 @@ export const WEEK_DATA: WeekFile = {
   },
   {
    "day": 2,
-   "dept": "SCOPE",
+   "dept": "GENSX",
    "surgeon": "ครองขวัญ รั้วมั่น",
    "title": "พญ.",
    "proc": "EGD colonoscope ODSสมุทรสาคร",
@@ -1408,7 +1408,7 @@ export const WEEK_DATA: WeekFile = {
   },
   {
    "day": 3,
-   "dept": "SCOPE",
+   "dept": "GENSX",
    "surgeon": "อัจฉริยา แสงวิจิตร",
    "title": "พญ.",
    "proc": "Colonoscope",
@@ -1419,7 +1419,7 @@ export const WEEK_DATA: WeekFile = {
   },
   {
    "day": 3,
-   "dept": "SCOPE",
+   "dept": "GENSX",
    "surgeon": "สิทธิณัฐ สุระประเสริฐ",
    "title": "นพ.",
    "proc": "ERCP",
@@ -1496,7 +1496,7 @@ export const WEEK_DATA: WeekFile = {
   },
   {
    "day": 3,
-   "dept": "SCOPE",
+   "dept": "GENSX",
    "surgeon": "อัจฉริยา แสงวิจิตร",
    "title": "พญ.",
    "proc": "ERCP",
@@ -1507,7 +1507,7 @@ export const WEEK_DATA: WeekFile = {
   },
   {
    "day": 3,
-   "dept": "SCOPE",
+   "dept": "GENSX",
    "surgeon": "สิทธิณัฐ สุระประเสริฐ",
    "title": "นพ.",
    "proc": "ERCP +-stent",
@@ -1661,7 +1661,7 @@ export const WEEK_DATA: WeekFile = {
   },
   {
    "day": 3,
-   "dept": "SCOPE",
+   "dept": "GENSX",
    "surgeon": "พีรวิชญ์ ส่งศิริ",
    "title": "นพ.",
    "proc": "EGD remove FB",
@@ -1683,7 +1683,7 @@ export const WEEK_DATA: WeekFile = {
   },
   {
    "day": 3,
-   "dept": "SCOPE",
+   "dept": "GENSX",
    "surgeon": "สิทธิณัฐ สุระประเสริฐ",
    "title": "นพ.",
    "proc": "colonoscope ODSสมุทรสาคร",
@@ -1771,7 +1771,7 @@ export const WEEK_DATA: WeekFile = {
   },
   {
    "day": 4,
-   "dept": "SCOPE",
+   "dept": "GENSX",
    "surgeon": "คริสทีน โรจจวัฒน์",
    "title": "พญ.",
    "proc": "ERCP",
@@ -1914,7 +1914,7 @@ export const WEEK_DATA: WeekFile = {
   },
   {
    "day": 4,
-   "dept": "SCOPE",
+   "dept": "GENSX",
    "surgeon": "คริสทีน โรจจวัฒน์",
    "title": "พญ.",
    "proc": "- นัด EGD 2/10/2569",
@@ -1925,7 +1925,7 @@ export const WEEK_DATA: WeekFile = {
   },
   {
    "day": 4,
-   "dept": "SCOPE",
+   "dept": "GENSX",
    "surgeon": "คริสทีน โรจจวัฒน์",
    "title": "พญ.",
    "proc": "colonoscope ODSสมุทรสาคร",
@@ -1936,7 +1936,7 @@ export const WEEK_DATA: WeekFile = {
   },
   {
    "day": 4,
-   "dept": "SCOPE",
+   "dept": "GENSX",
    "surgeon": "คริสทีน โรจจวัฒน์",
    "title": "พญ.",
    "proc": "colonoscope ODSสมุทรสาคร",
@@ -1958,7 +1958,7 @@ export const WEEK_DATA: WeekFile = {
   },
   {
    "day": 4,
-   "dept": "SCOPE",
+   "dept": "GENSX",
    "surgeon": "คริสทีน โรจจวัฒน์",
    "title": "พญ.",
    "proc": "colonoscope ODSสมุทรสาคร",
@@ -1980,7 +1980,7 @@ export const WEEK_DATA: WeekFile = {
   },
   {
    "day": 4,
-   "dept": "SCOPE",
+   "dept": "GENSX",
    "surgeon": "คริสทีน โรจจวัฒน์",
    "title": "พญ.",
    "proc": "colonoscope ODSสมุทรสาคร",

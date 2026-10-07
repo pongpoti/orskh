@@ -33,12 +33,14 @@ const squash = (value: string) => value.replace(/\s+/g, " ").trim();
 let known: Map<string, { name: string; specialty: string }> | null = null;
 
 /** Look a surgeon up in the supplied physician list. Unknown names are kept as the export wrote them. */
-export function resolveSurgeon(name: string, title: string): { label: string; specialty: string | null } {
+export function resolveSurgeon(name: string, title: string): { label: string; specialty: string | null; team: ReturnType<typeof teamOf> } {
   known ??= new Map(listPhysicians().map((person) => [squash(person.name), person]));
   const clean = squash(name);
   const person = known.get(ALIASES[clean] ?? clean);
   const shown = person ? person.name : clean;
-  return { label: [title, shown].filter(Boolean).join(" "), specialty: person ? [person.specialty, teamOf(person.name)].filter(Boolean).join(" · ") : null };
+  return { label: [title, shown].filter(Boolean).join(" "), specialty: person ? [person.specialty, teamOf(person.name)].filter(Boolean).join(" · ") : null,
+    team: person ? teamOf(person.name) : null,
+  };
 }
 
 export type DayBoard = {
@@ -51,21 +53,35 @@ export type DayBoard = {
   unplaced: Operation[];
 };
 
+/** Operation names that belong in the SCOPE room (matched case-insensitively). */
+const SCOPE_INCLUDE = /\begd\b|gastroscop|esophagoscop|\bogd\b|colono|sigmoido|\bercp\b|endoscop|\beus\b/i;
+/** ...unless they are a foreign-body removal. */
+const SCOPE_EXCLUDE = /remove\s*fb|foreign body|\bfb\b/i;
+
+/** A case for the SCOPE room: a GENSX-labelled surgeon and an endoscopic operation that is not a foreign-body removal. */
+export function isScopeCase(procedure: string, team: string | null): boolean {
+  return team === "GENSX" && SCOPE_INCLUDE.test(procedure) && !SCOPE_EXCLUDE.test(procedure);
+}
+
 /**
  * Where a case goes, by the report's rules alone (the export's room column is ignored): dressing cases use OR 1,
  * emergency cases OR 8 (obstetrics-gynaecology stays in its own room), and anything else
  * the room its department holds that day. A department with several rooms is pooled, so
  * the case goes to the one with the fewest cases so far.
+ *
+ * The SCOPE room is exclusive: only a GENSX-labelled surgeon's endoscopic case enters it, and such a
+ * case goes nowhere else. Other general-surgery cases use the GENSX rooms.
  */
-function inferRoom(item: WeekCase, date: string, load: Map<string, number>): string | null {
+function inferRoom(item: WeekCase, date: string, load: Map<string, number>, team: string | null): string | null {
   if (item.dressing) return "or-1";
   if (item.emergency && item.dept !== "OBGYN") return "or-8";
-  if (!item.dept) return null;
+  const dept = isScopeCase(item.proc, team) ? "SCOPE" : item.dept === "SCOPE" ? "GENSX" : item.dept;
+  if (!dept) return null;
 
   const rooms: string[] = [];
   for (let n = 1; n <= 13; n += 1) {
     const allocation = allocationFor(`or-${n}`, date);
-    if (allocation?.am?.code === item.dept || allocation?.pm?.code === item.dept) rooms.push(`or-${n}`);
+    if (allocation?.am?.code === dept || allocation?.pm?.code === dept) rooms.push(`or-${n}`);
   }
   if (rooms.length === 0) return null;
   return rooms.reduce((best, room) => ((load.get(room) ?? 0) < (load.get(best) ?? 0) ? room : best));
@@ -80,7 +96,7 @@ export function weekBoard(data: WeekFile = WEEK_DATA): DayBoard[] {
 
     // The export's room column is not trusted: every case is placed by the schedule's rules alone.
     for (const item of rows) {
-      const roomId = inferRoom(item, date, load);
+      const roomId = inferRoom(item, date, load, resolveSurgeon(item.surgeon, item.title).team);
       placed.set(item, roomId);
       if (roomId) load.set(roomId, (load.get(roomId) ?? 0) + 1);
     }
