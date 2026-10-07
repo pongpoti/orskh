@@ -2,17 +2,18 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { WEEK_DATA } from "../data/week-data.ts";
 import { boardHref, DAY_KEYS, DAY_NAMES, parseDay } from "./days.ts";
-import { resolveSurgeon, weekBoard, type WeekCase, type WeekFile } from "./week.ts";
+import { isDressingCase, isScopeCase, resolveSurgeon, weekBoard, type WeekCase, type WeekFile } from "./week.ts";
 
 function fixture(cases: Partial<WeekCase>[]): WeekFile {
   return {
     meta: { days: ["2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02"], rows: 0, kept: 0, dropped: {} },
     cases: cases.map((item) => ({
       day: 0, dept: null, surgeon: "สมชาย กลับกลาย", title: "นพ.", proc: "x", status: "done",
-      shift: null, dressing: false, emergency: false, ...item,
+      shift: null, emergency: false, ...item,
     })),
   };
 }
+const GENSX_SURGEON = "ขจรศักดิ์ โภคสมบัติ";
 const roomsOf = (data: WeekFile, day = 0) => weekBoard(data)[day].operations.map((item) => item.roomId);
 
 test("shows Monday to Friday, Monday first", () => {
@@ -46,7 +47,7 @@ test("every kept case from the export lands on a day, and nearly all in a room",
 });
 
 test("keeps no patient fields in the case data", () => {
-  const allowed = new Set(["day", "dept", "surgeon", "title", "proc", "status", "shift", "dressing", "emergency"]);
+  const allowed = new Set(["day", "dept", "surgeon", "title", "proc", "status", "shift", "emergency"]);
   for (const item of WEEK_DATA.cases) {
     for (const key of Object.keys(item)) assert.ok(allowed.has(key), key);
     assert.doesNotMatch(`${item.proc} ${item.surgeon}`, /(นาย|นางสาว|นาง |น\.ส\.|\bHN\b|\bAN\b|\d{6,})/);
@@ -55,12 +56,12 @@ test("keeps no patient fields in the case data", () => {
 
 test("rooms follow the report's rules", () => {
   const data = fixture([
-    { dressing: true, dept: "GENSX" },
+    { proc: "Dressing wound", dept: "GENSX" },
     { emergency: true, dept: "ORTHO" },
     { emergency: true, dept: "OBGYN" },
     { dept: "EYE" },
     { dept: "ORTHO" },
-    { dept: "SCOPE" },
+    { dept: "GENSX", surgeon: GENSX_SURGEON, proc: "colonoscopy" },
   ]);
   // Monday: dressing OR 1, emergency OR 8, OBGYN stays in one of its own rooms, EYE OR 10, ORTHO OR 11, SCOPE OR 3.
   const rooms = roomsOf(data);
@@ -87,16 +88,16 @@ test("cases with no possible room are set aside, not lost", () => {
 });
 
 test("orders each room's cases and tells the surgeon's department", () => {
-  const day = weekBoard(fixture([{ dept: "SCOPE", proc: "a" }, { dept: "SCOPE", proc: "b" }, { dept: "GENSX", proc: "c" }]))[0];
+  const day = weekBoard(fixture([{ dept: "GENSX", surgeon: GENSX_SURGEON, proc: "EGD" }, { dept: "GENSX", surgeon: GENSX_SURGEON, proc: "ERCP" }, { dept: "GENSX", surgeon: GENSX_SURGEON, proc: "hernia" }]))[0];
   assert.deepEqual(day.operations.map((item) => [item.roomId, item.order]), [["or-3", 1], ["or-3", 2], ["or-2", 1]]);
-  assert.equal(day.operations[0].specialty, "ศัลยกรรม");
+  assert.equal(day.operations[0].specialty, "ศัลยกรรม · GENSX");
 });
 
 test("matches surgeons to the physician list, including a spelling variant", () => {
-  assert.deepEqual(resolveSurgeon("สมชาย  กลับกลาย", "นพ."), { label: "นพ. สมชาย กลับกลาย", specialty: "ศัลยกรรม" });
+  assert.deepEqual(resolveSurgeon("สมชาย  กลับกลาย", "นพ."), { label: "นพ. สมชาย กลับกลาย", specialty: "ศัลยกรรม · URO", team: "URO" });
   assert.equal(resolveSurgeon("วันทนันท์ หล่อวัฒนกิจชัย", "นพ.").label, "นพ. วันทนันท์ หล่อวัฒนากิจชัย");
   assert.equal(resolveSurgeon("วันทนันท์ หล่อวัฒนกิจชัย", "นพ.").specialty, "ศัลยกรรมออร์โธปิดิกส์");
-  assert.deepEqual(resolveSurgeon("ไม่มี ในรายชื่อ", "พญ."), { label: "พญ. ไม่มี ในรายชื่อ", specialty: null });
+  assert.deepEqual(resolveSurgeon("ไม่มี ในรายชื่อ", "พญ."), { label: "พญ. ไม่มี ในรายชื่อ", specialty: null, team: null });
 });
 
 test("ignores a room the export names and places the case by the schedule", () => {
@@ -109,4 +110,63 @@ test("a case whose department holds no room that day is flagged by being set asi
   const day = weekBoard(fixture([{ day: 1, dept: "URO" }]))[1];
   assert.equal(day.operations.length, 0);
   assert.equal(day.unplaced[0].roomId, "");
+});
+
+test("the SCOPE room takes only a GENSX surgeon's endoscopic cases", () => {
+  for (const name of ["EGD", "OGD under GA", "Gastroscopy", "Esophagoscopy", "colonoscopy+polypectomy", "Sigmoidoscopy", "ERCP", "Endoscopic sphincterotomy", "EUS"]) {
+    assert.ok(isScopeCase(name, "GENSX"), name);
+  }
+  assert.equal(isScopeCase("BEGD", "GENSX"), false); // \b: whole word only
+  // foreign-body removal is excluded, and so is anyone who is not labelled GENSX
+  for (const name of ["remove FB by EGD", "Remove  fb", "foreign body removal gastroscopy", "FB esophagus"]) {
+    assert.equal(isScopeCase(name, "GENSX"), false, name);
+  }
+  assert.equal(isScopeCase("colonoscopy", "URO"), false);
+  assert.equal(isScopeCase("colonoscopy", null), false);
+  assert.equal(isScopeCase("hernia repair", "GENSX"), false);
+});
+
+test("a case in the SCOPE room is always a GENSX surgeon's endoscopic case", () => {
+  const data = fixture([
+    { dept: "GENSX", surgeon: GENSX_SURGEON, proc: "colonoscopy" }, // qualifies
+    { dept: "GENSX", surgeon: GENSX_SURGEON, proc: "remove FB by EGD" }, // foreign body: general-surgery room
+    { dept: "GENSX", surgeon: GENSX_SURGEON, proc: "hernia" }, // not endoscopic
+    { dept: "GENSX", surgeon: "สมชาย กลับกลาย", proc: "colonoscopy" }, // URO surgeon
+  ]);
+  const rooms = roomsOf(data);
+  assert.equal(rooms[0], "or-3");
+  assert.ok(["or-2", "or-5"].includes(rooms[1]), rooms[1]);
+  assert.ok(["or-2", "or-5"].includes(rooms[2]), rooms[2]);
+  assert.notEqual(rooms[3], "or-3");
+  for (const day of weekBoard()) {
+    for (const item of day.operations.filter((op) => op.roomId === "or-3")) {
+      assert.match(item.specialty ?? "", /GENSX/);
+      assert.ok(isScopeCase(item.procedure, "GENSX"), item.procedure);
+    }
+  }
+});
+
+test("finds dressing cases by the hospital's keyword algorithm", () => {
+  for (const name of ["Dressing wound OD", "change vac dressing", "Change vac d/s", "D / S wound", "ds wound", "DW", "vacc d", "ทำแผล", "ล้างแผลที่ขา", "เปลี่ยนแผล"]) {
+    assert.ok(isDressingCase(name), name);
+  }
+  // another procedure in the name, or d/s, ds and dw inside a longer word, is not a dressing case
+  for (const name of ["debridement and dressing", "DB", "d.b. wound", "scrub and dressing", "STSG dressing", "suture wound", "closure with dressing", "excision lesion dw", "amputation d/s", "hernia repair", "adsorb", "midwife dwell"]) {
+    assert.equal(isDressingCase(name), false, name);
+  }
+});
+
+test("OR 1 takes dressing cases from any department and nothing else", () => {
+  const data = fixture([
+    { dept: "ORTHO", proc: "Dressing wound" },
+    { dept: "URO", proc: "change vac dressing", emergency: true }, // dressing is checked before emergency
+    { dept: "GENSX", proc: "debridement and dressing" },
+  ]);
+  const rooms = roomsOf(data);
+  assert.equal(rooms[0], "or-1");
+  assert.equal(rooms[1], "or-1");
+  assert.notEqual(rooms[2], "or-1");
+  for (const day of weekBoard()) {
+    for (const item of day.operations) assert.equal(item.roomId === "or-1", isDressingCase(item.procedure), item.procedure);
+  }
 });
