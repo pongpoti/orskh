@@ -162,13 +162,13 @@ export function SuiteBoard({
             type="button"
             aria-pressed={unplacedSelected}
             onClick={() => onSelect(UNPLACED_ID)}
-            className="btn btn-secondary absolute top-3 left-3 z-10 min-h-10 gap-1.5 px-3 text-sm"
+            className="btn btn-secondary absolute top-2 left-2 z-10 min-h-10 gap-1.5 px-3 text-sm"
           >
             ไม่ระบุห้อง
             <span className="rounded-full bg-brand-tint px-2 text-xs font-bold text-brand tabular-nums">{board.unplaced.length}</span>
           </button>
         ) : null}
-        <div key={day} className={`flex min-h-0 flex-1 justify-center overflow-hidden p-3 ${slide ? `day-slide-${slide}` : ""}`}>
+        <div key={day} className={`flex min-h-0 flex-1 justify-center overflow-hidden p-1 ${slide ? `day-slide-${slide}` : ""}`}>
           <FloorPlan selectedId={unplacedSelected ? null : selectedId} marks={marks} cases={counts} date={board.date} onSelect={onSelect} />
         </div>
       </div>

@@ -72,28 +72,28 @@ function RoomLabel({ room, allocation, empty }: { room: Room; allocation: RoomAl
 
   if (allocation?.split) {
     // Two bands (morning above, afternoon below) with the badge on the seam.
-    const radius = 32;
+    const radius = 36;
     return (
       <>
-        <DeptText x={x} y={(minY + (y - radius)) / 2} dept={allocation.am} width={width} max={30} min={22} empty={empty} />
-        <DeptText x={x} y={(y + radius + maxY) / 2} dept={allocation.pm} width={width} max={30} min={22} empty={empty} />
+        <DeptText x={x} y={(minY + (y - radius)) / 2} dept={allocation.am} width={width} max={36} min={26} empty={empty} />
+        <DeptText x={x} y={(y + radius + maxY) / 2} dept={allocation.pm} width={width} max={36} min={26} empty={empty} />
         <circle className="fp-badge" cx={x} cy={y} r={radius} />
-        <text className="fp-label" x={x} y={y} dy="0.35em" style={{ fontSize: 40 }}>
+        <text className="fp-label" x={x} y={y} dy="0.35em" style={{ fontSize: 44 }}>
           {room.number}
         </text>
       </>
     );
   }
 
-  const badgeY = allocation ? y - 32 : y;
+  const badgeY = allocation ? y - 36 : y;
   return (
     <>
-      <circle className="fp-badge" cx={x} cy={badgeY} r={42} />
+      <circle className="fp-badge" cx={x} cy={badgeY} r={47} />
       <text className="fp-label" x={x} y={badgeY} dy="0.35em">
         {room.number}
       </text>
       {allocation ? (
-        <DeptText x={x} y={y + 48} dept={allocation.am} width={width} max={allocation.am ? 38 : 30} min={24} empty={empty} />
+        <DeptText x={x} y={y + 54} dept={allocation.am} width={width} max={allocation.am ? 46 : 34} min={28} empty={empty} />
       ) : null}
     </>
   );
