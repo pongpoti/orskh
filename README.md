@@ -6,15 +6,15 @@ The board shows one working week, **Monday to Friday**, opening on Monday. Swipe
 
 ## Case data
 
-Cases come from an export of the OR system for 28 Sep – 2 Oct 2026, not from a live feed. `python3 scripts/build_week.py path/to/export.xls` (needs `pandas` and `xlrd`) rewrites `src/data/week-data.ts`. Only the day, room, department, status, procedure name, surgeon and shift are kept; patient fields never reach the repo.
+Cases come from an export of the OR system for 28 Sep – 2 Oct 2026, not from a live feed. `python3 scripts/build_week.py path/to/export.xls` (needs `pandas` and `xlrd`) rewrites `src/data/week-data.ts`. Only the day, department, status, procedure name, surgeon and shift are kept; patient fields never reach the repo.
 
 - Rows whose `วันที่` equals `วันที่ผ่าตัด` are dropped (same-day entries).
 - Following the utilisation report, Tha Chalom hospital cases are cut, and so is vascular surgery on Tuesday to Thursday (Tha Chalom's quota).
-- A room the export recorded is kept. For blank rooms the report's rules apply: dressing cases go to OR 1, emergency cases to OR 8 (obstetrics-gynaecology stays in its own room), and anything else to a room its department holds that day, spread across them when it holds several. Cases that still have no room are listed under **ไม่ระบุห้อง**.
+- The export's room column is not trusted and is not even stored. Every case is placed by the report's rules: dressing cases go to OR 1, emergency cases to OR 8 (obstetrics-gynaecology stays in its own room), and anything else to a room its department holds that day, spread across them when it holds several. A case whose department holds no room that day is flagged **ไม่มีห้องที่ถูกต้อง** and listed under that pill.
 - The export has no start or end times, so cases are listed by position (ลำดับ), with the shift flagged when it is out of hours.
 - Surgeons are matched to the supplied physician list (`src/lib/physicians.ts`), which also feeds registration.
 
-Room colours and labels come from the weekly allocation table in the FY2569 utilisation report (`src/lib/allocation.ts`, schedule updated 5 Aug 2567): each OR takes its department's colour from the report and the department code as its label, ORs 7 and 9 are split morning/afternoon, and OR 5 alternates by week of the month. A room with no case that day turns dark gray. The department shown on a room is the plan, so cases the export records in another room can sit under a different colour. Recovery rooms share the service-area gray and the old circulation zone is a gray walkway.
+Room colours and labels come from the weekly allocation table in the FY2569 utilisation report (`src/lib/allocation.ts`, schedule updated 5 Aug 2567): each OR takes its department's colour from the report and the department code as its label, ORs 7 and 9 are split morning/afternoon, and OR 5 alternates by week of the month. A room with no case that day turns dark gray. Recovery rooms share the service-area gray and the old circulation zone is a gray walkway.
 
 ## Design
 

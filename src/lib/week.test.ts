@@ -8,7 +8,7 @@ function fixture(cases: Partial<WeekCase>[]): WeekFile {
   return {
     meta: { days: ["2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02"], rows: 0, kept: 0, dropped: {} },
     cases: cases.map((item) => ({
-      day: 0, room: null, dept: null, surgeon: "สมชาย กลับกลาย", title: "นพ.", proc: "x", status: "done",
+      day: 0, dept: null, surgeon: "สมชาย กลับกลาย", title: "นพ.", proc: "x", status: "done",
       shift: null, dressing: false, emergency: false, ...item,
     })),
   };
@@ -39,26 +39,21 @@ test("every kept case from the export lands on a day, and nearly all in a room",
   assert.equal(total, WEEK_DATA.cases.length);
   assert.equal(total, WEEK_DATA.meta.kept);
   assert.equal(WEEK_DATA.meta.rows - Object.values(WEEK_DATA.meta.dropped).reduce((a, b) => a + b, 0), total);
-  assert.ok(days.reduce((sum, day) => sum + day.unplaced.length, 0) <= 3);
+  assert.ok(days.reduce((sum, day) => sum + day.unplaced.length, 0) <= 12); // departments with no room that day
   for (const day of days) {
     for (const item of day.operations) assert.match(item.roomId, /^or-(1[0-3]|[1-9])$/);
   }
 });
 
 test("keeps no patient fields in the case data", () => {
-  const allowed = new Set(["day", "room", "dept", "surgeon", "title", "proc", "status", "shift", "dressing", "emergency"]);
+  const allowed = new Set(["day", "dept", "surgeon", "title", "proc", "status", "shift", "dressing", "emergency"]);
   for (const item of WEEK_DATA.cases) {
     for (const key of Object.keys(item)) assert.ok(allowed.has(key), key);
     assert.doesNotMatch(`${item.proc} ${item.surgeon}`, /(นาย|นางสาว|นาง |น\.ส\.|\bHN\b|\bAN\b|\d{6,})/);
   }
 });
 
-test("a room the export recorded is kept, whatever the allocation says", () => {
-  // EYE holds OR 10, but this case was done in OR 11.
-  assert.deepEqual(roomsOf(fixture([{ room: 11, dept: "EYE" }])), ["or-11"]);
-});
-
-test("rooms the export left blank follow the report's rules", () => {
+test("rooms follow the report's rules", () => {
   const data = fixture([
     { dressing: true, dept: "GENSX" },
     { emergency: true, dept: "ORTHO" },
@@ -92,7 +87,7 @@ test("cases with no possible room are set aside, not lost", () => {
 });
 
 test("orders each room's cases and tells the surgeon's department", () => {
-  const day = weekBoard(fixture([{ room: 3, proc: "a" }, { room: 3, proc: "b" }, { room: 2, proc: "c" }]))[0];
+  const day = weekBoard(fixture([{ dept: "SCOPE", proc: "a" }, { dept: "SCOPE", proc: "b" }, { dept: "GENSX", proc: "c" }]))[0];
   assert.deepEqual(day.operations.map((item) => [item.roomId, item.order]), [["or-3", 1], ["or-3", 2], ["or-2", 1]]);
   assert.equal(day.operations[0].specialty, "ศัลยกรรม");
 });
@@ -102,4 +97,16 @@ test("matches surgeons to the physician list, including a spelling variant", () 
   assert.equal(resolveSurgeon("วันทนันท์ หล่อวัฒนกิจชัย", "นพ.").label, "นพ. วันทนันท์ หล่อวัฒนากิจชัย");
   assert.equal(resolveSurgeon("วันทนันท์ หล่อวัฒนกิจชัย", "นพ.").specialty, "ศัลยกรรมออร์โธปิดิกส์");
   assert.deepEqual(resolveSurgeon("ไม่มี ในรายชื่อ", "พญ."), { label: "พญ. ไม่มี ในรายชื่อ", specialty: null });
+});
+
+test("ignores a room the export names and places the case by the schedule", () => {
+  // Monday OR 4 is OBGYN; the case is general surgery, so it lands in a general-surgery room whatever the file says.
+  const data = fixture([{ dept: "GENSX", room: 4 } as Partial<WeekCase>]);
+  assert.ok(["or-2", "or-5"].includes(roomsOf(data)[0]));
+});
+
+test("a case whose department holds no room that day is flagged by being set aside", () => {
+  const day = weekBoard(fixture([{ day: 1, dept: "URO" }]))[1];
+  assert.equal(day.operations.length, 0);
+  assert.equal(day.unplaced[0].roomId, "");
 });

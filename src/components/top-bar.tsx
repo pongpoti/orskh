@@ -33,14 +33,14 @@ export function TopBar({
 
   return (
     <header className="appbar z-30">
-      <div className="flex items-center justify-between gap-3 px-4 pt-[max(0.5rem,env(safe-area-inset-top))] pb-2 sm:pt-2.5">
+      <div className="flex items-center justify-between gap-3 px-4 pt-[max(0.25rem,env(safe-area-inset-top))] pb-1 sm:pt-1.5 sm:pb-1.5">
         <Link
           href={pathname}
           className="flex min-w-0 items-center gap-2.5 rounded-lg"
           aria-label="ORSKH.APP หน้าแรก"
         >
-          <BrandMark className="size-9 shrink-0" />
-          <Wordmark className="text-lg leading-none" />
+          <BrandMark className="size-7 shrink-0" />
+          <Wordmark className="text-base leading-none" />
         </Link>
         <div className="flex min-w-0 items-center gap-2.5 text-sm sm:gap-3">
           <span className="flex min-w-0 items-center gap-2">

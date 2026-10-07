@@ -8,8 +8,6 @@ import type { CaseStatus, Operation, Shift } from "./schedule.ts";
 export type WeekCase = {
   /** 0 = Monday … 4 = Friday. */
   day: number;
-  /** OR number the export recorded, or null when it left the room blank. */
-  room: number | null;
   dept: DeptCode | null;
   surgeon: string;
   title: string;
@@ -49,12 +47,12 @@ export type DayBoard = {
   /** Calendar date behind the day. It decides which department holds each room, not what the header shows. */
   date: string;
   operations: Operation[];
-  /** Cases the export gave no room and the allocation table cannot place. */
+  /** Cases the schedule gives no correct room: their department holds none that day. */
   unplaced: Operation[];
 };
 
 /**
- * Where a case with no recorded room goes, by the report's rules: dressing cases use OR 1,
+ * Where a case goes, by the report's rules alone (the export's room column is ignored): dressing cases use OR 1,
  * emergency cases OR 8 (obstetrics-gynaecology stays in its own room), and anything else
  * the room its department holds that day. A department with several rooms is pooled, so
  * the case goes to the one with the fewest cases so far.
@@ -80,15 +78,8 @@ export function weekBoard(data: WeekFile = WEEK_DATA): DayBoard[] {
     const load = new Map<string, number>();
     const placed = new Map<WeekCase, string | null>();
 
-    // Rooms the export recorded come first, so inferred cases balance around them.
+    // The export's room column is not trusted: every case is placed by the schedule's rules alone.
     for (const item of rows) {
-      if (item.room === null) continue;
-      const roomId = `or-${item.room}`;
-      placed.set(item, roomId);
-      load.set(roomId, (load.get(roomId) ?? 0) + 1);
-    }
-    for (const item of rows) {
-      if (item.room !== null) continue;
       const roomId = inferRoom(item, date, load);
       placed.set(item, roomId);
       if (roomId) load.set(roomId, (load.get(roomId) ?? 0) + 1);

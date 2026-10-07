@@ -311,7 +311,7 @@ dialog[open]::backdrop {
 .fp-badge { fill: #fff; stroke: var(--fp-wall); stroke-width: 2.5; pointer-events: none; }
 .fp-label {
   font-family: var(--font-plex), "Noto Sans Thai", sans-serif;
-  font-size: 50px;
+  font-size: 56px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   fill: var(--fp-ink);

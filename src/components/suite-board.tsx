@@ -162,13 +162,13 @@ export function SuiteBoard({
             type="button"
             aria-pressed={unplacedSelected}
             onClick={() => onSelect(UNPLACED_ID)}
-            className="btn btn-secondary absolute top-3 left-3 z-10 min-h-10 gap-1.5 px-3 text-sm"
+            className="btn btn-secondary absolute top-2 left-2 z-10 min-h-10 gap-1.5 px-3 text-sm"
           >
-            ไม่ระบุห้อง
+            ไม่มีห้องที่ถูกต้อง
             <span className="rounded-full bg-brand-tint px-2 text-xs font-bold text-brand tabular-nums">{board.unplaced.length}</span>
           </button>
         ) : null}
-        <div key={day} className={`flex min-h-0 flex-1 justify-center overflow-hidden p-3 ${slide ? `day-slide-${slide}` : ""}`}>
+        <div key={day} className={`flex min-h-0 flex-1 justify-center overflow-hidden p-1 ${slide ? `day-slide-${slide}` : ""}`}>
           <FloorPlan selectedId={unplacedSelected ? null : selectedId} marks={marks} cases={counts} date={board.date} onSelect={onSelect} />
         </div>
       </div>
@@ -192,7 +192,7 @@ export function SuiteBoard({
             <div className="flex shrink-0 items-start justify-between gap-3 border-b border-line px-5 pt-2 pb-3.5 lg:py-4">
               <div className="min-w-0">
                 <h2 ref={headingRef} tabIndex={-1} className="text-xl leading-tight font-bold text-ink outline-none">
-                  {room ? roomLabel(room) : "ไม่ระบุห้อง"}
+                  {room ? roomLabel(room) : "ไม่มีห้องที่ถูกต้อง"}
                 </h2>
                 {allocation ? (
                   <div className="mt-1 space-y-0.5 text-sm font-medium text-ink-2">
@@ -207,7 +207,7 @@ export function SuiteBoard({
                   </div>
                 ) : null}
                 {unplacedSelected ? (
-                  <p className="mt-1 text-sm text-ink-2">ไม่มีห้องตามตารางจัดสรรของวันนี้ และไฟล์ไม่ระบุห้อง</p>
+                  <p className="mt-1 text-sm text-ink-2">แผนกของเคสเหล่านี้ไม่มีห้องตามตารางจัดสรรของวันนี้</p>
                 ) : null}
                 <p className="mt-0.5 text-sm text-muted">{cases.length} รายการ</p>
               </div>
@@ -234,6 +234,9 @@ export function SuiteBoard({
                         <span className="tabular-nums">ลำดับ {item.order}</span>
                         {item.shift === "out" ? (
                           <span className="rounded bg-late-tint px-1.5 py-0.5 text-xs font-semibold text-late">นอกเวลา</span>
+                        ) : null}
+                        {unplacedSelected ? (
+                          <span className="rounded bg-late-tint px-1.5 py-0.5 text-xs font-semibold text-late">ไม่มีห้องที่ถูกต้อง</span>
                         ) : null}
                       </p>
                       <span className="sr-only">{STATUS_LABEL[item.status]}</span>
