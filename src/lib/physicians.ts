@@ -34,8 +34,8 @@ export const PHYSICIAN_GROUPS = [
       "นภสร เมฆาวุฒิกุล",
       "นภิชรียา กาชัย",
       "พุฒิพงศ์ พร้อมคุณธรรม",
+      "มณฑาทิพย์ พงศานานุรักษ์",
       "สงกรานต์ ชุนหวัฒนา",
-      "สิรินีร ม่วงศิริ",
       "อภิสรา สวัสดี",
     ],
   },
@@ -152,6 +152,7 @@ export const PHYSICIAN_GROUPS = [
       "ครองขวัญ รั้วมั่น",
       "คริสทีน โรจจวัฒน์",
       "ชัยวัฒน์ สุวรรณรักษ์",
+      "ฐิติกร หอทิมาวรกุล",
       "ณัฐพงศ์ รั้วมั่น",
       "ณัฐรดี เกียรติปรุงเวช",
       "ทรงพล โพธิ์สุวรรณ",
@@ -161,7 +162,6 @@ export const PHYSICIAN_GROUPS = [
       "ปวรา ยุกตเวทย์",
       "ปวริศ จิรวรพัฒน์",
       "ปัทมิกา เจียรวุฒิสาร",
-      "พลชัย มาลัยพรพงศ์",
       "พิชยธัชฏ ม่วงศิริ",
       "พีรวิชญ์ ศรียารันต์",
       "พีรวิชญ์ ส่งศิริ",
@@ -177,7 +177,6 @@ export const PHYSICIAN_GROUPS = [
       "สรวิศ โรจน์ชีวิน",
       "สริตา ชิตเจริญ",
       "สิทธิณัฐ สุระประเสริฐ",
-      "สิทธิศักดิ์ ผู้พึ่งธรรมคุณ",
       "สิริน ศิลธรรม",
       "อัจฉริยา แสงวิจิตร",
     ],
@@ -232,6 +231,7 @@ export const PHYSICIAN_GROUPS = [
       "ปราญฤทัย วงศ์สุวรรณ์",
       "พยุงศักดิ์ ศักดาภิพาณิชย์",
       "อัญชลี ชุ่มแจ่ม",
+      "อาภาภรณ์ เอี่ยมกุลวรพงษ์",
       "เอมพัฒน์ อังศุศิริพงศ์",
     ],
   },
@@ -336,6 +336,54 @@ export const PHYSICIAN_GROUPS = [
     ],
   },
 ] as const;
+
+/** Sub-specialty teams within general surgery, as supplied by the hospital. Surgeons not listed are general surgery. */
+export const SURGICAL_TEAMS = {
+  CVT: [
+    "พีรวิชญ์ ศรียารันต์",
+    "ณัฐพงศ์ รั้วมั่น",
+    "เพ็ญศิริ ชาญวรัญญู",
+  ],
+  NEURO: [
+    "ปริญญา บุณยสนธิกุล",
+    "ชัยวัฒน์ สุวรรณรักษ์",
+    "บดินทร์ วโรดมวนิชกุล",
+  ],
+  PLASTIC: [
+    "วิลาสินี อุดคำเที่ยง",
+    "สิริน ศิลธรรม",
+    "ภัทราภรณ์ เลี้ยงชีพ",
+    "บงกชรัตน์ สิทธาธนากร",
+    "พิชยธัชฏ ม่วงศิริ",
+    "กิตติ์พงส์ ชมภูพงษ์เกษม",
+  ],
+  URO: [
+    "สริตา ชิตเจริญ",
+    "เกษมศักดิ์ จึงจรูญ",
+    "ณัฐรดี เกียรติปรุงเวช",
+    "สมชาย กลับกลาย",
+    "ฐิติกร หอทิมาวรกุล",
+  ],
+  VAS: [
+    "ภวินทร์ พานิชยานนท์",
+    "ศิรประภา เตียวมรกฎ",
+  ],
+  PEDSX: [
+    "ปวรา ยุกตเวทย์",
+    "ปัทมิกา เจียรวุฒิสาร",
+    "พีรวิชญ์ ส่งศิริ",
+  ],
+} as const;
+
+export type SurgicalTeam = keyof typeof SURGICAL_TEAMS;
+
+/** The sub-specialty team of a general-surgery physician, or null. */
+export function teamOf(name: string): SurgicalTeam | null {
+  for (const [code, members] of Object.entries(SURGICAL_TEAMS)) {
+    if ((members as readonly string[]).includes(name)) return code as SurgicalTeam;
+  }
+  return null;
+}
 
 export type Physician = {
   id: string;

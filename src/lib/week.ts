@@ -1,7 +1,7 @@
 import { WEEK_DATA } from "../data/week-data.ts";
 import { allocationFor, type DeptCode } from "./allocation.ts";
 import { DAY_KEYS, DAY_NAMES, type DayKey } from "./days.ts";
-import { listPhysicians } from "./physicians.ts";
+import { listPhysicians, teamOf } from "./physicians.ts";
 import type { CaseStatus, Operation, Shift } from "./schedule.ts";
 
 /** One row of the OR system export, reduced to what the board shows. Built by scripts/build_week.py. */
@@ -38,7 +38,7 @@ export function resolveSurgeon(name: string, title: string): { label: string; sp
   const clean = squash(name);
   const person = known.get(ALIASES[clean] ?? clean);
   const shown = person ? person.name : clean;
-  return { label: [title, shown].filter(Boolean).join(" "), specialty: person ? person.specialty : null };
+  return { label: [title, shown].filter(Boolean).join(" "), specialty: person ? [person.specialty, teamOf(person.name)].filter(Boolean).join(" · ") : null };
 }
 
 export type DayBoard = {

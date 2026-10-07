@@ -89,11 +89,11 @@ test("cases with no possible room are set aside, not lost", () => {
 test("orders each room's cases and tells the surgeon's department", () => {
   const day = weekBoard(fixture([{ dept: "SCOPE", proc: "a" }, { dept: "SCOPE", proc: "b" }, { dept: "GENSX", proc: "c" }]))[0];
   assert.deepEqual(day.operations.map((item) => [item.roomId, item.order]), [["or-3", 1], ["or-3", 2], ["or-2", 1]]);
-  assert.equal(day.operations[0].specialty, "ศัลยกรรม");
+  assert.equal(day.operations[0].specialty, "ศัลยกรรม · URO");
 });
 
 test("matches surgeons to the physician list, including a spelling variant", () => {
-  assert.deepEqual(resolveSurgeon("สมชาย  กลับกลาย", "นพ."), { label: "นพ. สมชาย กลับกลาย", specialty: "ศัลยกรรม" });
+  assert.deepEqual(resolveSurgeon("สมชาย  กลับกลาย", "นพ."), { label: "นพ. สมชาย กลับกลาย", specialty: "ศัลยกรรม · URO" });
   assert.equal(resolveSurgeon("วันทนันท์ หล่อวัฒนกิจชัย", "นพ.").label, "นพ. วันทนันท์ หล่อวัฒนากิจชัย");
   assert.equal(resolveSurgeon("วันทนันท์ หล่อวัฒนกิจชัย", "นพ.").specialty, "ศัลยกรรมออร์โธปิดิกส์");
   assert.deepEqual(resolveSurgeon("ไม่มี ในรายชื่อ", "พญ."), { label: "พญ. ไม่มี ในรายชื่อ", specialty: null });
