@@ -377,10 +377,23 @@ export const SURGICAL_TEAMS = {
 
 export type SurgicalTeam = keyof typeof SURGICAL_TEAMS;
 
-/** The team of a general-surgery physician: a listed sub-specialty, otherwise GENSX. Null for anyone outside the group. */
-export function teamOf(name: string): SurgicalTeam | "GENSX" | null {
-  for (const [code, members] of Object.entries(SURGICAL_TEAMS)) {
-    if ((members as readonly string[]).includes(name)) return code as SurgicalTeam;
+/** Sub-specialty teams within internal medicine, as supplied by the hospital. */
+export const MEDICINE_TEAMS = {
+  NEPHRO: [
+    "พัตราภรณ์ ปรัชญารัตนานนท์",
+    "ศุภศรัณย์ ศุภพัฒนพงศ์",
+    "อนุพงษ์ ธนัญภูวสิษฏ์",
+  ],
+} as const;
+
+export type PhysicianTeam = SurgicalTeam | keyof typeof MEDICINE_TEAMS | "GENSX";
+
+/** The team of a physician: a listed sub-specialty, GENSX for any other general surgeon, otherwise null. */
+export function teamOf(name: string): PhysicianTeam | null {
+  for (const teams of [SURGICAL_TEAMS, MEDICINE_TEAMS]) {
+    for (const [code, members] of Object.entries(teams)) {
+      if ((members as readonly string[]).includes(name)) return code as PhysicianTeam;
+    }
   }
   const surgeons = PHYSICIAN_GROUPS.find((group) => group.id === "surgery")?.names as readonly string[] | undefined;
   return surgeons?.includes(name) ? "GENSX" : null;

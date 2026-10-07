@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { getPhysician, listPhysicians, PHYSICIAN_GROUPS, SURGICAL_TEAMS, teamOf } from "./physicians.ts";
+import { getPhysician, listPhysicians, MEDICINE_TEAMS, PHYSICIAN_GROUPS, SURGICAL_TEAMS, teamOf } from "./physicians.ts";
 
 test("physician list matches the supplied departments", () => {
   const counts = Object.fromEntries(PHYSICIAN_GROUPS.map((group) => [group.id, group.names.length]));
@@ -46,4 +46,12 @@ test("knows each general-surgery sub-specialty team", () => {
   assert.equal(all.length, 22);
   const surgeons = new Set(PHYSICIAN_GROUPS.find((group) => group.id === "surgery")?.names);
   for (const name of all) assert.ok(surgeons.has(name), name);
+});
+
+test("knows the internal-medicine nephrology team", () => {
+  assert.equal(teamOf("อนุพงษ์ ธนัญภูวสิษฏ์"), "NEPHRO");
+  assert.equal(teamOf("อรพรรณ เลิศสาครประเสริฐ"), null);
+  const internal = new Set(PHYSICIAN_GROUPS.find((group) => group.id === "internal")?.names);
+  for (const name of MEDICINE_TEAMS.NEPHRO) assert.ok(internal.has(name), name);
+  assert.equal(MEDICINE_TEAMS.NEPHRO.length, 3);
 });
