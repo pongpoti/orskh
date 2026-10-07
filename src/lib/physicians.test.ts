@@ -17,7 +17,7 @@ test("physician list matches the supplied departments", () => {
     rehab: 4,
     "social-medicine": 1,
     emergency: 10,
-    surgery: 33,
+    surgery: 35,
     orthopedic: 15,
     obgyn: 13,
     ent: 8,
@@ -26,8 +26,8 @@ test("physician list matches the supplied departments", () => {
     intern: 46,
   });
   const people = listPhysicians();
-  assert.equal(people.length, 221);
-  assert.equal(new Set(people.map((person) => person.id)).size, 221);
+  assert.equal(people.length, 223);
+  assert.equal(new Set(people.map((person) => person.id)).size, 223);
   assert.equal(getPhysician("orthopedic-1")?.name, "เฉลิมพล กินรี");
   assert.equal(getPhysician("surgery-1")?.name, "กิตติ์พงส์ ชมภูพงษ์เกษม");
   assert.equal(getPhysician("anesthesia-1")?.name, "ชลวรรณ ชุ่มแจ้ง");
@@ -43,7 +43,7 @@ test("knows each general-surgery sub-specialty team", () => {
   assert.equal(teamOf("ขจรศักดิ์ โภคสมบัติ"), "GENSX"); // no sub-specialty listed
   assert.equal(teamOf("เฉลิมพล กินรี"), null); // not in the surgery group
   const all = Object.values(SURGICAL_TEAMS).flat() as string[];
-  assert.equal(all.length, 22);
+  assert.equal(all.length, 24);
   const surgeons = new Set(PHYSICIAN_GROUPS.find((group) => group.id === "surgery")?.names);
   for (const name of all) assert.ok(surgeons.has(name), name);
 });
@@ -61,4 +61,11 @@ test("labels every obstetrician-gynaecologist OBGYN", () => {
   const group = PHYSICIAN_GROUPS.find((item) => item.id === "obgyn");
   assert.equal(group?.names.length, 13);
   for (const name of group?.names ?? []) assert.equal(teamOf(name), "OBGYN", name);
+});
+
+test("adds the maxillofacial surgeons after the existing names so stored ids keep their meaning", () => {
+  assert.equal(teamOf("กฤติยา นครครื้น"), "MAXILLO");
+  assert.equal(teamOf("สุรชัย เพชรอาภรณ์"), "MAXILLO");
+  assert.equal(getPhysician("surgery-33")?.name, "อัจฉริยา แสงวิจิตร");
+  assert.equal(getPhysician("surgery-35")?.name, "สุรชัย เพชรอาภรณ์");
 });
