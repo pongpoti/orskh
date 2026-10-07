@@ -28,7 +28,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "นัด chang Rt PCN",
    "status": "cancelled",
    "shift": "out",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -39,7 +38,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "set OR local cystoscope",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -50,7 +48,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "นัดผ่าตัด release Trigger Rt middle 30/9/69 เช้าไม่ต้อง NPO ที่ OR ใหญ่",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -61,7 +58,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "CTR LT",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -72,7 +68,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Biopsy rt axillary",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -83,7 +78,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "EGD SMC",
    "status": "done",
    "shift": "out",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -94,7 +88,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "hand assisted sigmoidectomy",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -105,7 +98,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "เคสที่ 1 ORIF locking plate right knee, under GA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -116,7 +108,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "change vac under LA",
    "status": "done",
    "shift": null,
-   "dressing": true,
    "emergency": false
   },
   {
@@ -127,7 +118,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Mastoidectomy +Cochlear Implantation under GA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -138,7 +128,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Set OR for Open Reduction",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -149,7 +138,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "cystoscope",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -160,7 +148,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Set OR for scrub burn under GA",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -171,7 +158,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Set OR for Fistulotomy/Fistulectomy/LIFT/FIPS 28/9/2569",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -182,7 +168,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "change vac dressing",
    "status": "done",
    "shift": "in",
-   "dressing": true,
    "emergency": false
   },
   {
@@ -193,7 +178,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "set DCL fusion L5/S1",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -204,7 +188,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Set OR for TURP 28/9/69",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -215,7 +198,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Dressing wound OD (under LA)",
    "status": "done",
    "shift": "in",
-   "dressing": true,
    "emergency": false
   },
   {
@@ -226,7 +208,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "MIS-TLIF L4/5 Lt + over the top decompression",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -237,7 +218,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Total mastectomy with SLNB/ALND + implant",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -248,7 +228,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "DB",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -259,7 +238,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Venoplasty + exchange Rt IJV TCC (under LA)",
    "status": "cancelled",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -270,7 +248,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "lap rt hemicolectomy smc",
    "status": "done",
    "shift": "out",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -281,7 +258,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "TAH",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -292,7 +268,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "set OR for excision under anesthesia",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -303,7 +278,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Fistulectomy",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -314,7 +288,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Lt iliac angioplasty (under LA)",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -325,7 +298,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "TURP WITH CYSTOLITHOLAPAXY",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -336,7 +308,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Set OR cystoscope with PCN insertion under local",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -347,7 +318,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "set stsg local on call บ่าย",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -358,7 +328,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Suture wound under LA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -369,7 +338,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Re TURBT (GA)",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -380,7 +348,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Delorme procedure",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -391,7 +358,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Lt venoplasty under LA",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -402,7 +368,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "endoscopic discectomy L5/S1 lt. under GA",
    "status": "cancelled",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -413,7 +378,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "LC",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -424,7 +388,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "excision acessory digit",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -435,7 +398,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "TAH",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -446,7 +408,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "CABG+AVR",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -457,7 +418,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "PPTR",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -468,7 +428,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Set OR for vertebroplasty L1, L2 under GA oncall",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -479,7 +438,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Dressing wound",
    "status": "done",
    "shift": "in",
-   "dressing": true,
    "emergency": false
   },
   {
@@ -490,7 +448,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "hemorrhoidectomy ODSสมุทรสาคร",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -501,7 +458,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "colonoscope ODSสมุทรสาคร",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -512,7 +468,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "colonoscopy",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -523,7 +478,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "set cystoscope 28/9/69 local",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -534,7 +488,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "BCG maintenance ครั้งที่3/3",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -545,7 +498,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "TK insertion under GA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -556,7 +508,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "excisional biopsy LA 28/9/69 13.00",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -567,7 +518,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Set OR for ACDF C56",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -578,7 +528,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "TURP 29/9/69",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -589,7 +538,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "TURP",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -600,7 +548,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "TURP 29/9/69",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -611,7 +558,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "gastrojejunostomy",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -622,7 +568,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "debridement",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -633,7 +578,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "open right hemicolectomy (SMC)",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -644,7 +588,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Bilat .Lap TEP 29/9/69",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -655,7 +598,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "right Total mastectomy with SLNB with bipedicle TRAM",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -666,7 +608,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "excision LA 28/9/69 13.00",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -677,7 +618,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Colonoscope",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -688,7 +628,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Scrub burn LA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -699,7 +638,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Phaco with IOL RE under LA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -710,7 +648,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Set OR excision 8:30น",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -721,7 +658,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "เคสที่ 1 Endoscopic discectomy L5/S1 Lt. under GA",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -732,7 +668,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "FOL / LA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -743,7 +678,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Phaco with IOL RE under LA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -754,7 +688,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Phaco with IOL RE +iris repostion under LA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -765,7 +698,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Set OR for implate removal (Broad DCP) of Rt femur",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -776,7 +708,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Rt . Lobectomy on complete/GA",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -787,7 +718,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "ORIF with small DCP 29/9/69 under GA oncall",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -798,7 +728,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Ray amputation left 3rd toe",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -809,7 +738,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Trabeculectomy with MMC LE under LA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -820,7 +748,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "change vac dressing",
    "status": "done",
    "shift": "in",
-   "dressing": true,
    "emergency": false
   },
   {
@@ -831,7 +758,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Set OR CRIF with Kwire 28/9/69 13.30 GA ใช้ Flu",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -842,7 +768,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "onDLC at RT IJV via U/S",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -853,7 +778,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "colonoscope ODSสมุทรสาคร",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -864,7 +788,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "colonoscope ODSสมุทรสาคร",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -875,7 +798,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Re wide excision Lt breast ODSสมุทรสาคร",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -886,7 +808,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "sigmoidoscopy ส่องลึก 40 ซม.",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -897,7 +818,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "LC MIS",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -908,7 +828,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Rt. URS-L",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -919,7 +838,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "EGD",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -930,7 +848,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Set OR for TKA Lt caseที่ 1 30/9/69 9.00น.",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -941,7 +858,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "TR",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -952,7 +868,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "vhyst with AP repiar",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -963,7 +878,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "right hernioplasty",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -974,7 +888,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "set OR for Lt.hydrocelectomy",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -985,7 +898,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Esophagogastroduodenoscopy [EGD]",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -996,7 +908,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Change Rt PCN to OR",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1007,7 +918,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "TUR-BT",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1018,7 +928,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Phaco with IOL LE under LA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1029,7 +938,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "นัดset OR for excision under LA 29/9/69 13.00น. พ.สิริน",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1040,7 +948,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "EGD colonoscope ODSสมุทรสาคร",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1051,7 +958,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "ERCP",
    "status": "cancelled",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1062,7 +968,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Suture wound Lt.hand under LA oncall 30/9/69",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1073,7 +978,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "EL",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1084,7 +988,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "set OR for laparoscopic right ovarian cystectomy",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1095,7 +998,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Set OR for Phaco with IOL LE under LA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1106,7 +1008,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "tumor removal under iv sedate or GA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1117,7 +1018,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Set OR for bilat orchiectomy",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1128,7 +1028,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "bipolar arthroplasty left hip, under GA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1139,7 +1038,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Phaco with IOL LE under LA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1150,7 +1048,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "เคสที่ 3Set OR for open K-wire left wrist, under GA, on call",
    "status": "done",
    "shift": "out",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1161,7 +1058,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Phaco with IOL RE under LA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1172,7 +1068,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "colonoscopy",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1183,7 +1078,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Phaco with IOL LE under LA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1194,7 +1088,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Set OR for suture wound Lt.middle finger under LA oncall",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1205,7 +1098,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Phaco with IOL LE under LA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1216,7 +1108,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "right nephrectomy",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1227,7 +1118,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "SET OR for open wedge liver resection segment 6 วันที่ 1/10/2569",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1238,7 +1128,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Phaco with IOL RE under LA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1249,7 +1138,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Phaco with IOL LE under LA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1260,7 +1148,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Phaco with IOL LE under LA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1271,7 +1158,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "excision mass at labia",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1282,7 +1168,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Excision mass lower lip / LA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1293,7 +1178,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "เคสที่ 2 ORIF LCP right clavicle, 2.) open K-wire right hand, under GA",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1304,7 +1188,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Set OR Endothyroidectomy Rt. thyroid / GA +- explore On call บ่าย",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1315,7 +1198,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Set OR for completion Lt. thyroidectomy under GA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1326,7 +1208,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Change vac d/s",
    "status": "done",
    "shift": "in",
-   "dressing": true,
    "emergency": false
   },
   {
@@ -1337,7 +1218,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Set OR Excision Glomus tumor LA 13.30 พุธ 30/9/69 ใช้กล้อง Micro, Set Micro II",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1348,7 +1228,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "ORIF c LCP",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1359,7 +1238,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "VATS stop air leak right lung",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1370,7 +1248,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "EGD colonoscope ODSสมุทรสาคร",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1381,7 +1258,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "้herniotomy ODSสมุทรสาคร",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1392,7 +1268,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "เคสที่ 2 เset or for right TKA under GA/SB 1/10/2569",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1403,7 +1278,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "DB",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1414,7 +1288,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Colonoscope",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1425,7 +1298,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "ERCP",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1436,7 +1308,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Right mastectomy with ALND",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1447,7 +1318,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Rt RIRS + URSL",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1458,7 +1328,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "cervicofacial flap with ftsg under GA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1469,7 +1338,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "set or for tonsillectomy GA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1480,7 +1348,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "เคสที่ 1TKA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1491,7 +1358,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "DL+excision +-cauterization",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1502,7 +1368,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "ERCP",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1513,7 +1378,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "ERCP +-stent",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1524,7 +1388,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "change vac dressing",
    "status": "done",
    "shift": null,
-   "dressing": true,
    "emergency": false
   },
   {
@@ -1535,7 +1398,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "LC",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1546,7 +1408,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Rt.TKA",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1557,7 +1418,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Phaco with IOL LE under LA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1568,7 +1428,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "OR for Phaco with IOL LE under LA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1579,7 +1438,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Phaco with IOL RE under LA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1590,7 +1448,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Phaco with IOL RE under LA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1601,7 +1458,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Phaco with IOL RE under LA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1612,7 +1468,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Phaco with IOL LE under LA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1623,7 +1478,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Dressing wound OD at OR with pontosan",
    "status": "cancelled",
    "shift": null,
-   "dressing": true,
    "emergency": false
   },
   {
@@ -1634,7 +1488,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "re explore lap",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1645,7 +1498,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Dressing wound OD at OR",
    "status": "done",
    "shift": "in",
-   "dressing": true,
    "emergency": false
   },
   {
@@ -1656,7 +1508,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "เคสที่ 1 set or for for cemented bipolar hemiarthroplasty left under GA/ SB",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1667,7 +1518,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "EGD remove FB",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1678,7 +1528,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "ORIF c plate and screw Rt Lateral malleolus under GA/SB",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1689,7 +1538,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "colonoscope ODSสมุทรสาคร",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1700,7 +1548,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "set OR7 1/10/69 +cysto off dj under local",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1711,7 +1558,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "เคสที่ 2 endoscopic decompression L34 L45 and L5S1 Lt side",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1722,7 +1568,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Phaco + IOL LE under LA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1733,7 +1578,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "ATRHROSCOPIC RC REPAIR + SAD + BICEPS TENOTOMY LT. SHOULDER/GA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1744,7 +1588,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "BSO (Midline)",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1755,7 +1598,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "excisional biopsy Left SPC node",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1766,7 +1608,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "ARTHROSCOPIC MM REPAIR RT. KNEE",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1777,7 +1618,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "ERCP",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1788,7 +1628,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Set OR for adenotonsillectomy under GA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1799,7 +1638,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "LNBx Rt axillar",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1810,7 +1648,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "set OR for rt. ovarian cystectomy 09.00 02/10/69",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1821,7 +1658,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Set OR for Phaco + IOL LE under LA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1832,7 +1668,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Phaco + IOL RE under LA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1843,7 +1678,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Phaco + IOL RE under LA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1854,7 +1688,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "excision mass at posterior neck",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1865,7 +1698,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "LC",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1876,7 +1708,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Rt thyroid lobectomy under GA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1887,7 +1718,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "Dressing wound",
    "status": "done",
    "shift": null,
-   "dressing": true,
    "emergency": false
   },
   {
@@ -1898,7 +1728,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "PPTR",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1909,7 +1738,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "CABG with Repair LV",
    "status": "done",
    "shift": "out",
-   "dressing": false,
    "emergency": true
   },
   {
@@ -1920,7 +1748,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "- นัด EGD 2/10/2569",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1931,7 +1758,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "colonoscope ODSสมุทรสาคร",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1942,7 +1768,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "colonoscope ODSสมุทรสาคร",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1953,7 +1778,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "igmoidoscope 2/10/69 under LA",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1964,7 +1788,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "colonoscope ODSสมุทรสาคร",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1975,7 +1798,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "นัด สัปดาห์หน้า + 2md dose induction of bcg",
    "status": "done",
    "shift": null,
-   "dressing": false,
    "emergency": false
   },
   {
@@ -1986,7 +1808,6 @@ export const WEEK_DATA: WeekFile = {
    "proc": "colonoscope ODSสมุทรสาคร",
    "status": "done",
    "shift": "in",
-   "dressing": false,
    "emergency": false
   }
  ]

@@ -2,14 +2,14 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { WEEK_DATA } from "../data/week-data.ts";
 import { boardHref, DAY_KEYS, DAY_NAMES, parseDay } from "./days.ts";
-import { isScopeCase, resolveSurgeon, weekBoard, type WeekCase, type WeekFile } from "./week.ts";
+import { isDressingCase, isScopeCase, resolveSurgeon, weekBoard, type WeekCase, type WeekFile } from "./week.ts";
 
 function fixture(cases: Partial<WeekCase>[]): WeekFile {
   return {
     meta: { days: ["2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02"], rows: 0, kept: 0, dropped: {} },
     cases: cases.map((item) => ({
       day: 0, dept: null, surgeon: "สมชาย กลับกลาย", title: "นพ.", proc: "x", status: "done",
-      shift: null, dressing: false, emergency: false, ...item,
+      shift: null, emergency: false, ...item,
     })),
   };
 }
@@ -47,7 +47,7 @@ test("every kept case from the export lands on a day, and nearly all in a room",
 });
 
 test("keeps no patient fields in the case data", () => {
-  const allowed = new Set(["day", "dept", "surgeon", "title", "proc", "status", "shift", "dressing", "emergency"]);
+  const allowed = new Set(["day", "dept", "surgeon", "title", "proc", "status", "shift", "emergency"]);
   for (const item of WEEK_DATA.cases) {
     for (const key of Object.keys(item)) assert.ok(allowed.has(key), key);
     assert.doesNotMatch(`${item.proc} ${item.surgeon}`, /(นาย|นางสาว|นาง |น\.ส\.|\bHN\b|\bAN\b|\d{6,})/);
@@ -56,7 +56,7 @@ test("keeps no patient fields in the case data", () => {
 
 test("rooms follow the report's rules", () => {
   const data = fixture([
-    { dressing: true, dept: "GENSX" },
+    { proc: "Dressing wound", dept: "GENSX" },
     { emergency: true, dept: "ORTHO" },
     { emergency: true, dept: "OBGYN" },
     { dept: "EYE" },
@@ -143,5 +143,30 @@ test("a case in the SCOPE room is always a GENSX surgeon's endoscopic case", () 
       assert.match(item.specialty ?? "", /GENSX/);
       assert.ok(isScopeCase(item.procedure, "GENSX"), item.procedure);
     }
+  }
+});
+
+test("finds dressing cases by the hospital's keyword algorithm", () => {
+  for (const name of ["Dressing wound OD", "change vac dressing", "Change vac d/s", "D / S wound", "ds wound", "DW", "vacc d", "ทำแผล", "ล้างแผลที่ขา", "เปลี่ยนแผล"]) {
+    assert.ok(isDressingCase(name), name);
+  }
+  // another procedure in the name, or d/s, ds and dw inside a longer word, is not a dressing case
+  for (const name of ["debridement and dressing", "DB", "d.b. wound", "scrub and dressing", "STSG dressing", "suture wound", "closure with dressing", "excision lesion dw", "amputation d/s", "hernia repair", "adsorb", "midwife dwell"]) {
+    assert.equal(isDressingCase(name), false, name);
+  }
+});
+
+test("OR 1 takes dressing cases from any department and nothing else", () => {
+  const data = fixture([
+    { dept: "ORTHO", proc: "Dressing wound" },
+    { dept: "URO", proc: "change vac dressing", emergency: true }, // dressing is checked before emergency
+    { dept: "GENSX", proc: "debridement and dressing" },
+  ]);
+  const rooms = roomsOf(data);
+  assert.equal(rooms[0], "or-1");
+  assert.equal(rooms[1], "or-1");
+  assert.notEqual(rooms[2], "or-1");
+  for (const day of weekBoard()) {
+    for (const item of day.operations) assert.equal(item.roomId === "or-1", isDressingCase(item.procedure), item.procedure);
   }
 });

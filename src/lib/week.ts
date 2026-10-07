@@ -14,7 +14,6 @@ export type WeekCase = {
   proc: string;
   status: CaseStatus;
   shift: Shift | null;
-  dressing: boolean;
   emergency: boolean;
 };
 
@@ -53,6 +52,25 @@ export type DayBoard = {
   unplaced: Operation[];
 };
 
+/** Words that mark a dressing case (wound dressing, done in OR 1), matched on the lower-cased operation name. */
+const DRESSING_INCLUDE =
+  /dressing|(?<![a-z])d\s*\/\s*s(?![a-z])|(?<![a-z])ds(?![a-z])|(?<![a-z])dw(?![a-z])|ทำแผล|ล้างแผล|เปลี่ยนแผล|change\s+vac|vac+\s*d/;
+/** ...unless the name also holds another procedure: debridement, scrub, graft, closure and so on. */
+const DRESSING_EXCLUDE = [
+  /debri|(?<![a-z])d\.?b\.?(?![a-z])/,
+  /scrub/,
+  /graft|stsg|sskg|suture|closure|escharotomy|fasciotomy|excision|excise|incision|amputat/,
+];
+
+/**
+ * A dressing case, from any sub-specialty. The export has no operation-items column, so the "every item must
+ * be a dressing" step of the hospital's algorithm is skipped and the result is the broader definition.
+ */
+export function isDressingCase(procedure: string): boolean {
+  const text = procedure.toLowerCase();
+  return DRESSING_INCLUDE.test(text) && !DRESSING_EXCLUDE.some((pattern) => pattern.test(text));
+}
+
 /** Operation names that belong in the SCOPE room (matched case-insensitively). */
 const SCOPE_INCLUDE = /\begd\b|gastroscop|esophagoscop|\bogd\b|colono|sigmoido|\bercp\b|endoscop|\beus\b/i;
 /** ...unless they are a foreign-body removal. */
@@ -73,7 +91,7 @@ export function isScopeCase(procedure: string, team: string | null): boolean {
  * case goes nowhere else. Other general-surgery cases use the GENSX rooms.
  */
 function inferRoom(item: WeekCase, date: string, load: Map<string, number>, team: string | null): string | null {
-  if (item.dressing) return "or-1";
+  if (isDressingCase(item.proc)) return "or-1";
   if (item.emergency && item.dept !== "OBGYN") return "or-8";
   const dept = isScopeCase(item.proc, team) ? "SCOPE" : item.dept === "SCOPE" ? "GENSX" : item.dept;
   if (!dept) return null;
@@ -81,6 +99,7 @@ function inferRoom(item: WeekCase, date: string, load: Map<string, number>, team
   const rooms: string[] = [];
   for (let n = 1; n <= 13; n += 1) {
     const allocation = allocationFor(`or-${n}`, date);
+    if (n === 1) continue; // OR 1 is for dressing cases only
     if (allocation?.am?.code === dept || allocation?.pm?.code === dept) rooms.push(`or-${n}`);
   }
   if (rooms.length === 0) return null;

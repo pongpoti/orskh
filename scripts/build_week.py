@@ -9,13 +9,10 @@ name, surgeon and shift. Patient fields (HN, AN, name, age, rights, diagnosis,
 costs) are never read into the output.
 
 Rules, from the FY2569 utilisation report:
-  * dressing cases are found by keyword (d/s, ds and dw only as whole words) and
-    are not dressing when the name also holds debridement / db, scrub, graft,
-    suture, closure, escharotomy, fasciotomy, excision, incision or amputation;
   * Tha Chalom hospital cases are cut, and so is vascular surgery Tue-Thu
     (that is Tha Chalom's quota);
-  * ORs and departments are matched later, in src/lib/week.ts, from the weekly
-    allocation table.
+  * ORs, dressing cases (OR 1) and SCOPE cases (OR 3) are decided later, in
+    src/lib/week.ts, from the weekly allocation table and the case keywords.
 Local rules:
   * rows whose `วันที่` equals `วันที่ผ่าตัด` are dropped (same-day entries, as
     the hospital asked);
@@ -81,14 +78,6 @@ SPECIFIC = {
     "สูติกรรม": "OBGYN", "ศัลยกรรมตกแต่ง": "PLASTIC", "ศัลยกรรมหัวใจและหลอดเลือด": "CVT",
     "ศัลยกรรมหัวใจและทรวงอก": "CVT", "ศัลยกรรมทรวงอก": "CVT",
 }
-DRESSING = re.compile(
-    r"(dressing|(?<![a-z])d/s(?![a-z])|(?<![a-z])ds(?![a-z])|(?<![a-z])dw(?![a-z])|ทำแผล|ล้างแผล|เปลี่ยนแผล|change\s*vac|vac\s*d)",
-    re.I,
-)
-NOT_DRESSING = re.compile(
-    r"(debridement|(?<![a-z])db(?![a-z])|scrub|graft|suture|closure|escharotomy|fasciotomy|excision|incision|amputation)",
-    re.I,
-)
 # Anything that could name a patient is stripped from free text and listed for review.
 PERSONAL = re.compile(r"((?:นาย|นางสาว|นาง|น\.ส\.|ด\.ช\.|ด\.ญ\.)\s*\S+(?:\s+\S+)?|\b\d{6,}\b|\bHN\s*\d+|\bAN\s*\d+)", re.I)
 
@@ -133,7 +122,6 @@ for i, row in rows.iterrows():
         "proc": proc,
         "status": STATUS.get(text(cell(row, "status")), "scheduled"),
         "shift": "out" if shift.startswith("นอกเวลา") else "in" if shift.startswith("ในเวลา") else None,
-        "dressing": bool(DRESSING.search(proc_raw) and not NOT_DRESSING.search(proc_raw)),
         "emergency": text(cell(row, "urgency")) in ("Emergency", "Stat"),
     })
 
@@ -161,7 +149,7 @@ with open(OUT, "w", encoding="utf-8") as f:
     f.write(";\n")
 print(json.dumps(meta, ensure_ascii=False, indent=1))
 print("no department:", sum(1 for c in out if not c["dept"]))
-print("dressing:", sum(c["dressing"] for c in out), "| emergency:", sum(c["emergency"] for c in out))
+print("emergency:", sum(c["emergency"] for c in out))
 print("free text scrubbed:", len(scrubbed))
 for before, hits in scrubbed:
     print("  ", repr(before), "->", hits)
