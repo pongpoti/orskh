@@ -56,3 +56,9 @@ test("knows the internal-medicine nephrology team", () => {
   for (const name of MEDICINE_TEAMS.NEPHRO) assert.ok(internal.has(name), name);
   assert.equal(MEDICINE_TEAMS.NEPHRO.length, 4);
 });
+
+test("labels every obstetrician-gynaecologist OBGYN", () => {
+  const group = PHYSICIAN_GROUPS.find((item) => item.id === "obgyn");
+  assert.equal(group?.names.length, 13);
+  for (const name of group?.names ?? []) assert.equal(teamOf(name), "OBGYN", name);
+});
