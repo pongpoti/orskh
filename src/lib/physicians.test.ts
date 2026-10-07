@@ -50,8 +50,9 @@ test("knows each general-surgery sub-specialty team", () => {
 
 test("knows the internal-medicine nephrology team", () => {
   assert.equal(teamOf("อนุพงษ์ ธนัญภูวสิษฏ์"), "NEPHRO");
-  assert.equal(teamOf("อรพรรณ เลิศสาครประเสริฐ"), null);
+  assert.equal(teamOf("อรพรรณ เลิศสาครประเสริฐ"), "NEPHRO");
+  assert.equal(teamOf("วิชิต กาจเงิน"), null);
   const internal = new Set(PHYSICIAN_GROUPS.find((group) => group.id === "internal")?.names);
   for (const name of MEDICINE_TEAMS.NEPHRO) assert.ok(internal.has(name), name);
-  assert.equal(MEDICINE_TEAMS.NEPHRO.length, 3);
+  assert.equal(MEDICINE_TEAMS.NEPHRO.length, 4);
 });
