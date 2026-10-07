@@ -41,17 +41,15 @@
 
   /* Floor plan */
   --fp-floor: #f4f7f7;
-  --fp-outer: #f4eee2;
+  --fp-outer: #d9dfe2;
   --fp-or: #cdebe5;
-  --fp-recovery: #d9ccf0;
-  --fp-recovery-hover: #c6b4e6;
-  --fp-recovery-selected: #b79adf;
+  --fp-recovery: var(--fp-support);
   --fp-support: #e8ecee;
   --fp-core: #ffffff;
   --fp-wall: var(--ink);
   --fp-detail: #6e808a;
   --fp-grate-line: #bac7cc;
-  --fp-shell: #dce4e6;
+  --fp-shell: var(--fp-floor);
   --fp-counter: #7e8a92;
   --fp-counter-edge: #5a666e;
   --fp-ink: var(--ink);
@@ -303,7 +301,7 @@ dialog[open]::backdrop {
 
 .fp-bg { fill: var(--fp-floor); }
 .fp-zone-outer { fill: var(--fp-outer); }
-.fp-shell,
+.fp-shell { fill: var(--fp-shell); }
 .fp-grate-block { fill: url(#fp-grate); }
 .fp-grate-block { stroke: var(--fp-detail); stroke-width: 2; }
 .fp-grate-base { fill: var(--fp-shell); }
@@ -318,14 +316,11 @@ dialog[open]::backdrop {
 /* Hover only where a pointer exists, so a tap does not leave the room tinted. */
 @media (hover: hover) {
   .fp-or:hover .fp-floor { filter: brightness(0.9); }
-  .fp-recovery:not(.is-static):hover .fp-floor { fill: var(--fp-recovery-hover); }
 }
 .fp-or:active .fp-floor { filter: brightness(0.9); }
 .fp-or.is-selected { filter: drop-shadow(0 0 9px rgb(34 49 58 / 0.5)); }
 .fp-or.is-selected .fp-wall { stroke: var(--fp-ink); stroke-width: 9; }
 .fp-recovery .fp-floor { fill: var(--fp-recovery); }
-.fp-recovery.is-selected .fp-floor { fill: var(--fp-recovery-selected); }
-.fp-recovery.is-selected .fp-wall { stroke: #4c3d73; stroke-width: 6; }
 /* Keyboard focus lands on the floor path; show it as a blue wall instead of a box around the shape. */
 .fp-floor:focus-visible { outline: none; }
 .fp-or:has(.fp-floor:focus-visible) .fp-wall,
@@ -334,7 +329,7 @@ dialog[open]::backdrop {
 .fp-core .fp-floor { fill: var(--fp-core); }
 .fp-wall { fill: none; stroke: var(--fp-wall); stroke-width: 4; stroke-linejoin: miter; stroke-linecap: butt; }
 .fp-wall.fp-thin { stroke-width: 2.5; }
-.fp-wall.fp-outer { stroke-width: 8; }
+.fp-wall.fp-outer { stroke-width: 3; }
 .fp-detail { fill: none; stroke: var(--fp-detail); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .fp-cab { fill: none; stroke: var(--fp-detail); stroke-width: 2; }
 /* Room number sits in a white badge so it reads on any department colour. */

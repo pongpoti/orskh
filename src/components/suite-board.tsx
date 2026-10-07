@@ -86,7 +86,7 @@ function Owner({ dept, part }: { dept: Department | null; part?: string }) {
       {part ? <span className="w-8 shrink-0 text-muted">{part}</span> : null}
       {dept ? (
         <>
-          <span aria-hidden className="size-3.5 shrink-0 rounded ring-1 ring-ink/30" style={{ background: `linear-gradient(135deg, ${dept.gradient[0]}, ${dept.gradient[1]})` }} />
+          <span aria-hidden className="size-3.5 shrink-0 rounded ring-1 ring-ink/30" style={{ background: dept.color }} />
           {dept.name}
         </>
       ) : (
@@ -133,6 +133,12 @@ export function SuiteBoard({
   const unplacedSelected = selectedId === UNPLACED_ID;
   const room = unplacedSelected ? null : getRoom(selectedId);
   const open = unplacedSelected || room !== null;
+
+  const counts = useMemo(() => {
+    const next: Record<string, number> = {};
+    for (const item of board.operations) next[item.roomId] = (next[item.roomId] ?? 0) + 1;
+    return next;
+  }, [board]);
 
   const marks = useMemo(() => {
     const next: Record<string, ReturnType<typeof roomMark>> = {};
@@ -224,7 +230,7 @@ export function SuiteBoard({
           </button>
         ) : null}
         <div key={day} className={`flex min-h-0 flex-1 justify-center overflow-hidden p-3 ${slide ? `day-slide-${slide}` : ""}`}>
-          <FloorPlan selectedId={unplacedSelected ? null : selectedId} marks={marks} date={board.date} onSelect={onSelect} />
+          <FloorPlan selectedId={unplacedSelected ? null : selectedId} marks={marks} cases={counts} date={board.date} onSelect={onSelect} />
         </div>
       </div>
 
