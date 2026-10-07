@@ -45,7 +45,7 @@ export function TopBar({
         <div className="flex min-w-0 items-center gap-2.5 text-sm sm:gap-3">
           <span className="flex min-w-0 items-center gap-2">
             <ProfileAvatar src={src} initial={initial} />
-            <span className="block max-w-24 truncate font-medium text-ink sm:max-w-48">{name}</span>
+            <span className="sr-only sm:not-sr-only sm:block sm:max-w-48 sm:truncate sm:font-medium sm:text-ink">{name}</span>
           </span>
           {showAccount ? <SignOutButton /> : null}
         </div>

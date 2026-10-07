@@ -14,16 +14,16 @@ Cases come from an export of the OR system for 28 Sep – 2 Oct 2026, not from a
 - The export has no start or end times, so cases are listed by position (ลำดับ), with the shift flagged when it is out of hours.
 - Surgeons are matched to the supplied physician list (`src/lib/physicians.ts`), which also feeds registration.
 
-Room colours and labels come from the weekly allocation table in the FY2569 utilisation report (`src/lib/allocation.ts`, schedule updated 5 Aug 2567): every OR is drawn in one teal-green tone, with its own gradient per department and the department code as its label, ORs 7 and 9 are split morning/afternoon, and OR 5 alternates by week of the month. The department shown on a room is the plan, so cases the export records in another room can sit under a different colour.
+Room colours and labels come from the weekly allocation table in the FY2569 utilisation report (`src/lib/allocation.ts`, schedule updated 5 Aug 2567): each OR takes its department's colour from the report and the department code as its label, ORs 7 and 9 are split morning/afternoon, and OR 5 alternates by week of the month. A room with no case that day turns dark gray. The department shown on a room is the plan, so cases the export records in another room can sit under a different colour. Recovery rooms share the service-area gray and the old circulation zone is a gray walkway.
 
 ## Design
 
-Tokens (colour, surfaces, status, shadows) live at the top of `src/app/globals.css`; shared pieces are `.btn`, `.field`, `.card`, `.badge` and `.notice`, plus `AuthShell` and `BrandMark` in `src/components`. The app is built to be usable by everyone:
+Tokens (colour, surfaces, status, shadows) live at the top of `src/app/globals.css`; shared pieces are `.btn`, `.field`, `.card` and `.notice`, plus `AuthShell` and `BrandMark` in `src/components`. The app is built to be usable by everyone:
 
 - Text and status pairs meet WCAG AA (4.5:1); department labels are checked by a test.
 - One blue focus ring on every control, and keyboard focus on a room outlines its wall.
 - Touch targets are at least 44px. Pinch-zoom is left on.
-- Colour is never the only cue: case statuses and room markers also differ by icon or shape (live = circle, delayed = diamond), and rooms carry a text code.
+- Colour is never the only cue: room markers differ by shape (live = circle, delayed = diamond), rooms carry a text code, cancelled cases are struck through, and each case's status is read out to screen readers.
 - The LINE button keeps LINE's own green and white, which is the one deliberate exception to the contrast rule.
 
 ## Stack

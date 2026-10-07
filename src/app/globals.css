@@ -11,7 +11,7 @@
   --brand-strong: #134039;
   --brand-tint: #e2f0ec;
 
-  --canvas: #ebf2f0;
+  --canvas: #c4d8d3;
   --surface: #ffffff;
   --surface-2: #f4f8f7;
   --line: #d4dfdc;
@@ -24,16 +24,10 @@
 
   --live: #0b5d4f;
   --live-tint: #dcf0ea;
-  --wait: #33474f;
-  --wait-tint: #e8eef0;
   --late: #8a4b00;
   --late-tint: #fdecd0;
-  --done: #4a5a60;
-  --done-tint: #eceff0;
   --stop: #8a2a24;
-  --stop-tint: #fbe5e3;
   --rest: #4c3d73;
-  --rest-tint: #eee8fa;
 
   --shadow-sm: 0 1px 2px rgb(20 38 44 / 0.06), 0 1px 1px rgb(20 38 44 / 0.04);
   --shadow-md: 0 4px 14px rgb(20 38 44 / 0.1), 0 1px 3px rgb(20 38 44 / 0.06);
@@ -41,17 +35,15 @@
 
   /* Floor plan */
   --fp-floor: #f4f7f7;
-  --fp-outer: #f4eee2;
+  --fp-outer: #d9dfe2;
   --fp-or: #cdebe5;
-  --fp-recovery: #d9ccf0;
-  --fp-recovery-hover: #c6b4e6;
-  --fp-recovery-selected: #b79adf;
+  --fp-recovery: var(--fp-support);
   --fp-support: #e8ecee;
   --fp-core: #ffffff;
   --fp-wall: var(--ink);
   --fp-detail: #6e808a;
   --fp-grate-line: #bac7cc;
-  --fp-shell: #dce4e6;
+  --fp-shell: var(--fp-floor);
   --fp-counter: #7e8a92;
   --fp-counter-edge: #5a666e;
   --fp-ink: var(--ink);
@@ -182,25 +174,6 @@ body {
     border-color: var(--ink-3);
   }
 
-  /* Status pills carry an icon and a word, so colour is never the only signal. */
-  .badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    border-radius: 999px;
-    padding: 0.125rem 0.625rem 0.125rem 0.5rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    line-height: 1.25rem;
-    white-space: nowrap;
-  }
-  .badge-scheduled { background: var(--wait-tint); color: var(--wait); }
-  .badge-in-progress { background: var(--live-tint); color: var(--live); }
-  .badge-delayed { background: var(--late-tint); color: var(--late); }
-  .badge-done { background: var(--done-tint); color: var(--done); }
-  .badge-cancelled { background: var(--stop-tint); color: var(--stop); }
-  .badge-recovery { background: var(--rest-tint); color: var(--rest); }
-
   .case-row {
     border-left: 4px solid var(--line-strong);
     padding: 0.875rem 1.25rem 0.875rem 1rem;
@@ -303,7 +276,7 @@ dialog[open]::backdrop {
 
 .fp-bg { fill: var(--fp-floor); }
 .fp-zone-outer { fill: var(--fp-outer); }
-.fp-shell,
+.fp-shell { fill: var(--fp-shell); }
 .fp-grate-block { fill: url(#fp-grate); }
 .fp-grate-block { stroke: var(--fp-detail); stroke-width: 2; }
 .fp-grate-base { fill: var(--fp-shell); }
@@ -318,14 +291,11 @@ dialog[open]::backdrop {
 /* Hover only where a pointer exists, so a tap does not leave the room tinted. */
 @media (hover: hover) {
   .fp-or:hover .fp-floor { filter: brightness(0.9); }
-  .fp-recovery:not(.is-static):hover .fp-floor { fill: var(--fp-recovery-hover); }
 }
 .fp-or:active .fp-floor { filter: brightness(0.9); }
 .fp-or.is-selected { filter: drop-shadow(0 0 9px rgb(34 49 58 / 0.5)); }
 .fp-or.is-selected .fp-wall { stroke: var(--fp-ink); stroke-width: 9; }
 .fp-recovery .fp-floor { fill: var(--fp-recovery); }
-.fp-recovery.is-selected .fp-floor { fill: var(--fp-recovery-selected); }
-.fp-recovery.is-selected .fp-wall { stroke: #4c3d73; stroke-width: 6; }
 /* Keyboard focus lands on the floor path; show it as a blue wall instead of a box around the shape. */
 .fp-floor:focus-visible { outline: none; }
 .fp-or:has(.fp-floor:focus-visible) .fp-wall,
@@ -334,7 +304,7 @@ dialog[open]::backdrop {
 .fp-core .fp-floor { fill: var(--fp-core); }
 .fp-wall { fill: none; stroke: var(--fp-wall); stroke-width: 4; stroke-linejoin: miter; stroke-linecap: butt; }
 .fp-wall.fp-thin { stroke-width: 2.5; }
-.fp-wall.fp-outer { stroke-width: 8; }
+.fp-wall.fp-outer { stroke-width: 3; }
 .fp-detail { fill: none; stroke: var(--fp-detail); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .fp-cab { fill: none; stroke: var(--fp-detail); stroke-width: 2; }
 /* Room number sits in a white badge so it reads on any department colour. */

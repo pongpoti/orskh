@@ -11,14 +11,6 @@ import {
 } from "./allocation.ts";
 import { ROOMS, roomBounds } from "./rooms.ts";
 
-function rgbHue(r: number, g: number, b: number): number {
-  const max = Math.max(r, g, b);
-  const d = max - Math.min(r, g, b);
-  if (d === 0) return 0;
-  const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
-  return Math.round(((h * 60) + 360) % 360);
-}
-
 const MON = "2026-10-05";
 const WEEK = ["2026-10-05", "2026-10-06", "2026-10-07", "2026-10-08", "2026-10-09"];
 const code = (roomId: string, date: string, part: "am" | "pm" = "am") =>
@@ -114,19 +106,14 @@ test("keeps the plan labels", () => {
   assert.equal(DEPARTMENTS.PLASTIC.label, "PLASTIC");
 });
 
-test("every department is its own gradient in one teal-green tone", () => {
-  const seen = new Set<string>();
-  for (const dept of Object.values(DEPARTMENTS)) {
-    const key = dept.gradient.join(">");
-    assert.ok(!seen.has(key), `${dept.code} repeats a gradient`);
-    seen.add(key);
-    for (const end of dept.gradient) {
-      const [r, g, b] = [1, 3, 5].map((i) => parseInt(end.slice(i, i + 2), 16));
-      const hue = rgbHue(r, g, b);
-      assert.ok(hue >= 155 && hue <= 190, `${dept.code} ${end} hue ${hue}`);
-    }
-  }
-  assert.equal(seen.size, 17);
+test("keeps the report's department colours", () => {
+  const report = {
+    GENSX: "#0E5E6F", SCOPE: "#B79CED", VAS: "#1D3F8F", ORTHO: "#E3A21A", OBGYN: "#C9D86A", EYE: "#81D4FA",
+    URO: "#3FA37A", PLASTIC: "#8E5BA8", ENT: "#5A92D6", NEPHRO: "#16A5B8", PEDSX: "#E0607E", NEURO: "#A8662A",
+    CVT: "#9A9A94", MAXILLO: "#E8825A", INFECT: "#B3261E", EMER: "#B5179E", MINOR: "#E3E8EA",
+  };
+  assert.deepEqual(Object.fromEntries(Object.values(DEPARTMENTS).map((dept) => [dept.code, dept.color])), report);
+  assert.equal(new Set(Object.values(DEPARTMENTS).map((dept) => dept.color)).size, 17);
 });
 
 test("picks white or ink text, whichever reads better", () => {
@@ -138,7 +125,7 @@ test("picks white or ink text, whichever reads better", () => {
   assert.equal(readableTextOn("#E3E8EA"), INK);
 });
 
-test("every department label meets 4.5:1 contrast at both ends of its gradient", () => {
+test("every department label meets 4.5:1 contrast on its colour", () => {
   const luminance = (hex: string) => {
     const [r, g, b] = [1, 3, 5].map((i) => {
       const v = parseInt(hex.slice(i, i + 2), 16) / 255;
@@ -146,13 +133,16 @@ test("every department label meets 4.5:1 contrast at both ends of its gradient",
     });
     return 0.2126 * r + 0.7152 * g + 0.0722 * b;
   };
+  const contrast = (a: string, b: string) => {
+    const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+    return (hi + 0.05) / (lo + 0.05);
+  };
   for (const dept of Object.values(DEPARTMENTS)) {
-    const text = readableTextOn(dept.color);
-    for (const end of dept.gradient) {
-      const [a, b] = [luminance(end), luminance(text)].sort((x, y) => y - x);
-      assert.ok((a + 0.05) / (b + 0.05) >= 4.5, `${dept.code} ${end} with ${text}`);
-    }
+    assert.ok(contrast(dept.color, readableTextOn(dept.color)) >= 4.5, `${dept.code} ${dept.color}`);
   }
+  // White text on the "no case" gray, and ink text on the "no department" gray.
+  assert.ok(contrast("#59646b", "#ffffff") >= 4.5);
+  assert.ok(contrast("#cbd3d7", INK) >= 4.5);
 });
 
 test("room outlines enclose their label point", () => {
