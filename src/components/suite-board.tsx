@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { startTransition, useEffect, useMemo, useRef, useState, type ReactNode, type TouchEvent } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState, type TouchEvent } from "react";
 import { FloorPlan } from "@/components/floor-plan";
 import { allocationFor, type Department } from "@/lib/allocation";
 import { DayBar } from "@/components/day-bar";
@@ -18,67 +18,6 @@ const STATUS_LABEL: Record<CaseStatus, string> = {
   cancelled: "ยกเลิก",
   recovery: "พักฟื้น",
 };
-
-/** 16px glyphs inside a circle; each status has its own so colour is never the only cue. */
-const STATUS_ICON: Record<CaseStatus, ReactNode> = {
-  scheduled: (
-    <>
-      <circle cx="8" cy="8" r="6" />
-      <path d="M8 4.9V8l2.2 1.4" />
-    </>
-  ),
-  "in-progress": (
-    <>
-      <circle cx="8" cy="8" r="6" />
-      <circle cx="8" cy="8" r="2.2" fill="currentColor" stroke="none" />
-    </>
-  ),
-  delayed: (
-    <>
-      <circle cx="8" cy="8" r="6" />
-      <path d="M6.5 5.6v4.8M9.5 5.6v4.8" />
-    </>
-  ),
-  done: (
-    <>
-      <circle cx="8" cy="8" r="6" />
-      <path d="M5.4 8.2l1.8 1.8 3.4-3.6" />
-    </>
-  ),
-  cancelled: (
-    <>
-      <circle cx="8" cy="8" r="6" />
-      <path d="M5.8 5.8l4.4 4.4M10.2 5.8l-4.4 4.4" />
-    </>
-  ),
-  recovery: (
-    <>
-      <circle cx="8" cy="8" r="6" />
-      <path d="M8 5.2v5.6M5.2 8h5.6" />
-    </>
-  ),
-};
-
-function StatusBadge({ status }: { status: CaseStatus }) {
-  return (
-    <span className={`badge badge-${status}`}>
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 16 16"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        {STATUS_ICON[status]}
-      </svg>
-      {STATUS_LABEL[status]}
-    </span>
-  );
-}
 
 function Owner({ dept, part }: { dept: Department | null; part?: string }) {
   return (
@@ -297,7 +236,7 @@ export function SuiteBoard({
                           <span className="rounded bg-late-tint px-1.5 py-0.5 text-xs font-semibold text-late">นอกเวลา</span>
                         ) : null}
                       </p>
-                      <StatusBadge status={item.status} />
+                      <span className="sr-only">{STATUS_LABEL[item.status]}</span>
                     </div>
                     <p className={`mt-1.5 font-semibold ${item.status === "cancelled" ? "text-muted line-through" : "text-ink"}`}>
                       {item.procedure}
