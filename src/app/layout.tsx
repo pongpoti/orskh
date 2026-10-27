@@ -1,11 +1,19 @@
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Sans_Thai } from "next/font/google";
+import { Inter, Noto_Sans_Thai_Looped } from "next/font/google";
 import "./globals.css";
 
-const plex = IBM_Plex_Sans_Thai({
-  subsets: ["thai", "latin"],
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+// Looped Thai: every letter keeps its head (หัว), and the wide set reads well at small sizes on a phone.
+const thai = Noto_Sans_Thai_Looped({
+  subsets: ["thai"],
   weight: ["400", "500", "600", "700"],
-  variable: "--font-plex",
+  variable: "--font-thai",
   display: "swap",
 });
 
@@ -19,13 +27,13 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#c4d8d3",
+  themeColor: "#faf5ee",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="th" className={`${plex.variable} h-full overflow-hidden antialiased`}>
-      <body className="h-full overflow-hidden touch-manipulation bg-canvas font-sans text-ink">{children}</body>
+    <html lang="th" className={`${inter.variable} ${thai.variable} h-full overflow-hidden antialiased`}>
+      <body className="h-full overflow-hidden touch-manipulation font-sans text-ink">{children}</body>
     </html>
   );
 }

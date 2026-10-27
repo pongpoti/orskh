@@ -2,7 +2,7 @@
 
 Operating-suite board. Staff sign in with LINE, then pick a room on the floor plan to see that day’s cases.
 
-The board shows one working week, **Monday to Friday**, opening on Monday. Swipe the plan (or use the arrows, the dots or the left and right keys) to change day. Days are named, not dated.
+The board shows **today** only, dated in Thai with the Buddhist year (Thailand time, so it turns over at midnight in Bangkok). There is no paging between days. The export covers one week, so each weekday shows that weekday's cases from it; at the weekend the plan is shown with no cases. In development, `/preview?day=tue` shows another weekday.
 
 ## Case data
 
@@ -16,11 +16,11 @@ Cases come from an export of the OR system for 28 Sep – 2 Oct 2026, not from a
 - The export has no start or end times, so cases are listed by position (ลำดับ), with the shift flagged when it is out of hours.
 - Surgeons are matched to the supplied physician list (`src/lib/physicians.ts`), which also feeds registration.
 
-Room colours and labels come from the weekly allocation table in the FY2569 utilisation report (`src/lib/allocation.ts`, schedule updated 5 Aug 2567): each OR takes its department's colour from the report and the department code as its label, ORs 7 and 9 are split morning/afternoon, and OR 5 alternates by week of the month. A room with no case that day turns dark gray. Recovery rooms share the service-area gray and the old circulation zone is a gray walkway.
+Room allocation comes from the weekly allocation table in the FY2569 utilisation report (`src/lib/allocation.ts`, schedule updated 5 Aug 2567): ORs 7 and 9 are split morning/afternoon, and OR 5 alternates by week of the month. Department names and colours come from the hospital's department colour list (October 2026); each OR takes its department's colour and code as its label (OR 1 reads "dressing", vascular reads "VASCULAR"). Three colours are darkened or lightened by an invisible amount so their labels clear 4.5:1. A room with no case that day is striped dark brown-gray, so it never reads as a department colour. A room that has cases but no department uses the list's "unknown" gray. Recovery rooms share the service-area beige and the old circulation zone is a walkway.
 
 ## Design
 
-Tokens (colour, surfaces, status, shadows) live at the top of `src/app/globals.css`; shared pieces are `.btn`, `.field`, `.card` and `.notice`, plus `AuthShell` and `BrandMark` in `src/components`. The app is built to be usable by everyone:
+The look follows the SAKHONMSO P4P dashboard: shadcn/ui's design language with a deep brown primary and a tan accent, frosted-glass panels over a warm gradient, and an "OR" text mark on a brown tile. Text is Inter for Latin and Noto Sans Thai Looped for Thai (looped letters keep their heads and read better on a phone), with extra line height for Thai. The layout is kept short: one app bar holds the mark, today's date and the account menu (a popover behind the avatar, with a plain sign-out button where popovers are unsupported), and the floor plan takes the rest. Tokens (colour, surfaces, status, shadows) live at the top of `src/app/globals.css`; shared pieces are `.btn` (`-primary`, `-secondary`, `-ghost`), `.field`, `.card`, `.pill`, `.badge`, `.chip` and `.notice`, plus `AuthShell` and `BrandMark` in `src/components`. The app is built to be usable by everyone:
 
 - Text and status pairs meet WCAG AA (4.5:1); department labels are checked by a test.
 - One blue focus ring on every control, and keyboard focus on a room outlines its wall.

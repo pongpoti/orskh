@@ -46,7 +46,7 @@ test("splits ORs 7 and 9 into morning and afternoon", () => {
   assert.equal(or7?.am?.code, "URO");
   assert.equal(or7?.pm?.code, "PLASTIC");
   assert.equal(or7?.split, true);
-  assert.equal(allocationText(or7!), "เช้า ศัลยกรรมระบบปัสสาวะ · บ่าย ศัลยกรรมตกแต่ง");
+  assert.equal(allocationText(or7!), "เช้า ศัลยกรรมทางเดินปัสสาวะ · บ่าย ศัลยกรรมตกแต่ง");
 
   const or9 = allocationFor("or-9", MON);
   assert.deepEqual([or9?.am?.code, or9?.pm?.code], ["VAS", "NEPHRO"]);
@@ -102,18 +102,19 @@ test("covers every OR on every weekday, with one gap", () => {
 
 test("keeps the plan labels", () => {
   assert.equal(DEPARTMENTS.INFECT.label, "dressing");
+  assert.equal(DEPARTMENTS.VAS.label, "VASCULAR");
   assert.equal(DEPARTMENTS.EMER.label, "EMER");
   assert.equal(DEPARTMENTS.PLASTIC.label, "PLASTIC");
 });
 
-test("keeps the report's department colours", () => {
-  const report = {
-    GENSX: "#0E5E6F", SCOPE: "#B79CED", VAS: "#1D3F8F", ORTHO: "#E3A21A", OBGYN: "#C9D86A", EYE: "#81D4FA",
-    URO: "#3FA37A", PLASTIC: "#8E5BA8", ENT: "#5A92D6", NEPHRO: "#16A5B8", PEDSX: "#E0607E", NEURO: "#A8662A",
-    CVT: "#9A9A94", MAXILLO: "#E8825A", INFECT: "#B3261E", EMER: "#B5179E", MINOR: "#E3E8EA",
+test("uses the hospital's department colour list", () => {
+  const list = {
+    GENSX: "#0E5E6F", SCOPE: "#B04A3A", VAS: "#CC4759", ORTHO: "#4F3D8C", OBGYN: "#8C3B6E", EYE: "#1A9BB0",
+    URO: "#2E7D5B", PLASTIC: "#D9822B", ENT: "#2F5FA8", NEPHRO: "#7D8C2F", PEDSX: "#E0A800", NEURO: "#8A5A22",
+    CVT: "#5E6A73", MAXILLO: "#8C699E", INFECT: "#B9A67A", EMER: "#1C1C1C", MINOR: "#E3E8EA", UNK: "#CFCFCF",
   };
-  assert.deepEqual(Object.fromEntries(Object.values(DEPARTMENTS).map((dept) => [dept.code, dept.color])), report);
-  assert.equal(new Set(Object.values(DEPARTMENTS).map((dept) => dept.color)).size, 17);
+  assert.deepEqual(Object.fromEntries(Object.values(DEPARTMENTS).map((dept) => [dept.code, dept.color])), list);
+  assert.equal(new Set(Object.values(DEPARTMENTS).map((dept) => dept.color)).size, 18);
 });
 
 test("picks white or ink text, whichever reads better", () => {
@@ -140,9 +141,10 @@ test("every department label meets 4.5:1 contrast on its colour", () => {
   for (const dept of Object.values(DEPARTMENTS)) {
     assert.ok(contrast(dept.color, readableTextOn(dept.color)) >= 4.5, `${dept.code} ${dept.color}`);
   }
-  // White text on the "no case" gray, and ink text on the "no department" gray.
-  assert.ok(contrast("#59646b", "#ffffff") >= 4.5);
-  assert.ok(contrast("#cbd3d7", INK) >= 4.5);
+  // White text on both stripes of a "no case" room, and ink text on the "no department" gray.
+  assert.ok(contrast("#6b5d52", "#ffffff") >= 4.5);
+  assert.ok(contrast("#77695d", "#ffffff") >= 4.5);
+  assert.ok(contrast(DEPARTMENTS.UNK.color, INK) >= 4.5);
 });
 
 test("room outlines enclose their label point", () => {

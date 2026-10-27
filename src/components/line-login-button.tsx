@@ -11,7 +11,7 @@ export function LineLoginButton() {
     >
       <button
         type="submit"
-        className="flex min-h-12 w-full cursor-pointer items-center justify-center gap-2.5 rounded-[0.625rem] bg-[#06C755] px-4 py-3 text-base font-bold text-white shadow-sm transition duration-150 ease-out hover:bg-[#05b34c] active:translate-y-px active:bg-[#049a42]"
+        className="flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-[10px] bg-[#05B14C] px-4 py-3 text-[1.0625rem] font-bold text-white shadow-[0_1px_2px_rgb(0_0_0/0.1),inset_0_1px_0_rgb(255_255_255/0.2)] transition duration-150 ease-out hover:bg-[#049A42] active:translate-y-px"
       >
         <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
           <path

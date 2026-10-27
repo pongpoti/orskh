@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { WEEK_DATA } from "../data/week-data.ts";
-import { boardHref, DAY_KEYS, DAY_NAMES, parseDay } from "./days.ts";
-import { isDressingCase, isScopeCase, resolveSurgeon, weekBoard, type WeekCase, type WeekFile } from "./week.ts";
+import { boardHref, DAY_KEYS, DAY_NAMES, parseDay, thaiDate, todayIso, workdayIndex } from "./days.ts";
+import { boardFor, isDressingCase, isScopeCase, resolveSurgeon, weekBoard, type WeekCase, type WeekFile } from "./week.ts";
 
 function fixture(cases: Partial<WeekCase>[]): WeekFile {
   return {
@@ -16,22 +16,37 @@ function fixture(cases: Partial<WeekCase>[]): WeekFile {
 const GENSX_SURGEON = "ขจรศักดิ์ โภคสมบัติ";
 const roomsOf = (data: WeekFile, day = 0) => weekBoard(data)[day].operations.map((item) => item.roomId);
 
-test("shows Monday to Friday, Monday first", () => {
+test("the export week runs Monday to Friday", () => {
   assert.deepEqual([...DAY_NAMES], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]);
+  assert.deepEqual([...DAY_KEYS], ["mon", "tue", "wed", "thu", "fri"]);
   assert.deepEqual(weekBoard().map((day) => day.name), [...DAY_NAMES]);
   assert.deepEqual(weekBoard().map((day) => day.date), ["2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02"]);
-  assert.equal(parseDay(undefined), 0);
-  assert.equal(parseDay("nope"), 0);
+  assert.equal(parseDay(undefined), null);
+  assert.equal(parseDay("nope"), null);
   assert.equal(parseDay("tue"), 1);
   assert.equal(parseDay(" FRI "), 4);
 });
 
-test("builds day links that keep Monday implicit", () => {
-  assert.equal(boardHref("mon"), "/");
-  assert.equal(boardHref("mon", "or-3"), "/?room=or-3");
-  assert.equal(boardHref("thu", null, "/preview"), "/preview?day=thu");
-  assert.equal(boardHref("fri", "or-9"), "/?day=fri&room=or-9");
-  assert.deepEqual([...DAY_KEYS], ["mon", "tue", "wed", "thu", "fri"]);
+test("shows today's date in Thailand and that weekday's cases", () => {
+  // 17:30 UTC on Monday is already Tuesday in Bangkok.
+  assert.equal(todayIso(new Date("2026-10-26T17:30:00Z")), "2026-10-27");
+  assert.equal(todayIso(new Date("2026-10-26T16:59:00Z")), "2026-10-26");
+  assert.equal(workdayIndex("2026-10-26"), 0);
+  assert.equal(workdayIndex("2026-10-30"), 4);
+  assert.equal(workdayIndex("2026-10-31"), null);
+  assert.equal(workdayIndex("2026-11-01"), null);
+  assert.equal(thaiDate("2026-10-27"), "วันอังคารที่ 27 ตุลาคม 2569");
+  assert.equal(thaiDate("2026-11-26", "short"), "วันพฤหัสบดีที่ 26 พ.ย. 2569");
+  assert.equal(boardFor("2026-10-27")?.key, "tue");
+  assert.equal(boardFor("2026-10-31"), null);
+  assert.equal(boardFor("2026-10-31", 2)?.key, "wed");
+});
+
+test("builds room links and keeps other parameters", () => {
+  assert.equal(boardHref(null), "/");
+  assert.equal(boardHref("or-3"), "/?room=or-3");
+  assert.equal(boardHref(null, "/preview", "?day=thu&room=or-2"), "/preview?day=thu");
+  assert.equal(boardHref("or-9", "/preview", "?day=fri"), "/preview?day=fri&room=or-9");
 });
 
 test("every kept case from the export lands on a day, and nearly all in a room", () => {
