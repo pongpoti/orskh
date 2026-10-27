@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { SuiteBoard } from "@/components/suite-board";
 import { TopBar } from "@/components/top-bar";
+import { isAdmin } from "@/lib/admin";
 import { todayIso } from "@/lib/days";
 import { holidayOn } from "@/lib/holidays";
 import { boardFor } from "@/lib/week";
@@ -20,7 +21,12 @@ export default async function BoardPage({
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
-      <TopBar date={today} name={session?.user?.physicianName || session?.user?.name || "ผู้ใช้ LINE"} image={session?.user?.image} />
+      <TopBar
+        date={today}
+        name={session?.user?.physicianName || session?.user?.name || "ผู้ใช้ LINE"}
+        image={session?.user?.image}
+        adminHref={isAdmin(session?.user?.id) ? "/admin" : null}
+      />
       <SuiteBoard board={holiday ? null : boardFor(today)} holiday={holiday?.name} roomId={params.room ?? null} />
     </div>
   );

@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function PreviewPage({
   searchParams,
 }: {
-  searchParams: Promise<{ room?: string; day?: string; holiday?: string }>;
+  searchParams: Promise<{ room?: string; day?: string; holiday?: string; admin?: string }>;
 }) {
   if (process.env.NODE_ENV !== "development") notFound();
 
@@ -29,6 +29,8 @@ export default async function PreviewPage({
         image="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='32' fill='%23eadcc8'/%3E%3Ccircle cx='32' cy='26' r='10' fill='%233f2f24'/%3E%3Cpath d='M14 54c3-10 10-14 18-14s15 4 18 14' fill='%233f2f24'/%3E%3C/svg%3E"
         pathname="/preview"
         showAccount={false}
+        // ?admin=1 shows the bar as an admin sees it.
+        adminHref={params.admin ? "/preview/admin" : null}
       />
       <SuiteBoard board={holiday ? null : boardFor(today, index)} holiday={holiday} roomId={params.room ?? null} pathname="/preview" />
     </div>

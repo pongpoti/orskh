@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { holidayIn, parseBotHolidays, parseExtraHolidays } from "./holidays.ts";
+import { botHolidayFeed, holidayIn, parseBotHolidays, parseExtraHolidays } from "./holidays.ts";
 
 test("reads the Bank of Thailand holiday list", () => {
   const json = {
@@ -32,4 +32,32 @@ test("reads extra closures and finds the holiday on a date", () => {
   assert.deepEqual(parseExtraHolidays(undefined), []);
   assert.equal(holidayIn(extra, "2026-12-31")?.name, "วันหยุด");
   assert.equal(holidayIn(extra, "2026-12-29"), null);
+});
+
+test("the feed says why there are no holidays: no token, a refused token, or no answer", async (t) => {
+  const calls: { url: string; auth: string | null }[] = [];
+  let answer: () => Promise<Response> = async () => new Response(JSON.stringify({ result: { data: [{ Date: "2026-12-10", HolidayDescriptionThai: "วันรัฐธรรมนูญ" }] } }));
+  t.mock.method(globalThis, "fetch", async (url: string, init?: RequestInit) => {
+    calls.push({ url, auth: new Headers(init?.headers).get("Authorization") });
+    return answer();
+  });
+  t.mock.method(console, "warn", () => {});
+
+  assert.deepEqual(await botHolidayFeed(2026, undefined), { state: "no-token" });
+  assert.deepEqual(await botHolidayFeed(2026, "  \n"), { state: "no-token" });
+  assert.equal(calls.length, 0, "no token, no request");
+
+  assert.deepEqual(await botHolidayFeed(2026, " token-123\n"), { state: "ok", holidays: [{ date: "2026-12-10", name: "วันรัฐธรรมนูญ" }] });
+  assert.deepEqual(calls.at(-1), { url: "https://gateway.api.bot.or.th/financial-institutions-holidays/?year=2026", auth: "token-123" });
+
+  answer = async () => new Response("unauthorised", { status: 401 });
+  assert.deepEqual(await botHolidayFeed(2026, "wrong"), { state: "failed", status: 401 });
+
+  answer = async () => new Response("not json");
+  assert.deepEqual(await botHolidayFeed(2026, "token-123"), { state: "failed", status: null });
+
+  answer = async () => {
+    throw new TypeError("fetch failed");
+  };
+  assert.deepEqual(await botHolidayFeed(2026, "token-123"), { state: "failed", status: null });
 });

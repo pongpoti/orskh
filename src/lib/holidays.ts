@@ -40,22 +40,35 @@ export function holidayIn(holidays: readonly Holiday[], iso: string): Holiday | 
   return holidays.find((holiday) => holiday.date === iso) ?? null;
 }
 
-/** One year's holidays from the BOT API, or none when no token is set or the API fails. */
-async function botHolidays(year: number, token: string | undefined = process.env.BOT_API_TOKEN): Promise<Holiday[]> {
-  if (!token) return [];
+/**
+ * What the BOT API gave for one year: the holidays, or why there are none. The admin page shows it, so a wrong
+ * or missing token is visible without reading the server logs.
+ */
+export type HolidayFeed =
+  | { state: "ok"; holidays: Holiday[] }
+  | { state: "no-token" }
+  /** `status` is the HTTP status the API answered with, or null when it could not be reached or read. */
+  | { state: "failed"; status: number | null };
+
+/** One year's holidays from the BOT API. */
+export async function botHolidayFeed(year: number, raw: string | undefined = process.env.BOT_API_TOKEN): Promise<HolidayFeed> {
+  // A token pasted into Vercel can pick up a stray space or line break.
+  const token = raw?.trim();
+  if (!token) return { state: "no-token" };
   try {
+    // Only 200 answers are cached, so a refused token is asked about again on the next request.
     const response = await fetch(`${ENDPOINT}?year=${year}`, {
       headers: { Authorization: token, Accept: "application/json" },
       next: { revalidate: REVALIDATE_SECONDS },
     } as RequestInit);
     if (!response.ok) {
       console.warn(`BOT holidays API answered ${response.status} for ${year}`);
-      return [];
+      return { state: "failed", status: response.status };
     }
-    return parseBotHolidays(await response.json());
+    return { state: "ok", holidays: parseBotHolidays(await response.json()) };
   } catch (error) {
     console.warn("BOT holidays API could not be reached", error);
-    return [];
+    return { state: "failed", status: null };
   }
 }
 
@@ -63,5 +76,6 @@ async function botHolidays(year: number, token: string | undefined = process.env
 export async function holidayOn(iso: string): Promise<Holiday | null> {
   const extra = holidayIn(parseExtraHolidays(process.env.EXTRA_HOLIDAYS), iso);
   if (extra) return extra;
-  return holidayIn(await botHolidays(Number(iso.slice(0, 4))), iso);
+  const feed = await botHolidayFeed(Number(iso.slice(0, 4)));
+  return feed.state === "ok" ? holidayIn(feed.holidays, iso) : null;
 }

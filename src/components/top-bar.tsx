@@ -17,13 +17,22 @@ function profileImageSrc(image: string | null | undefined): string | null {
   return null;
 }
 
-/** One bar: the mark, today's date as the page heading, and the account menu behind the avatar. */
+const ADMIN_ICON = (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M15 19v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1" />
+    <circle cx="8.5" cy="7" r="3.5" />
+    <path d="M21 19v-1a4 4 0 0 0-3-3.87M15 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+);
+
+/** One bar: the mark, today's date as the page heading, the admin page for admins, and the account menu behind the avatar. */
 export function TopBar({
   name,
   image,
   date,
   pathname = "/",
   showAccount = true,
+  adminHref = null,
 }: {
   name: string;
   image?: string | null;
@@ -31,6 +40,8 @@ export function TopBar({
   date: string;
   pathname?: string;
   showAccount?: boolean;
+  /** The admin page, shown only to admins. */
+  adminHref?: string | null;
 }) {
   const src = profileImageSrc(image);
   const initial = name.trim().slice(0, 1) || "•";
@@ -51,6 +62,12 @@ export function TopBar({
             </time>
           </h1>
         </div>
+        {adminHref ? (
+          <Link href={adminHref} className="btn btn-ghost size-11 min-h-0 shrink-0 p-0 sm:w-auto sm:px-3.5" aria-label="จัดการรายชื่อแพทย์" title="จัดการรายชื่อแพทย์">
+            {ADMIN_ICON}
+            <span className="hidden text-sm sm:inline">จัดการแพทย์</span>
+          </Link>
+        ) : null}
         {showAccount ? (
           <>
             {/* A popover, so a tap outside or Escape closes it without any script. */}
@@ -69,6 +86,12 @@ export function TopBar({
               className="menu fixed inset-auto top-[calc(max(0.5rem,env(safe-area-inset-top))+3.5rem)] right-4 sm:right-[max(1.5rem,calc((100vw-120rem)/2+1.5rem))] m-0 w-64 p-2 sm:top-[calc(max(0.625rem,env(safe-area-inset-top))+3.75rem)]"
             >
               <p className="truncate px-3 pt-1.5 pb-2.5 text-sm font-semibold text-ink">{name}</p>
+              {adminHref ? (
+                <Link href={adminHref} className="btn btn-ghost mb-2 w-full">
+                  {ADMIN_ICON}
+                  จัดการรายชื่อแพทย์
+                </Link>
+              ) : null}
               <SignOutButton showLabel />
             </div>
             <div className="no-popover-only shrink-0">
