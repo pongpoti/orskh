@@ -1,4 +1,4 @@
-import { and, eq, ne, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { pgErrorCode, UNIQUE_VIOLATION } from "@/db/errors";
 import { surgeons } from "@/db/schema";
@@ -22,14 +22,8 @@ export async function addSurgeon(input: { name: string; specialty: SpecialtyCode
   return rows[0] ? { ok: true, surgeon: rows[0] } : { ok: false, reason: "duplicate" };
 }
 
+/** A row that is gone reads "missing"; a name another row holds reads "duplicate" (the unique index decides). */
 export async function updateSurgeon(id: number, input: { name: string; specialty: SpecialtyCode }): Promise<SurgeonWrite> {
-  const taken = await getDb()
-    .select({ id: surgeons.id })
-    .from(surgeons)
-    .where(and(eq(surgeons.name, input.name), ne(surgeons.id, id)))
-    .limit(1);
-  if (taken[0]) return { ok: false, reason: "duplicate" };
-
   try {
     const rows = await getDb()
       .update(surgeons)
@@ -38,7 +32,6 @@ export async function updateSurgeon(id: number, input: { name: string; specialty
       .returning(columns);
     return rows[0] ? { ok: true, surgeon: rows[0] } : { ok: false, reason: "missing" };
   } catch (error) {
-    // Another admin took the name between the check and the update.
     if (pgErrorCode(error) === UNIQUE_VIOLATION) return { ok: false, reason: "duplicate" };
     throw error;
   }

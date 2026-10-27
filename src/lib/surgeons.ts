@@ -5,13 +5,17 @@ export type Surgeon = { id: number; name: string; specialty: string };
 
 export const NAME_MAX_LENGTH = 120;
 
-/** Thai names are typed with uneven spacing and often carry zero-width spaces when pasted, so both are evened out. */
+/**
+ * Thai names are typed with uneven spacing and, when pasted, often carry invisible format characters (zero-width
+ * spaces, direction marks, soft hyphens). Those are dropped and spaces evened out, then the result is put in NFC
+ * last, because a dropped character can leave marks next to each other that NFC has to reorder.
+ */
 export function normaliseName(name: string): string {
   return name
-    .normalize("NFC")
-    .replace(/[​-‍⁠﻿]/g, "")
+    .replace(/\p{Cf}/gu, "")
     .replace(/\s+/g, " ")
-    .trim();
+    .trim()
+    .normalize("NFC");
 }
 
 const ORDER = new Map<string, number>(SPECIALTY_CODES.map((code, index) => [code, index]));

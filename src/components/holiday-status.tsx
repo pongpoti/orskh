@@ -2,9 +2,9 @@ import { Notice } from "@/components/auth-shell";
 import { thaiDate } from "@/lib/days";
 import type { HolidayFeed } from "@/lib/holidays";
 
-const WEEKENDS_ONLY = "จนกว่าจะแก้ ห้องผ่าตัดจะปิดเฉพาะวันเสาร์-อาทิตย์";
+const FALLBACK = "จนกว่าจะแก้ ห้องผ่าตัดจะปิดเฉพาะวันเสาร์-อาทิตย์และวันที่ตั้งไว้ใน EXTRA_HOLIDAYS";
 
-/** Whether the Bank of Thailand holiday calendar answers with BOT_API_TOKEN, and the next holiday it lists. */
+/** The next holiday from the Bank of Thailand calendar, or, when BOT_API_TOKEN does not work, why not. */
 export function HolidayStatus({ feed, today }: { feed: HolidayFeed; today: string }) {
   const year = Number(today.slice(0, 4)) + 543;
   const next =
@@ -16,29 +16,6 @@ export function HolidayStatus({ feed, today }: { feed: HolidayFeed; today: strin
         ปฏิทินวันหยุด
       </h2>
       <p className="text-sm text-muted">วันหยุดราชการและวันหยุดพิเศษจากธนาคารแห่งประเทศไทย</p>
-      <div className="mt-3">
-        {feed.state === "ok" && feed.holidays.length > 0 ? (
-          <Notice tone="success" role="status">
-            เชื่อมต่อแล้ว BOT_API_TOKEN ใช้งานได้ ปี {year} มีวันหยุด {feed.holidays.length} วัน
-          </Notice>
-        ) : feed.state === "ok" ? (
-          <Notice tone="warning" role="status">
-            เชื่อมต่อได้ แต่ไม่พบรายการวันหยุดของปี {year} {WEEKENDS_ONLY}
-          </Notice>
-        ) : feed.state === "no-token" ? (
-          <Notice tone="warning" role="status">
-            ยังไม่ได้ตั้งค่า BOT_API_TOKEN ใน Vercel {WEEKENDS_ONLY}
-          </Notice>
-        ) : feed.status === 401 || feed.status === 403 ? (
-          <Notice tone="warning" role="status">
-            ธนาคารแห่งประเทศไทยไม่รับ BOT_API_TOKEN นี้ (รหัส {feed.status}) ตรวจสอบค่าใน Vercel แล้ว Redeploy {WEEKENDS_ONLY}
-          </Notice>
-        ) : (
-          <Notice tone="warning" role="status">
-            {feed.status ? `ธนาคารแห่งประเทศไทยตอบกลับรหัส ${feed.status}` : "ติดต่อธนาคารแห่งประเทศไทยไม่ได้"} ลองเปิดหน้านี้ใหม่ภายหลัง {WEEKENDS_ONLY}
-          </Notice>
-        )}
-      </div>
       {feed.state === "ok" && feed.holidays.length > 0 ? (
         <dl className="mt-3 rounded-xl border border-line bg-white/70 px-4 py-3 text-sm">
           <dt className="text-muted">วันหยุดถัดไป</dt>
@@ -53,7 +30,18 @@ export function HolidayStatus({ feed, today }: { feed: HolidayFeed; today: strin
             )}
           </dd>
         </dl>
-      ) : null}
+      ) : (
+        <Notice tone="warning" role="status" className="mt-3">
+          {feed.state === "ok"
+            ? `เชื่อมต่อได้ แต่ไม่พบรายการวันหยุดของปี ${year}`
+            : feed.state === "no-token"
+              ? "ยังไม่ได้ตั้งค่า BOT_API_TOKEN ใน Vercel"
+              : feed.status === 401 || feed.status === 403
+                ? `ธนาคารแห่งประเทศไทยไม่รับ BOT_API_TOKEN นี้ (รหัส ${feed.status}) ตรวจสอบค่าใน Vercel แล้ว Redeploy`
+                : `${feed.status ? `ธนาคารแห่งประเทศไทยตอบกลับรหัส ${feed.status}` : "ติดต่อธนาคารแห่งประเทศไทยไม่ได้"} ลองเปิดหน้านี้ใหม่ภายหลัง`}{" "}
+          {FALLBACK}
+        </Notice>
+      )}
     </section>
   );
 }

@@ -22,9 +22,18 @@ test("only the LINE ids in AUTH_ADMIN_LINE_IDS are admins", () => {
 
 test("names are evened out before they are compared or saved", () => {
   assert.equal(normaliseName("  สมชาย   กลับกลาย "), "สมชาย กลับกลาย");
-  assert.equal(normaliseName("สมชาย​กลับกลาย"), "สมชายกลับกลาย");
-  assert.equal(normaliseName("สมชาย กลับกลาย"), "สมชาย กลับกลาย");
-  assert.equal(normaliseName("﻿\t"), "");
+  assert.equal(normaliseName("สมชาย\u200Bกลับกลาย"), "สมชายกลับกลาย");
+  assert.equal(normaliseName("สมชาย\u00A0กลับกลาย"), "สมชาย กลับกลาย");
+  assert.equal(normaliseName("\uFEFF\t"), "");
+  // Other pasted format characters: direction marks, soft hyphens, bidi controls.
+  assert.equal(normaliseName("สมชาย กลับกลาย\u200E"), "สมชาย กลับกลาย");
+  assert.equal(normaliseName("สม\u00ADชาย\u202A กลับกลาย"), "สมชาย กลับกลาย");
+  assert.equal(normaliseName("\u00AD\u200F"), "");
+  // NFC comes last: a dropped zero-width space between two marks still gives the same name as typing it.
+  assert.equal(normaliseName("ช\u0E48\u200B\u0E38ม"), normaliseName("ช\u0E38\u0E48ม"));
+  assert.equal(normaliseName("Ame\u200B\u0301lie"), "Am\u00E9lie");
+  // Thai vowels and tone marks are kept.
+  assert.equal(normaliseName("ปองสิทธิ์ โพธิคุณ"), "ปองสิทธิ์ โพธิคุณ");
 });
 
 test("a surgeon needs a name and one of the listed specialties", () => {
@@ -69,7 +78,10 @@ test("the seed list is clean: valid specialties and no repeated names", () => {
 
 test("the migration seeds exactly the supplied list", () => {
   const sql = readFileSync(new URL("../../drizzle/0001_surgeons.sql", import.meta.url), "utf8");
-  const seeded = [...sql.matchAll(/^  \('([^']+)', '([A-Z]+)'\),?$/gm)].map(([, name, specialty]) => ({ name, specialty }));
+  const seeded = [...sql.matchAll(/^ {6}\('([^']+)', '([A-Z]+)'\)[,;]$/gm)].map(([, name, specialty]) => ({ name, specialty }));
   assert.deepEqual(seeded, SURGEONS.map(({ name, specialty }) => ({ name, specialty })));
-  assert.match(sql, /WHERE NOT EXISTS \(SELECT 1 FROM surgeons\)/, "only an empty table is seeded");
+  // Seeded once: only while the id sequence has never handed out a value, so deleting every row does not reseed.
+  // The check sits in an IF, not a WHERE, so it is not re-run after the first row goes in.
+  assert.match(sql, /IF pg_sequence_last_value\(pg_get_serial_sequence\('surgeons', 'id'\)\) IS NULL THEN/);
+  assert.doesNotMatch(sql, /WHERE pg_sequence_last_value/);
 });

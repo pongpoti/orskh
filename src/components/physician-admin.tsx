@@ -229,7 +229,7 @@ export function PhysicianAdmin({
                 <p className="truncate text-[0.9375rem] font-semibold text-ink">{person.name}</p>
                 <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted">
                   <SpecialtyChip code={person.specialty} small className="sm:hidden" />
-                  <span className="truncate">{specialtyOf(person.specialty)?.name}</span>
+                  <span className="truncate">{specialtyOf(person.specialty)?.name ?? "สาขาที่ไม่มีในรายการ"}</span>
                 </p>
               </div>
               <div className="flex shrink-0 gap-1.5">
@@ -257,7 +257,8 @@ export function PhysicianAdmin({
         </ul>
       )}
 
-      <dialog ref={editRef} aria-labelledby="edit-title" className={DIALOG}>
+      {/* While a save runs the dialog stays open (Escape too), so its answer lands in the dialog that sent it. */}
+      <dialog ref={editRef} aria-labelledby="edit-title" className={DIALOG} onCancel={(event) => pending && event.preventDefault()}>
         <form onSubmit={save} noValidate>
           <h2 id="edit-title" className="text-lg font-bold">
             {editing ? "แก้ไขข้อมูลแพทย์" : "เพิ่มแพทย์"}
@@ -307,7 +308,7 @@ export function PhysicianAdmin({
             ) : null}
           </div>
           <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <button type="button" onClick={() => editRef.current?.close()} className="btn btn-secondary">
+            <button type="button" onClick={() => editRef.current?.close()} disabled={pending} className="btn btn-secondary">
               ยกเลิก
             </button>
             <button type="submit" disabled={pending} aria-busy={pending} className="btn btn-primary">
@@ -317,7 +318,7 @@ export function PhysicianAdmin({
         </form>
       </dialog>
 
-      <dialog ref={removeRef} aria-labelledby="remove-title" className={DIALOG}>
+      <dialog ref={removeRef} aria-labelledby="remove-title" className={DIALOG} onCancel={(event) => pending && event.preventDefault()}>
         <h2 id="remove-title" className="text-lg font-bold">
           ลบแพทย์ออกจากรายชื่อ
         </h2>
@@ -329,7 +330,7 @@ export function PhysicianAdmin({
           <div>
             <dt className="text-muted">สาขา</dt>
             <dd className="mt-0.5 font-semibold text-ink">
-              {removingSpecialty ? `${removingSpecialty.label} · ${removingSpecialty.name}` : null}
+              {removingSpecialty ? `${removingSpecialty.label} · ${removingSpecialty.name}` : removing?.specialty}
             </dd>
           </div>
         </dl>
@@ -340,7 +341,7 @@ export function PhysicianAdmin({
           </Notice>
         ) : null}
         <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <button type="button" autoFocus onClick={() => removeRef.current?.close()} className="btn btn-secondary">
+          <button type="button" autoFocus onClick={() => removeRef.current?.close()} disabled={pending} className="btn btn-secondary">
             ยกเลิก
           </button>
           <button type="button" onClick={remove} disabled={pending} aria-busy={pending} className="btn btn-danger">

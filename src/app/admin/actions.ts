@@ -29,9 +29,8 @@ export async function saveSurgeon(input: { id: number | null; name: string; spec
     const values = { name: checked.name, specialty: checked.specialty };
     const result = id === null ? await addSurgeon(values) : await updateSurgeon(id, values);
     if (!result.ok) {
-      return result.reason === "duplicate"
-        ? { ok: false, error: "มีชื่อนี้ในรายชื่อแล้ว" }
-        : { ok: false, error: "ไม่พบรายชื่อนี้แล้ว อาจถูกลบไปก่อนหน้า", list: await listSurgeons() };
+      const error = result.reason === "duplicate" ? "มีชื่อนี้ในรายชื่อแล้ว" : "ไม่พบรายชื่อนี้แล้ว อาจถูกลบไปก่อนหน้า";
+      return { ok: false, error, list: await listSurgeons() };
     }
     return { ok: true, list: await listSurgeons(), message: id === null ? `เพิ่ม ${checked.name} แล้ว` : `บันทึกการแก้ไข ${checked.name} แล้ว` };
   } catch (error) {

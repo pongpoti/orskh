@@ -50,16 +50,19 @@ export type HolidayFeed =
   /** `status` is the HTTP status the API answered with, or null when it could not be reached or read. */
   | { state: "failed"; status: number | null };
 
-/** One year's holidays from the BOT API. */
-export async function botHolidayFeed(year: number, raw: string | undefined = process.env.BOT_API_TOKEN): Promise<HolidayFeed> {
+/**
+ * One year's holidays from the BOT API. The board uses the cached answer (only 200 answers are cached, so a refused
+ * token is asked about again on the next request). `fresh` skips the cache, so the admin page shows how the API
+ * answers the token now, not a 200 from up to six hours ago.
+ */
+export async function botHolidayFeed(year: number, options: { token?: string; fresh?: boolean } = {}): Promise<HolidayFeed> {
   // A token pasted into Vercel can pick up a stray space or line break.
-  const token = raw?.trim();
+  const token = (options.token ?? process.env.BOT_API_TOKEN)?.trim();
   if (!token) return { state: "no-token" };
   try {
-    // Only 200 answers are cached, so a refused token is asked about again on the next request.
     const response = await fetch(`${ENDPOINT}?year=${year}`, {
       headers: { Authorization: token, Accept: "application/json" },
-      next: { revalidate: REVALIDATE_SECONDS },
+      ...(options.fresh ? { cache: "no-store" } : { next: { revalidate: REVALIDATE_SECONDS } }),
     } as RequestInit);
     if (!response.ok) {
       console.warn(`BOT holidays API answered ${response.status} for ${year}`);

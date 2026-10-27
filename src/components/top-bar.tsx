@@ -56,16 +56,24 @@ export function TopBar({
           <p className="truncate text-xs leading-5 font-medium text-muted">ตารางผ่าตัดวันนี้</p>
           <h1 className="truncate text-[0.9375rem] leading-6 font-bold text-ink min-[400px]:text-base sm:text-lg">
             <time dateTime={date}>
-              {/* The month is abbreviated on narrow phones so the whole date, year included, fits beside the avatar. */}
-              <span className="min-[400px]:hidden">{thaiDate(date, "short")}</span>
-              <span className="hidden min-[400px]:inline">{thaiDate(date)}</span>
+              {/* The month is abbreviated on narrow phones so the whole date, year included, fits beside the avatar
+                  (and the admin button, which takes another 56px). */}
+              <span className={adminHref ? "min-[480px]:hidden" : "min-[400px]:hidden"}>{thaiDate(date, "short")}</span>
+              <span className={adminHref ? "hidden min-[480px]:inline" : "hidden min-[400px]:inline"}>{thaiDate(date)}</span>
             </time>
           </h1>
         </div>
         {adminHref ? (
-          <Link href={adminHref} className="btn btn-ghost size-11 min-h-0 shrink-0 p-0 sm:w-auto sm:px-3.5" aria-label="จัดการรายชื่อแพทย์" title="จัดการรายชื่อแพทย์">
+          // Below 390px the button would cut the year off the date, so narrow phones use the account menu's link.
+          // Its label shows from 768px; between 640px and 768px the wider date needs the room.
+          <Link
+            href={adminHref}
+            className="btn btn-ghost hidden size-11 min-h-0 shrink-0 p-0 min-[390px]:inline-flex md:w-auto md:px-3.5"
+            aria-label="จัดการแพทย์"
+            title="จัดการรายชื่อแพทย์"
+          >
             {ADMIN_ICON}
-            <span className="hidden text-sm sm:inline">จัดการแพทย์</span>
+            <span className="hidden text-sm md:inline">จัดการแพทย์</span>
           </Link>
         ) : null}
         {showAccount ? (

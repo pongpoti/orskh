@@ -22,7 +22,7 @@ export default async function AdminPage() {
   if (!isAdmin(session.user.id)) notFound();
 
   const today = todayIso();
-  const [surgeons, holidays] = await Promise.all([listSurgeons(), botHolidayFeed(Number(today.slice(0, 4)))]);
+  const [surgeons, holidays] = await Promise.all([listSurgeons(), botHolidayFeed(Number(today.slice(0, 4)), { fresh: true })]);
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
