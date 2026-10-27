@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
+import { pgErrorCode, UNIQUE_VIOLATION } from "@/db/errors";
 import { staffRegistrations } from "@/db/schema";
 import { getPhysician, type JobId } from "@/lib/physicians";
 
@@ -55,8 +56,7 @@ export async function registerPhysician(input: {
       })
       .onConflictDoNothing({ target: staffRegistrations.lineUserId });
   } catch (error) {
-    const code = typeof error === "object" && error && "code" in error ? String(error.code) : "";
-    if (code === "23505") {
+    if (pgErrorCode(error) === UNIQUE_VIOLATION) {
       return { ok: false, error: "ชื่อนี้มีผู้ลงทะเบียนแล้ว ถ้าไม่ใช่คุณ ให้เลือกชื่อที่ถูกต้อง" };
     }
     throw error;

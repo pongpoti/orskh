@@ -1,4 +1,4 @@
-import { DEPARTMENTS, readableTextOn, type DeptCode } from "@/lib/allocation";
+import { DEPARTMENTS, readableTextOn, type DeptCode } from "./allocation.ts";
 
 /** The specialties a surgeon can be given in the admin list, in the order of the supplied surgeon list. */
 export const SPECIALTY_CODES = [

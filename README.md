@@ -44,6 +44,7 @@ Copy `.env.example` to `.env.local` and fill in:
 | `AUTH_TRUST_HOST` | `true` on Vercel |
 | `AUTH_TEST_MODE` | On unless `false`. In test mode every signed-in LINE account may open the board and the allowlist is ignored. |
 | `AUTH_LINE_ALLOWLIST` | Optional comma-separated LINE user IDs. Only used when `AUTH_TEST_MODE=false`. |
+| `AUTH_ADMIN_LINE_IDS` | Comma-separated LINE user IDs of the admins, who may open `/admin`. Unset or empty means no admin. |
 | `DATABASE_URL` | Neon pooled connection string. Server only. |
 | `BOT_API_TOKEN` | Bank of Thailand API token for the Financial Institutions' Holidays API (free, from [portal.api.bot.or.th](https://portal.api.bot.or.th)). Server only. Without it only weekends and `EXTRA_HOLIDAYS` close the board. |
 | `EXTRA_HOLIDAYS` | Optional closures the API does not list, comma-separated `YYYY-MM-DD`, each optionally `=name`. |
@@ -62,9 +63,18 @@ A signed-in account that has not registered is sent to `/register`. Physicians p
 
 Issue a new channel secret if the current one was ever pasted into a chat, ticket, or commit.
 
+### Admin page
+
+Admins (the LINE user ids in `AUTH_ADMIN_LINE_IDS`) see a "จัดการแพทย์" button in the top bar (an icon on phones, labelled from 768px, left out below 390px so the date keeps its year) and the same link in the account menu, both opening `/admin`. Everyone else gets a not-found page there, and every save is checked against the admin list again on the server. The page has two parts:
+
+- **ปฏิทินวันหยุด**: the next holiday from the Bank of Thailand API. When `BOT_API_TOKEN` does not work, a warning says why instead: missing, refused (with the status code), no answer, or no holidays listed for the year. The admin page asks the API afresh each time rather than using the board's six-hour cache, so a token can be checked without the server logs.
+- **รายชื่อแพทย์**: the surgeon list with search, a specialty filter, and add, edit and delete. Specialty is a dropdown of department codes. Names are stored with invisible format characters (zero-width spaces, direction marks, soft hyphens) removed, runs of spaces evened out and Unicode NFC applied, and each name can appear once. The list is stored in the `surgeons` table. Nothing else reads it yet: the case board still matches surgeons to `src/lib/physicians.ts`, and registration still uses the hospital's department list.
+
+The tables are created by the SQL files in `drizzle/`, run in order against the database (Neon's SQL editor works). `0001_surgeons.sql` creates `surgeons` and seeds it with the 76 surgeons supplied on 27 Oct 2026 (`src/data/surgeons.ts`). The seed only runs while the table's id sequence has never been used, so running the file again never brings back names the admin deleted.
+
 ```bash
 npm install
 npm run dev
 ```
 
-`/preview` renders the board without LINE, `/preview/register` renders the registration form, and `/preview/admin` renders the admin physician list (search, specialty filter, add, edit and delete, kept in the page and not saved), all only while `NODE_ENV` is `development`.
+`/preview` renders the board without LINE (`/preview?admin=1` with the admin button), `/preview/register` renders the registration form, and `/preview/admin` renders the admin page with the supplied surgeon list (changes stay in the page and are not saved; `?holidays=ok|empty|no-token|refused|unreachable` shows each state of the holiday card), all only while `NODE_ENV` is `development`.

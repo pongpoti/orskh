@@ -1,23 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import type { AdminResult } from "@/app/admin/actions";
 import { Notice } from "@/components/auth-shell";
-import { SPECIALTIES, SPECIALTY_CODES, isSpecialtyCode, specialtyOf, type SpecialtyCode } from "@/lib/specialties";
-
-export type AdminPhysician = { id: string; name: string; specialty: SpecialtyCode };
-
-const ORDER = new Map<string, number>(SPECIALTY_CODES.map((code, index) => [code, index]));
-
-function sorted(list: readonly AdminPhysician[]): AdminPhysician[] {
-  return [...list].sort(
-    (a, b) => (ORDER.get(a.specialty) ?? 99) - (ORDER.get(b.specialty) ?? 99) || a.name.localeCompare(b.name, "th"),
-  );
-}
-
-/** Thai names are compared without the spaces people type inconsistently. */
-function normalise(name: string): string {
-  return name.replace(/\s+/g, " ").trim();
-}
+import { SPECIALTIES, isSpecialtyCode, specialtyOf, type SpecialtyCode } from "@/lib/specialties";
+import { normaliseName, sortSurgeons, type Surgeon } from "@/lib/surgeons";
 
 const icon = {
   search: <path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zm9 16l-4.2-4.2" />,
@@ -50,23 +37,36 @@ function SpecialtyChip({ code, small = false, className = "" }: { code: string; 
 const DIALOG =
   "m-auto w-[min(28rem,calc(100%-2rem))] rounded-[18px] border border-line bg-surface p-6 text-ink shadow-[0_24px_60px_rgb(41_29_20/0.3)] backdrop:bg-[rgb(36_28_22/0.35)] backdrop:backdrop-blur-[2px]";
 
+const UNSAVED = "บันทึกไม่สำเร็จ ตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง";
+
 /**
- * The admin's physician list: search, filter by specialty, and add, edit or delete a physician.
- * Changes are kept in this page's state; saving to the database comes with the admin route.
+ * The admin's surgeon list: search, filter by specialty, and add, edit or delete a surgeon.
+ * With `onSave` and `onRemove` (the server actions) every change is saved to the database; without them,
+ * as in the development preview, changes stay in this page.
  */
-export function PhysicianAdmin({ initial }: { initial: readonly AdminPhysician[] }) {
-  const [people, setPeople] = useState<AdminPhysician[]>(() => sorted(initial));
+export function PhysicianAdmin({
+  initial,
+  onSave,
+  onRemove,
+}: {
+  initial: readonly Surgeon[];
+  onSave?: (input: { id: number | null; name: string; specialty: string }) => Promise<AdminResult>;
+  onRemove?: (id: number) => Promise<AdminResult>;
+}) {
+  const [people, setPeople] = useState<Surgeon[]>(() => sortSurgeons(initial));
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<SpecialtyCode | "">("");
-  const [editing, setEditing] = useState<AdminPhysician | null>(null);
-  const [removing, setRemoving] = useState<AdminPhysician | null>(null);
+  const [editing, setEditing] = useState<Surgeon | null>(null);
+  const [removing, setRemoving] = useState<Surgeon | null>(null);
   const [draftName, setDraftName] = useState("");
   const [draftSpecialty, setDraftSpecialty] = useState<SpecialtyCode | "">("");
   const [error, setError] = useState("");
+  const [removeError, setRemoveError] = useState("");
   const [done, setDone] = useState("");
+  const [pending, startTransition] = useTransition();
   const editRef = useRef<HTMLDialogElement>(null);
   const removeRef = useRef<HTMLDialogElement>(null);
-  const nextId = useRef(initial.length + 1);
+  const nextId = useRef(Math.max(0, ...initial.map((person) => person.id)) + 1);
 
   const counts = useMemo(() => {
     const map = new Map<string, number>();
@@ -75,7 +75,7 @@ export function PhysicianAdmin({ initial }: { initial: readonly AdminPhysician[]
   }, [people]);
 
   const shown = useMemo(() => {
-    const needle = normalise(query);
+    const needle = normaliseName(query);
     return people.filter((person) => (!filter || person.specialty === filter) && (!needle || person.name.includes(needle)));
   }, [people, query, filter]);
 
@@ -85,42 +85,85 @@ export function PhysicianAdmin({ initial }: { initial: readonly AdminPhysician[]
     return () => clearTimeout(timer);
   }, [done]);
 
-  function openEditor(person: AdminPhysician | null) {
+  function openEditor(person: Surgeon | null) {
     setEditing(person);
     setDraftName(person?.name ?? "");
-    setDraftSpecialty(person?.specialty ?? filter);
+    // A code the app no longer lists has to be picked again.
+    setDraftSpecialty(person ? (isSpecialtyCode(person.specialty) ? person.specialty : "") : filter);
     setError("");
     editRef.current?.showModal();
   }
 
+  /** Applies a server answer: the fresh list on success (and on some failures), the message, and whether to close. */
+  function applied(result: AdminResult, showError: (message: string) => void): boolean {
+    if (result.list) setPeople(sortSurgeons(result.list));
+    if (!result.ok) {
+      showError(result.error);
+      return false;
+    }
+    setDone(result.message);
+    return true;
+  }
+
   function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const name = normalise(draftName);
+    if (pending) return;
+    const name = normaliseName(draftName);
     if (!name) return setError("กรุณากรอกชื่อ-นามสกุล");
     if (!isSpecialtyCode(draftSpecialty)) return setError("กรุณาเลือกสาขา");
     if (people.some((person) => person.name === name && person.id !== editing?.id)) {
       return setError("มีชื่อนี้ในรายชื่อแล้ว");
     }
-    if (editing) {
-      setPeople((list) => sorted(list.map((person) => (person.id === editing.id ? { ...person, name, specialty: draftSpecialty } : person))));
-      setDone(`บันทึกการแก้ไข ${name} แล้ว`);
-    } else {
-      setPeople((list) => sorted([...list, { id: `new-${nextId.current++}`, name, specialty: draftSpecialty }]));
-      setDone(`เพิ่ม ${name} แล้ว`);
+    const specialty = draftSpecialty;
+    const id = editing?.id ?? null;
+
+    if (!onSave) {
+      if (id === null) {
+        setPeople((list) => sortSurgeons([...list, { id: nextId.current++, name, specialty }]));
+        setDone(`เพิ่ม ${name} แล้ว`);
+      } else {
+        setPeople((list) => sortSurgeons(list.map((person) => (person.id === id ? { ...person, name, specialty } : person))));
+        setDone(`บันทึกการแก้ไข ${name} แล้ว`);
+      }
+      editRef.current?.close();
+      return;
     }
-    editRef.current?.close();
+
+    setError("");
+    startTransition(async () => {
+      try {
+        if (applied(await onSave({ id, name, specialty }), setError)) editRef.current?.close();
+      } catch {
+        setError(UNSAVED);
+      }
+    });
   }
 
-  function openRemove(person: AdminPhysician) {
+  function openRemove(person: Surgeon) {
     setRemoving(person);
+    setRemoveError("");
     removeRef.current?.showModal();
   }
 
   function remove() {
-    if (!removing) return;
-    setPeople((list) => list.filter((person) => person.id !== removing.id));
-    setDone(`ลบ ${removing.name} แล้ว`);
-    removeRef.current?.close();
+    if (!removing || pending) return;
+    const { id, name } = removing;
+
+    if (!onRemove) {
+      setPeople((list) => list.filter((person) => person.id !== id));
+      setDone(`ลบ ${name} แล้ว`);
+      removeRef.current?.close();
+      return;
+    }
+
+    setRemoveError("");
+    startTransition(async () => {
+      try {
+        if (applied(await onRemove(id), setRemoveError)) removeRef.current?.close();
+      } catch {
+        setRemoveError(UNSAVED);
+      }
+    });
   }
 
   const removingSpecialty = removing ? specialtyOf(removing.specialty) : null;
@@ -186,7 +229,7 @@ export function PhysicianAdmin({ initial }: { initial: readonly AdminPhysician[]
                 <p className="truncate text-[0.9375rem] font-semibold text-ink">{person.name}</p>
                 <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted">
                   <SpecialtyChip code={person.specialty} small className="sm:hidden" />
-                  <span className="truncate">{specialtyOf(person.specialty)?.name}</span>
+                  <span className="truncate">{specialtyOf(person.specialty)?.name ?? "สาขาที่ไม่มีในรายการ"}</span>
                 </p>
               </div>
               <div className="flex shrink-0 gap-1.5">
@@ -214,7 +257,8 @@ export function PhysicianAdmin({ initial }: { initial: readonly AdminPhysician[]
         </ul>
       )}
 
-      <dialog ref={editRef} aria-labelledby="edit-title" className={DIALOG}>
+      {/* While a save runs the dialog stays open (Escape too), so its answer lands in the dialog that sent it. */}
+      <dialog ref={editRef} aria-labelledby="edit-title" className={DIALOG} onCancel={(event) => pending && event.preventDefault()}>
         <form onSubmit={save} noValidate>
           <h2 id="edit-title" className="text-lg font-bold">
             {editing ? "แก้ไขข้อมูลแพทย์" : "เพิ่มแพทย์"}
@@ -264,17 +308,17 @@ export function PhysicianAdmin({ initial }: { initial: readonly AdminPhysician[]
             ) : null}
           </div>
           <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <button type="button" onClick={() => editRef.current?.close()} className="btn btn-secondary">
+            <button type="button" onClick={() => editRef.current?.close()} disabled={pending} className="btn btn-secondary">
               ยกเลิก
             </button>
-            <button type="submit" className="btn btn-primary">
-              {editing ? "บันทึก" : "เพิ่ม"}
+            <button type="submit" disabled={pending} aria-busy={pending} className="btn btn-primary">
+              {pending ? "กำลังบันทึก…" : editing ? "บันทึก" : "เพิ่ม"}
             </button>
           </div>
         </form>
       </dialog>
 
-      <dialog ref={removeRef} aria-labelledby="remove-title" className={DIALOG}>
+      <dialog ref={removeRef} aria-labelledby="remove-title" className={DIALOG} onCancel={(event) => pending && event.preventDefault()}>
         <h2 id="remove-title" className="text-lg font-bold">
           ลบแพทย์ออกจากรายชื่อ
         </h2>
@@ -286,18 +330,23 @@ export function PhysicianAdmin({ initial }: { initial: readonly AdminPhysician[]
           <div>
             <dt className="text-muted">สาขา</dt>
             <dd className="mt-0.5 font-semibold text-ink">
-              {removingSpecialty ? `${removingSpecialty.label} · ${removingSpecialty.name}` : null}
+              {removingSpecialty ? `${removingSpecialty.label} · ${removingSpecialty.name}` : removing?.specialty}
             </dd>
           </div>
         </dl>
-        <p className="mt-4 text-sm leading-6 text-muted">ชื่อนี้จะหายจากรายชื่อ และเลือกในหน้าลงทะเบียนไม่ได้อีก</p>
+        <p className="mt-4 text-sm leading-6 text-muted">ชื่อนี้จะถูกลบออกจากรายชื่อแพทย์ผ่าตัด ถ้าต้องการคืน ให้เพิ่มใหม่อีกครั้ง</p>
+        {removeError ? (
+          <Notice tone="warning" role="alert" className="mt-3">
+            {removeError}
+          </Notice>
+        ) : null}
         <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <button type="button" autoFocus onClick={() => removeRef.current?.close()} className="btn btn-secondary">
+          <button type="button" autoFocus onClick={() => removeRef.current?.close()} disabled={pending} className="btn btn-secondary">
             ยกเลิก
           </button>
-          <button type="button" onClick={remove} className="btn btn-danger">
+          <button type="button" onClick={remove} disabled={pending} aria-busy={pending} className="btn btn-danger">
             <Icon name="trash" />
-            ลบ
+            {pending ? "กำลังลบ…" : "ลบ"}
           </button>
         </div>
       </dialog>
