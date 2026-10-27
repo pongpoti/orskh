@@ -37,7 +37,7 @@ export function TopBar({
 
   return (
     <header className="appbar z-30">
-      <div className="mx-auto flex w-full max-w-[90rem] items-center gap-3 px-4 pt-[max(0.5rem,env(safe-area-inset-top))] pb-2 sm:px-6 sm:pt-[max(0.625rem,env(safe-area-inset-top))] sm:pb-2.5">
+      <div className="mx-auto flex w-full max-w-[120rem] items-center gap-3 px-4 pt-[max(0.5rem,env(safe-area-inset-top))] pb-2 sm:px-6 sm:pt-[max(0.625rem,env(safe-area-inset-top))] sm:pb-2.5">
         <Link href={pathname} className="flex min-h-11 shrink-0 items-center rounded-xl" aria-label="ORSKH.APP หน้าแรก">
           <BrandMark className="h-10 rounded-xl px-2.5 text-[1.0625rem] transition-[filter] hover:brightness-115" />
         </Link>
@@ -66,7 +66,7 @@ export function TopBar({
             <div
               id="account-menu"
               popover="auto"
-              className="menu fixed inset-auto top-[calc(max(0.5rem,env(safe-area-inset-top))+3.5rem)] right-4 sm:right-[max(1.5rem,calc((100vw-90rem)/2+1.5rem))] m-0 w-64 p-2 sm:top-[calc(max(0.625rem,env(safe-area-inset-top))+3.75rem)]"
+              className="menu fixed inset-auto top-[calc(max(0.5rem,env(safe-area-inset-top))+3.5rem)] right-4 sm:right-[max(1.5rem,calc((100vw-120rem)/2+1.5rem))] m-0 w-64 p-2 sm:top-[calc(max(0.625rem,env(safe-area-inset-top))+3.75rem)]"
             >
               <p className="truncate px-3 pt-1.5 pb-2.5 text-sm font-semibold text-ink">{name}</p>
               <SignOutButton showLabel />

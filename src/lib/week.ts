@@ -1,6 +1,6 @@
 import { WEEK_DATA } from "../data/week-data.ts";
 import { allocationFor, type DeptCode } from "./allocation.ts";
-import { DAY_KEYS, DAY_NAMES, workdayIndex, type DayKey } from "./days.ts";
+import { DAY_KEYS, DAY_NAMES, weekDates, workdayIndex, type DayKey } from "./days.ts";
 import { listPhysicians, teamOf } from "./physicians.ts";
 import type { CaseStatus, Operation, Shift } from "./schedule.ts";
 
@@ -48,8 +48,6 @@ export type DayBoard = {
   /** Calendar date behind the day. It decides which department holds each room, not what the header shows. */
   date: string;
   operations: Operation[];
-  /** Cases the schedule gives no correct room: their department holds none that day. */
-  unplaced: Operation[];
 };
 
 /** Words that mark a dressing case (wound dressing, done in OR 1), matched on the lower-cased operation name. */
@@ -106,9 +104,13 @@ function inferRoom(item: WeekCase, date: string, load: Map<string, number>, team
   return rooms.reduce((best, room) => ((load.get(room) ?? 0) < (load.get(best) ?? 0) ? room : best));
 }
 
-export function weekBoard(data: WeekFile = WEEK_DATA): DayBoard[] {
+/**
+ * Each weekday's cases in their rooms. The dates are the export's week, or `week` when the data has none.
+ * A case whose department holds no room that day is left off the board.
+ */
+export function weekBoard(data: WeekFile = WEEK_DATA, week: readonly string[] = data.meta.days): DayBoard[] {
   return DAY_KEYS.map((key, day) => {
-    const date = data.meta.days[day];
+    const date = data.meta.days[day] ?? week[day];
     const rows = data.cases.filter((item) => item.day === day);
     const load = new Map<string, number>();
     const placed = new Map<WeekCase, string | null>();
@@ -122,33 +124,33 @@ export function weekBoard(data: WeekFile = WEEK_DATA): DayBoard[] {
 
     const order = new Map<string, number>();
     const operations: Operation[] = [];
-    const unplaced: Operation[] = [];
     rows.forEach((item, index) => {
-      const roomId = placed.get(item) ?? null;
-      const slot = (order.get(roomId ?? "none") ?? 0) + 1;
-      order.set(roomId ?? "none", slot);
+      const roomId = placed.get(item);
+      if (!roomId) return;
+      const slot = (order.get(roomId) ?? 0) + 1;
+      order.set(roomId, slot);
       const surgeon = resolveSurgeon(item.surgeon, item.title);
-      const operation: Operation = {
+      operations.push({
         id: `${date}-${index}`,
-        roomId: roomId ?? "",
+        roomId,
         order: slot,
         procedure: item.proc,
         surgeon: surgeon.label,
         specialty: surgeon.specialty,
         status: item.status,
         shift: item.shift,
-      };
-      (roomId ? operations : unplaced).push(operation);
+      });
     });
 
-    return { key, name: DAY_NAMES[day], date, operations, unplaced };
+    return { key, name: DAY_NAMES[day], date, operations };
   });
 }
 
 /**
  * The board for a calendar date: the export week's cases for that weekday, or null at the weekend.
- * The export covers one week only, so every Monday shows its Monday, and so on.
+ * The export covers one week only, so every Monday shows its Monday, and so on. With no export loaded the
+ * board is empty and dated in this week, so the plan shows this week's allocation.
  */
 export function boardFor(iso: string, index: number | null = workdayIndex(iso), data: WeekFile = WEEK_DATA): DayBoard | null {
-  return index === null ? null : weekBoard(data)[index];
+  return index === null ? null : weekBoard(data, weekDates(iso))[index];
 }

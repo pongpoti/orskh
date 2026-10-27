@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { startTransition, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { FloorPlan, UNALLOCATED_FILL } from "@/components/floor-plan";
 import { allocationFor, readableTextOn, type Department } from "@/lib/allocation";
-import { boardHref, UNPLACED_ID } from "@/lib/days";
+import { boardHref } from "@/lib/days";
 import { getRoom, isSelectableRoom, roomLabel } from "@/lib/rooms";
 import { casesForRoom, roomMark, type CaseStatus, type Operation } from "@/lib/schedule";
 import type { DayBoard } from "@/lib/week";
@@ -60,10 +60,8 @@ export function SuiteBoard({
   pathname?: string;
 }) {
   const router = useRouter();
-  const urlRoom = roomId === UNPLACED_ID ? UNPLACED_ID : (() => {
-    const found = getRoom(roomId);
-    return found && isSelectableRoom(found) ? found.id : null;
-  })();
+  const found = getRoom(roomId);
+  const urlRoom = found && isSelectableRoom(found) ? found.id : null;
   const [selectedId, setSelectedId] = useState<string | null>(urlRoom);
   const [prevUrl, setPrevUrl] = useState(urlRoom);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -75,10 +73,8 @@ export function SuiteBoard({
   }
 
   const operations = board?.operations ?? NONE;
-  const unplaced = board?.unplaced ?? NONE;
-  const unplacedSelected = selectedId === UNPLACED_ID;
-  const room = unplacedSelected ? null : getRoom(selectedId);
-  const open = unplacedSelected || room !== null;
+  const room = getRoom(selectedId);
+  const open = room !== null;
 
   const counts = useMemo(() => {
     const next: Record<string, number> = {};
@@ -98,7 +94,7 @@ export function SuiteBoard({
   }, [operations]);
 
   function choose(id: string | null) {
-    if (id && id !== UNPLACED_ID) {
+    if (id) {
       const next = getRoom(id);
       if (!next || !isSelectableRoom(next)) return;
     }
@@ -129,27 +125,21 @@ export function SuiteBoard({
 
   // The board's own date decides who holds each room (it matches the cases); at the weekend no one does.
   const planDate = board?.date ?? today;
-  const cases = unplacedSelected ? unplaced : room ? casesForRoom(operations, room.id) : [];
+  const cases = room ? casesForRoom(operations, room.id) : [];
   const allocation = room ? allocationFor(room.id, planDate) : null;
   const wash = allocation?.am?.color ?? allocation?.pm?.color;
 
   return (
     <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="relative mx-auto flex min-h-0 w-full max-w-[90rem] flex-1 flex-col overflow-hidden sm:px-3 lg:flex-row lg:gap-5 lg:px-6 lg:pt-4 lg:pb-5">
+      <div className="relative mx-auto flex min-h-0 w-full max-w-[120rem] flex-1 flex-col overflow-hidden sm:px-3 lg:flex-row lg:gap-6 lg:px-6 lg:pt-3 lg:pb-4">
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-          {board === null || unplaced.length > 0 ? (
+          {board === null ? (
             <div className="flex shrink-0 flex-wrap items-center gap-2 px-3 pt-3 pb-1 lg:px-0 lg:pt-0 lg:pb-3">
-              {board === null ? <p className="pill px-4">วันนี้เป็นวันหยุด ไม่มีตารางผ่าตัด</p> : null}
-              {unplaced.length > 0 ? (
-                <button type="button" aria-pressed={unplacedSelected} onClick={() => onSelect(UNPLACED_ID)} className="pill">
-                  ไม่มีห้องที่ถูกต้อง
-                  <span className="pill-count">{unplaced.length}</span>
-                </button>
-              ) : null}
+              <p className="pill px-4">วันนี้เป็นวันหยุด ไม่มีตารางผ่าตัด</p>
             </div>
           ) : null}
           <div className="flex min-h-0 flex-1 justify-center overflow-hidden p-1 lg:p-0">
-            <FloorPlan selectedId={unplacedSelected ? null : selectedId} marks={marks} cases={counts} date={planDate} onSelect={onSelect} />
+            <FloorPlan selectedId={selectedId} marks={marks} cases={counts} date={planDate} onSelect={onSelect} />
           </div>
         </div>
 
@@ -175,7 +165,7 @@ export function SuiteBoard({
 
         <aside
           aria-label="รายการผ่าตัดของห้อง"
-          className={`room-sheet z-20 flex min-h-0 flex-col overflow-hidden max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:max-h-[60dvh] max-lg:rounded-t-[24px] lg:static lg:h-full lg:w-96 lg:shrink-0 ${open ? "is-open" : "max-lg:pointer-events-none"}`}
+          className={`room-sheet z-20 flex min-h-0 flex-col overflow-hidden max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:max-h-[60dvh] max-lg:rounded-t-[24px] lg:static lg:h-full lg:w-[26rem] lg:shrink-0 xl:w-[30rem] 2xl:w-[34rem] ${open ? "is-open" : "max-lg:pointer-events-none"}`}
         >
           {open ? (
             <div className="flex min-h-0 flex-1 flex-col">
@@ -185,7 +175,7 @@ export function SuiteBoard({
                   <div className="min-w-0">
                     <div className="flex min-h-11 items-center gap-2.5">
                       <h2 ref={headingRef} tabIndex={-1} className="text-xl leading-snug font-bold text-ink outline-none">
-                        {room ? roomLabel(room) : "ไม่มีห้องที่ถูกต้อง"}
+                        {room ? roomLabel(room) : null}
                       </h2>
                       <span className="count-tag">
                         <span className="tabular-nums">{cases.length}</span> รายการ
@@ -202,9 +192,6 @@ export function SuiteBoard({
                           <Owner dept={allocation.am} />
                         )}
                       </div>
-                    ) : null}
-                    {unplacedSelected ? (
-                      <p className="mt-0.5 text-sm text-ink-2">แผนกของเคสเหล่านี้ไม่มีห้องตามตารางจัดสรรของวันนี้</p>
                     ) : null}
                   </div>
                   <button
