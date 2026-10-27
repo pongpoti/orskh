@@ -2,7 +2,7 @@ import { BrandMark } from "@/components/brand-mark";
 
 export function Wordmark({ className = "" }: { className?: string }) {
   return (
-    <span className={`font-bold tracking-[0.06em] text-brand ${className}`}>
+    <span className={`font-bold tracking-[-0.01em] text-ink ${className}`}>
       ORSKH<span className="font-medium text-muted">.APP</span>
     </span>
   );
@@ -72,12 +72,12 @@ export function AuthShell({
   children: React.ReactNode;
 }) {
   return (
-    <main className="flex h-dvh overflow-y-auto overscroll-contain bg-canvas px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-      <div className="card m-auto w-full max-w-md p-6 sm:p-8">
+    <main className="flex h-dvh overflow-y-auto overscroll-contain px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+      <div className="card m-auto w-full max-w-[26.25rem] px-6 pt-10 pb-8 sm:px-8">
         <div className="flex flex-col items-center text-center">
-          <BrandMark className="size-14" />
-          <Wordmark className="mt-3 text-sm" />
-          <h1 className="mt-5 text-2xl leading-tight font-bold text-ink">{title}</h1>
+          <BrandMark className="h-16 rounded-2xl px-[18px] text-[1.9rem] shadow-[inset_0_1px_0_rgb(255_255_255/0.18),0_4px_12px_-2px_rgb(63_47_36/0.35)]" />
+          <Wordmark className="mt-5 text-2xl leading-tight" />
+          <h1 className="mt-1 text-base leading-snug font-semibold text-ink-2">{title}</h1>
           {description ? <p className="mt-2 text-sm leading-6 text-muted">{description}</p> : null}
         </div>
         <div className="mt-6">{children}</div>

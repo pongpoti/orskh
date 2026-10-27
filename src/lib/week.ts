@@ -1,6 +1,6 @@
 import { WEEK_DATA } from "../data/week-data.ts";
 import { allocationFor, type DeptCode } from "./allocation.ts";
-import { DAY_KEYS, DAY_NAMES, type DayKey } from "./days.ts";
+import { DAY_KEYS, DAY_NAMES, workdayIndex, type DayKey } from "./days.ts";
 import { listPhysicians, teamOf } from "./physicians.ts";
 import type { CaseStatus, Operation, Shift } from "./schedule.ts";
 
@@ -143,4 +143,12 @@ export function weekBoard(data: WeekFile = WEEK_DATA): DayBoard[] {
 
     return { key, name: DAY_NAMES[day], date, operations, unplaced };
   });
+}
+
+/**
+ * The board for a calendar date: the export week's cases for that weekday, or null at the weekend.
+ * The export covers one week only, so every Monday shows its Monday, and so on.
+ */
+export function boardFor(iso: string, index: number | null = workdayIndex(iso), data: WeekFile = WEEK_DATA): DayBoard | null {
+  return index === null ? null : weekBoard(data)[index];
 }

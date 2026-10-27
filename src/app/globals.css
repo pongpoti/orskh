@@ -1,62 +1,74 @@
 @import "tailwindcss";
 
 /*
- * Design tokens. One brand colour (the deep green of the app icon), a cool
- * neutral scale, and status colours whose text clears 4.5:1 on their tint.
+ * Design tokens, following the SAKHONMSO P4P dashboard: shadcn/ui's design
+ * language with a deep brown primary and a warm tan accent, frosted-glass
+ * surfaces over a light, warm gradient, and status colours whose text clears
+ * 4.5:1 on their tint.
  */
 :root {
   color-scheme: light;
 
-  --brand: #1b5e54;
-  --brand-strong: #134039;
-  --brand-tint: #e2f0ec;
+  --brand: #3f2f24;
+  --brand-top: #54402f;
+  --brand-strong: #2e2219;
+  --brand-tint: #f1e7da;
+  --tan: #a68966;
+  --tan-light: #ddbf94;
+  --tan-fill: #eadcc8;
+  --tan-fill-hover: #e0cdb3;
 
-  --canvas: #c4d8d3;
-  --surface: #ffffff;
-  --surface-2: #f4f8f7;
-  --line: #d4dfdc;
-  --line-strong: #a9bab6;
+  --canvas: #faf5ee;
+  --surface: #fdfaf5;
+  --surface-2: #f6efe6;
+  --glass: rgb(255 255 255 / 0.58);
+  --glass-edge: rgb(255 255 255 / 0.75);
+  --line: #e9e0d5;
+  --line-strong: #d3c4b2;
 
-  --ink: #14262c;
-  --ink-2: #3a4f56;
-  --ink-3: #566a71;
-  --focus: #1d4ed8;
+  --ink: #241c16;
+  --ink-2: #4a3b30;
+  --ink-3: #5f5045;
+  --focus: #2f6fdb;
 
-  --live: #0b5d4f;
-  --live-tint: #dcf0ea;
-  --late: #8a4b00;
-  --late-tint: #fdecd0;
-  --stop: #8a2a24;
-  --rest: #4c3d73;
+  --live: #126b34;
+  --live-tint: #e3f1e8;
+  --late: #965800;
+  --late-tint: #fbefd9;
+  --stop: #a3271b;
+  --rest: #5b4a7a;
 
-  --shadow-sm: 0 1px 2px rgb(20 38 44 / 0.06), 0 1px 1px rgb(20 38 44 / 0.04);
-  --shadow-md: 0 4px 14px rgb(20 38 44 / 0.1), 0 1px 3px rgb(20 38 44 / 0.06);
-  --shadow-up: 0 -8px 28px rgb(20 38 44 / 0.18), 0 -1px 3px rgb(20 38 44 / 0.08);
+  --radius: 14px;
+  --shadow-sm: 0 1px 2px rgb(41 29 20 / 0.08), inset 0 1px 0 rgb(255 255 255 / 0.5);
+  --shadow-md: 0 1px 2px rgb(41 29 20 / 0.05), 0 8px 24px -6px rgb(41 29 20 / 0.1);
+  --shadow-lg: 0 1px 2px rgb(41 29 20 / 0.05), 0 20px 48px -12px rgb(41 29 20 / 0.18);
+  --shadow-up: 0 -8px 28px rgb(41 29 20 / 0.16), 0 -1px 3px rgb(41 29 20 / 0.06);
+  --highlight: inset 0 1px 0 rgb(255 255 255 / 0.85);
 
   /* Floor plan */
-  --fp-floor: #f4f7f7;
-  --fp-outer: #d9dfe2;
-  --fp-or: #cdebe5;
+  --fp-floor: #fbf7f1;
+  --fp-outer: #e6dccf;
+  --fp-or: #f1e7da;
   --fp-recovery: var(--fp-support);
-  --fp-support: #e8ecee;
+  --fp-support: #efe7dc;
   --fp-core: #ffffff;
   --fp-wall: var(--ink);
-  --fp-detail: #6e808a;
-  --fp-grate-line: #bac7cc;
+  --fp-detail: #8a7a6c;
+  --fp-grate-line: #cdbfae;
   --fp-shell: var(--fp-floor);
-  --fp-counter: #7e8a92;
-  --fp-counter-edge: #5a666e;
+  --fp-counter: #8f8072;
+  --fp-counter-edge: #6b5d52;
   --fp-ink: var(--ink);
   --fp-muted: var(--ink-3);
-  --fp-active: #17806e;
-  --fp-delayed: #c8761a;
+  --fp-active: #157f3d;
+  --fp-delayed: #d98c00;
 
   --background: var(--canvas);
   --foreground: var(--ink);
 }
 
 @theme inline {
-  --font-sans: var(--font-plex), "Noto Sans Thai", sans-serif;
+  --font-sans: var(--font-inter), var(--font-noto-thai), system-ui, sans-serif;
   --color-canvas: var(--canvas);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
@@ -68,6 +80,8 @@
   --color-brand: var(--brand);
   --color-brand-strong: var(--brand-strong);
   --color-brand-tint: var(--brand-tint);
+  --color-tan: var(--tan);
+  --color-tan-light: var(--tan-light);
   --color-live: var(--live);
   --color-live-tint: var(--live-tint);
   --color-late: var(--late);
@@ -85,30 +99,102 @@ body {
   -webkit-text-size-adjust: 100%;
 }
 
+/* Soft colour fields behind the glass, so the blur has something to pick up. */
 body {
-  background: var(--background);
+  background:
+    radial-gradient(40rem 28rem at 8% 0%, rgb(222 190 145 / 0.42), transparent 70%),
+    radial-gradient(36rem 26rem at 95% 8%, rgb(196 170 220 / 0.2), transparent 70%),
+    radial-gradient(40rem 30rem at 85% 95%, rgb(150 208 216 / 0.2), transparent 70%),
+    radial-gradient(34rem 26rem at 10% 95%, rgb(240 180 160 / 0.2), transparent 70%),
+    linear-gradient(160deg, #fbf6ef 0%, #f8f1e7 50%, #fbf7f1 100%);
+  background-attachment: fixed;
   color: var(--foreground);
   font-feature-settings: "tnum" 0;
 }
 
-/* One focus indicator for everything interactive (tabindex=-1 targets such as the card heading are not controls): a blue ring that stays visible on teal, white and tinted surfaces. */
+/* One focus indicator for everything interactive (tabindex=-1 targets such as the card heading are not controls). */
 :where(a, button, select, input, textarea, [tabindex]:not([tabindex="-1"])):focus-visible {
-  outline: 3px solid var(--focus);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 
 @layer components {
+  /* shadcn Card, frosted. */
+  .glass {
+    background: var(--glass);
+    border: 1px solid var(--glass-edge);
+    box-shadow: var(--shadow-md), var(--highlight);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+  }
+
   .appbar {
-    background: var(--surface);
-    border-bottom: 1px solid var(--line);
-    box-shadow: var(--shadow-sm);
+    background: rgb(255 255 255 / 0.55);
+    border-bottom: 1px solid rgb(63 47 36 / 0.11);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
   }
 
   .card {
-    background: var(--surface);
-    border: 1px solid var(--line);
+    background: var(--glass);
+    border: 1px solid var(--glass-edge);
     border-radius: 1rem;
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--shadow-lg), var(--highlight);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+  }
+
+  /* Text mark: a brown tile with the second letter picked out in light tan. */
+  .logo-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    color: #fff;
+    background: linear-gradient(180deg, var(--brand-top), var(--brand));
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18), 0 1px 2px rgb(0 0 0 / 0.2);
+  }
+  .logo-mark b {
+    color: var(--tan-light);
+    font-weight: 800;
+  }
+
+  /* shadcn Badge, with a status dot. */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 24px;
+    padding: 0 9px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .badge::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .badge-warning { color: var(--late); background: rgb(217 140 0 / 0.13); border-color: rgb(217 140 0 / 0.22); }
+  .badge-muted { color: var(--ink-3); background: rgb(255 255 255 / 0.65); border-color: var(--line); }
+
+  /* Department chip, coloured by --chip (the department's own colour). */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 2px 12px;
+    border-radius: 999px;
+    background: var(--chip, var(--surface-2));
+    font-size: 0.875rem;
+    font-weight: 700;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.5), 0 1px 2px rgb(41 29 20 / 0.12);
   }
 
   .btn {
@@ -118,7 +204,7 @@ body {
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    border-radius: 0.625rem;
+    border-radius: 10px;
     padding: 0.5rem 1.125rem;
     font-size: 0.9375rem;
     font-weight: 600;
@@ -127,6 +213,7 @@ body {
     transition:
       background-color 0.15s ease,
       border-color 0.15s ease,
+      filter 0.15s ease,
       transform 0.1s ease;
   }
   .btn:active:not(:disabled) {
@@ -134,24 +221,36 @@ body {
   }
   .btn:disabled {
     cursor: not-allowed;
-    opacity: 0.5;
+    opacity: 0.55;
   }
+  /* shadcn "default": the brown fill. */
   .btn-primary {
-    background: var(--brand);
+    background: linear-gradient(180deg, var(--brand-top), var(--brand));
     color: #fff;
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 1px 2px rgb(41 29 20 / 0.2), inset 0 1px 0 rgb(255 255 255 / 0.15);
   }
   .btn-primary:hover:not(:disabled) {
-    background: var(--brand-strong);
+    filter: brightness(1.18);
   }
+  /* shadcn "secondary": a tan fill and border, so it reads as a button on white glass. */
   .btn-secondary {
-    background: var(--surface);
-    color: var(--ink);
-    border: 1px solid var(--line-strong);
+    background: var(--tan-fill);
+    color: var(--brand);
+    border: 1px solid rgb(124 96 66 / 0.35);
+    box-shadow: var(--shadow-sm);
   }
   .btn-secondary:hover:not(:disabled) {
+    background: var(--tan-fill-hover);
+  }
+  /* shadcn "ghost"/outline, for quiet icon buttons. */
+  .btn-ghost {
+    background: #fff;
+    color: var(--ink-3);
+    border: 1px solid rgb(63 47 36 / 0.14);
+  }
+  .btn-ghost:hover:not(:disabled) {
     background: var(--surface-2);
-    border-color: var(--ink-3);
+    color: var(--ink);
   }
 
   /* 16px text keeps iOS from zooming the page when a field is focused. */
@@ -159,10 +258,10 @@ body {
     min-height: 2.75rem;
     width: 100%;
     appearance: none;
-    border-radius: 0.625rem;
-    border: 1px solid var(--line-strong);
-    background-color: var(--surface);
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23566a71' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    border-radius: 10px;
+    border: 1px solid rgb(63 47 36 / 0.22);
+    background-color: #fff;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235f5045' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
     background-position: right 0.875rem center;
     background-repeat: no-repeat;
     padding: 0.5rem 2.5rem 0.5rem 0.875rem;
@@ -175,28 +274,46 @@ body {
   }
 
   .case-row {
-    border-left: 4px solid var(--line-strong);
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 0.875rem;
+    align-items: start;
+    border-left: 4px solid transparent;
     padding: 0.875rem 1.25rem 0.875rem 1rem;
+    transition: background-color 0.15s ease;
   }
-  .case-row[data-status="in-progress"] { border-left-color: var(--live); background: color-mix(in srgb, var(--live-tint) 55%, var(--surface)); }
+  .case-row:hover { background: rgb(166 137 102 / 0.08); }
+  .case-row[data-status="in-progress"] { border-left-color: var(--live); background: color-mix(in srgb, var(--live-tint) 55%, transparent); }
   .case-row[data-status="delayed"] { border-left-color: var(--late); }
-  .case-row[data-status="done"] { border-left-color: var(--line); }
   .case-row[data-status="cancelled"] { border-left-color: var(--stop); }
   .case-row[data-status="recovery"] { border-left-color: var(--rest); }
+
+  /* The case's position in its room, as a pill. */
+  .order-no {
+    min-width: 2.25rem;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--brand-tint);
+    color: var(--brand);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
 
   .notice {
     display: flex;
     gap: 0.625rem;
     border: 1px solid;
-    border-radius: 0.75rem;
+    border-radius: 12px;
     padding: 0.75rem 0.875rem;
     font-size: 0.875rem;
     line-height: 1.45;
   }
   .notice > svg { margin-top: 0.1rem; flex: none; }
-  .notice-warning { background: #fff6e6; border-color: #f0cf94; color: #5c3a00; }
-  .notice-info { background: var(--surface-2); border-color: var(--line); color: var(--ink-2); }
-  .notice-success { background: var(--live-tint); border-color: #a9d8cb; color: var(--live); }
+  .notice-warning { background: rgb(253 236 234 / 0.85); border-color: rgb(192 57 43 / 0.22); color: var(--stop); }
+  .notice-info { background: rgb(255 255 255 / 0.7); border-color: var(--line); color: var(--ink-3); }
+  .notice-success { background: var(--live-tint); border-color: rgb(21 127 61 / 0.25); color: var(--live); }
 }
 
 dialog[open] {
@@ -209,28 +326,6 @@ dialog[open]::backdrop {
 
 .scrim {
   animation: backdrop-in 0.18s ease-out;
-}
-
-.day-slide-next {
-  animation: day-in-next 0.22s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.day-slide-prev {
-  animation: day-in-prev 0.22s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-@keyframes day-in-next {
-  from {
-    opacity: 0;
-    transform: translateX(28px);
-  }
-}
-
-@keyframes day-in-prev {
-  from {
-    opacity: 0;
-    transform: translateX(-28px);
-  }
 }
 
 @keyframes dialog-in {
@@ -258,6 +353,11 @@ dialog[open]::backdrop {
   transform: translate3d(0, 0, 0);
 }
 
+/* The department's colour as a wash across the top of the sheet. */
+.sheet-head {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--wash, transparent) 32%, transparent), transparent);
+}
+
 @media (max-width: 1023.98px) {
   .room-sheet {
     border-top: 1px solid var(--line);
@@ -270,7 +370,12 @@ dialog[open]::backdrop {
     transform: none;
     transition: none;
     will-change: auto;
-    border-left: 1px solid var(--line);
+    background: var(--glass);
+    border: 1px solid var(--glass-edge);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-md), var(--highlight);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
   }
 }
 
@@ -286,14 +391,14 @@ dialog[open]::backdrop {
 .fp-recovery { cursor: pointer; }
 .fp-recovery.is-static,
 .fp-recovery.is-static .fp-floor { cursor: default; }
-/* An OR takes its department's colour from --rf (set per room); mint when the schedule is silent. */
+/* An OR takes its department's colour from --rf (set per room); tan when the schedule is silent. */
 .fp-or .fp-floor { fill: var(--rf, var(--fp-or)); transition: filter 0.15s ease; }
 /* Hover only where a pointer exists, so a tap does not leave the room tinted. */
 @media (hover: hover) {
   .fp-or:hover .fp-floor { filter: brightness(0.9); }
 }
 .fp-or:active .fp-floor { filter: brightness(0.9); }
-.fp-or.is-selected { filter: drop-shadow(0 0 9px rgb(34 49 58 / 0.5)); }
+.fp-or.is-selected { filter: drop-shadow(0 0 9px rgb(41 29 20 / 0.5)); }
 .fp-or.is-selected .fp-wall { stroke: var(--fp-ink); stroke-width: 9; }
 .fp-recovery .fp-floor { fill: var(--fp-recovery); }
 /* Keyboard focus lands on the floor path; show it as a blue wall instead of a box around the shape. */
@@ -310,7 +415,7 @@ dialog[open]::backdrop {
 /* Room number sits in a white badge so it reads on any department colour. */
 .fp-badge { fill: #fff; stroke: var(--fp-wall); stroke-width: 2.5; pointer-events: none; }
 .fp-label {
-  font-family: var(--font-plex), "Noto Sans Thai", sans-serif;
+  font-family: var(--font-inter), var(--font-noto-thai), sans-serif;
   font-size: 56px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -319,16 +424,16 @@ dialog[open]::backdrop {
   pointer-events: none;
 }
 .fp-dept {
-  font-family: var(--font-plex), "Noto Sans Thai", sans-serif;
+  font-family: var(--font-inter), var(--font-noto-thai), sans-serif;
   font-weight: 700;
   text-anchor: middle;
   pointer-events: none;
 }
-.fp-label-sm { font-size: 36px; fill: #4c3d73; }
+.fp-label-sm { font-size: 36px; fill: var(--rest); }
 .fp-counter-top { fill: var(--fp-counter); stroke: var(--fp-counter-edge); stroke-width: 2; stroke-linejoin: round; }
 /* Live is a circle and delayed is a diamond, so the two differ by shape as well as colour.
    The dark halo keeps either visible on any department colour. */
-.fp-mark { stroke: #fff; stroke-width: 5; stroke-linejoin: round; filter: drop-shadow(0 0 2px rgb(20 38 44 / 0.6)); pointer-events: none; }
+.fp-mark { stroke: #fff; stroke-width: 5; stroke-linejoin: round; filter: drop-shadow(0 0 2px rgb(41 29 20 / 0.6)); pointer-events: none; }
 .fp-mark-active { fill: var(--fp-active); }
 .fp-mark-delayed { fill: var(--fp-delayed); }
 
@@ -336,13 +441,12 @@ dialog[open]::backdrop {
   .fp-or .fp-floor,
   .fp-recovery .fp-floor,
   .room-sheet,
+  .case-row,
   .btn,
   .field {
     transition: none;
   }
   .scrim,
-  .day-slide-next,
-  .day-slide-prev,
   dialog[open],
   dialog[open]::backdrop {
     animation: none;

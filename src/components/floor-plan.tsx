@@ -6,10 +6,10 @@ import { allocationFor, allocationText, readableTextOn, type Department, type Ro
 import { isSelectableRoom, roomBounds, roomLabel, ROOMS, type Room } from "@/lib/rooms";
 import type { RoomMark } from "@/lib/schedule";
 
-/** A room with no case that day. White text reads on it (7:1). */
-const EMPTY_FILL = "#59646b";
-/** A room the schedule gives to no department, yet has cases. Darker than the service-area gray so the two differ. */
-const UNALLOCATED_FILL = "#cbd3d7";
+/** A room with no case that day. White text reads on it (6:1). */
+const EMPTY_FILL = "#6b5d52";
+/** A room the schedule gives to no department, yet has cases. Darker than the service-area beige so the two differ. */
+const UNALLOCATED_FILL = "#dcd2c6";
 
 const MARK_LABEL: Record<Exclude<RoomMark, null>, string> = {
   active: "กำลังใช้งาน",

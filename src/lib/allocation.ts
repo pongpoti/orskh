@@ -171,7 +171,7 @@ export function allocationText(allocation: RoomAllocation): string {
 }
 
 /** Same as the UI ink. Dark text on every department colour clears 4.5:1 at this value. */
-export const INK = "#14262c";
+export const INK = "#241c16";
 
 function luminance(hex: string): number {
   const channel = (offset: number) => {

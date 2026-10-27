@@ -2,7 +2,7 @@
 
 Operating-suite board. Staff sign in with LINE, then pick a room on the floor plan to see that day’s cases.
 
-The board shows one working week, **Monday to Friday**, opening on Monday. Swipe the plan (or use the arrows, the dots or the left and right keys) to change day. Days are named, not dated.
+The board shows **today** only, dated in Thai with the Buddhist year (Thailand time, so it turns over at midnight in Bangkok). There is no paging between days. The export covers one week, so each weekday shows that weekday's cases from it; at the weekend the plan is shown with no cases. In development, `/preview?day=tue` shows another weekday.
 
 ## Case data
 
@@ -20,7 +20,7 @@ Room colours and labels come from the weekly allocation table in the FY2569 util
 
 ## Design
 
-Tokens (colour, surfaces, status, shadows) live at the top of `src/app/globals.css`; shared pieces are `.btn`, `.field`, `.card` and `.notice`, plus `AuthShell` and `BrandMark` in `src/components`. The app is built to be usable by everyone:
+The look follows the SAKHONMSO P4P dashboard: shadcn/ui's design language with a deep brown primary and a tan accent, frosted-glass cards over a warm gradient, Inter with Noto Sans Thai, and an "OR" text mark on a brown tile. Tokens (colour, surfaces, status, shadows) live at the top of `src/app/globals.css`; shared pieces are `.glass`, `.btn` (`-primary`, `-secondary`, `-ghost`), `.field`, `.card`, `.badge`, `.chip` and `.notice`, plus `AuthShell` and `BrandMark` in `src/components`. The app is built to be usable by everyone:
 
 - Text and status pairs meet WCAG AA (4.5:1); department labels are checked by a test.
 - One blue focus ring on every control, and keyboard focus on a room outlines its wall.

@@ -33,21 +33,26 @@ export function TopBar({
 
   return (
     <header className="appbar z-30">
-      <div className="flex items-center justify-between gap-3 px-4 pt-[max(0.25rem,env(safe-area-inset-top))] pb-1 sm:pt-1.5 sm:pb-1.5">
+      <div className="mx-auto flex w-full max-w-[90rem] items-center justify-between gap-3 px-4 pt-[max(0.5rem,env(safe-area-inset-top))] pb-2 sm:px-6 sm:py-3">
         <Link
           href={pathname}
-          className="flex min-w-0 items-center gap-2.5 rounded-lg"
+          className="group flex min-w-0 items-center gap-2.5 rounded-[10px]"
           aria-label="ORSKH.APP หน้าแรก"
         >
-          <BrandMark className="size-7 shrink-0" />
-          <Wordmark className="text-base leading-none" />
+          <BrandMark className="h-9 shrink-0 rounded-[10px] px-2.5 text-base transition-[filter] group-hover:brightness-125 sm:h-[38px]" />
+          <Wordmark className="text-lg leading-none sm:text-xl" />
         </Link>
-        <div className="flex min-w-0 items-center gap-2.5 text-sm sm:gap-3">
-          <span className="flex min-w-0 items-center gap-2">
+        <div className="flex min-w-0 items-center gap-3 text-sm">
+          <span className="flex min-w-0 items-center gap-2.5">
             <ProfileAvatar src={src} initial={initial} />
-            <span className="sr-only sm:not-sr-only sm:block sm:max-w-48 sm:truncate sm:font-medium sm:text-ink">{name}</span>
+            <span className="sr-only sm:not-sr-only sm:block sm:max-w-48 sm:truncate sm:text-[0.95rem] sm:font-medium sm:text-muted">{name}</span>
           </span>
-          {showAccount ? <SignOutButton /> : null}
+          {showAccount ? (
+            <>
+              <span aria-hidden className="hidden h-6 w-px bg-line-strong sm:block" />
+              <SignOutButton />
+            </>
+          ) : null}
         </div>
       </div>
     </header>

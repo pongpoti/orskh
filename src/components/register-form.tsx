@@ -120,12 +120,12 @@ export function RegisterForm({ preview = false }: { preview?: boolean }) {
       <dialog
         ref={dialogRef}
         aria-labelledby="confirm-title"
-        className="m-auto w-[min(26rem,calc(100%-2rem))] rounded-2xl border border-line bg-surface p-6 text-ink shadow-[0_24px_60px_rgb(20_38_44/0.28)] backdrop:bg-ink/55"
+        className="m-auto w-[min(26rem,calc(100%-2rem))] rounded-[18px] border border-line bg-surface p-6 text-ink shadow-[0_24px_60px_rgb(41_29_20/0.3)] backdrop:bg-[rgb(36_28_22/0.35)] backdrop:backdrop-blur-[2px]"
       >
         <h2 id="confirm-title" className="text-lg font-bold">
           ยืนยันการลงทะเบียน
         </h2>
-        <dl className="mt-4 space-y-3 rounded-xl border border-line bg-surface-2 p-4 text-sm">
+        <dl className="mt-4 space-y-3 rounded-xl border border-line bg-white/70 p-4 text-sm">
           <div>
             <dt className="text-muted">ชื่อที่เลือก</dt>
             <dd className="mt-0.5 font-semibold text-ink">{physician?.name}</dd>

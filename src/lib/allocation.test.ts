@@ -140,9 +140,9 @@ test("every department label meets 4.5:1 contrast on its colour", () => {
   for (const dept of Object.values(DEPARTMENTS)) {
     assert.ok(contrast(dept.color, readableTextOn(dept.color)) >= 4.5, `${dept.code} ${dept.color}`);
   }
-  // White text on the "no case" gray, and ink text on the "no department" gray.
-  assert.ok(contrast("#59646b", "#ffffff") >= 4.5);
-  assert.ok(contrast("#cbd3d7", INK) >= 4.5);
+  // White text on the "no case" brown-gray, and ink text on the "no department" beige.
+  assert.ok(contrast("#6b5d52", "#ffffff") >= 4.5);
+  assert.ok(contrast("#dcd2c6", INK) >= 4.5);
 });
 
 test("room outlines enclose their label point", () => {
