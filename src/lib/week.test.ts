@@ -86,13 +86,13 @@ test("rooms follow the report's rules", () => {
     { dept: "ORTHO" },
     { dept: "GENSX", surgeon: GENSX_SURGEON, proc: "colonoscopy" },
   ]);
-  // Monday: dressing OR 1, emergency OR 8, OBGYN stays in one of its own rooms, EYE OR 10, ORTHO OR 11, SCOPE OR 3.
+  // Monday: dressing OR 1, emergency OR 8, OBGYN stays in one of its own rooms, EYE OR 11, ORTHO OR 12 or 13, SCOPE OR 3.
   const rooms = roomsOf(data);
   assert.equal(rooms[0], "or-1");
   assert.equal(rooms[1], "or-8");
-  assert.ok(["or-4", "or-6", "or-7"].includes(rooms[2]), rooms[2]);
-  assert.equal(rooms[3], "or-10");
-  assert.equal(rooms[4], "or-11");
+  assert.ok(["or-4", "or-6"].includes(rooms[2]), rooms[2]);
+  assert.equal(rooms[3], "or-11");
+  assert.ok(["or-12", "or-13"].includes(rooms[4]), rooms[4]);
   assert.equal(rooms[5], "or-3");
 });
 
@@ -104,8 +104,8 @@ test("a department with several rooms is pooled across them", () => {
 });
 
 test("a case whose department holds no room that day is left off the board", () => {
-  // Urology has no room on Tuesday.
-  const day = weekBoard(fixture([{ day: 1, dept: "URO" }, { day: 1, dept: "GENSX" }]))[1];
+  // Cardiothoracic surgery has no room on Tuesday.
+  const day = weekBoard(fixture([{ day: 1, dept: "CVT" }, { day: 1, dept: "GENSX" }]))[1];
   assert.equal(day.operations.length, 1);
   assert.notEqual(day.operations[0].roomId, "");
   assert.deepEqual(day.operations.map((item) => item.order), [1]);
