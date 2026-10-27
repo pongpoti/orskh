@@ -65,4 +65,4 @@ npm install
 npm run dev
 ```
 
-`/preview` renders the board without LINE, and `/preview/register` renders the registration form, both only while `NODE_ENV` is `development`.
+`/preview` renders the board without LINE, `/preview/register` renders the registration form, and `/preview/admin` renders the admin physician list (search, specialty filter, add, edit and delete, kept in the page and not saved), all only while `NODE_ENV` is `development`.
