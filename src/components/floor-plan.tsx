@@ -115,12 +115,13 @@ export function FloorPlan({
   marks: Record<string, RoomMark>;
   /** Number of cases in each room that day. */
   cases: Record<string, number>;
-  date: string;
+  /** The day whose allocation colours the rooms, or null when the suite is closed and no room is allocated. */
+  date: string | null;
   onSelect: (id: string) => void;
 }) {
   const allocations: Record<string, RoomAllocation | null> = {};
   for (const room of ROOMS) {
-    if (room.kind === "or") allocations[room.id] = allocationFor(room.id, date);
+    if (room.kind === "or") allocations[room.id] = date ? allocationFor(room.id, date) : null;
   }
 
   return (

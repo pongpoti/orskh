@@ -48,14 +48,14 @@ function Owner({ dept, part }: { dept: Department | null; part?: string }) {
 
 export function SuiteBoard({
   board,
-  today,
+  holiday = null,
   roomId = null,
   pathname = "/",
 }: {
-  /** Today's cases, or null when the suite is closed (the weekend). */
+  /** Today's cases, or null when the suite is closed (the weekend or a holiday). */
   board: DayBoard | null;
-  /** Today's calendar date, YYYY-MM-DD. */
-  today: string;
+  /** The name of today's Thai public or special holiday, if it is one. */
+  holiday?: string | null;
   roomId?: string | null;
   pathname?: string;
 }) {
@@ -123,10 +123,11 @@ export function SuiteBoard({
     choose(selectedId === id ? null : id);
   }
 
-  // The board's own date decides who holds each room (it matches the cases); at the weekend no one does.
-  const planDate = board?.date ?? today;
+  // The board's own date decides who holds each room (it matches the cases). When the suite is closed
+  // (the weekend or a holiday) no one does, so every room keeps the plain colour.
+  const planDate = board?.date ?? null;
   const cases = room ? casesForRoom(operations, room.id) : [];
-  const allocation = room ? allocationFor(room.id, planDate) : null;
+  const allocation = room && planDate ? allocationFor(room.id, planDate) : null;
   const wash = allocation?.am?.color ?? allocation?.pm?.color;
 
   return (
@@ -135,7 +136,7 @@ export function SuiteBoard({
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
           {board === null ? (
             <div className="flex shrink-0 flex-wrap items-center gap-2 px-3 pt-3 pb-1 lg:px-0 lg:pt-0 lg:pb-3">
-              <p className="pill px-4">วันนี้เป็นวันหยุด ไม่มีตารางผ่าตัด</p>
+              <p className="pill px-4">{holiday ? `วันหยุด ${holiday} · ไม่มีตารางผ่าตัด` : "วันนี้เป็นวันหยุด ไม่มีตารางผ่าตัด"}</p>
             </div>
           ) : null}
           <div className="flex min-h-0 flex-1 justify-center overflow-hidden p-1 lg:p-0">

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { SuiteBoard } from "@/components/suite-board";
 import { TopBar } from "@/components/top-bar";
 import { parseDay, todayIso, workdayIndex } from "@/lib/days";
+import { holidayOn } from "@/lib/holidays";
 import { boardFor } from "@/lib/week";
 
 export const dynamic = "force-dynamic";
@@ -9,7 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function PreviewPage({
   searchParams,
 }: {
-  searchParams: Promise<{ room?: string; day?: string }>;
+  searchParams: Promise<{ room?: string; day?: string; holiday?: string }>;
 }) {
   if (process.env.NODE_ENV !== "development") notFound();
 
@@ -17,6 +18,8 @@ export default async function PreviewPage({
   const today = todayIso();
   // Development only: ?day=tue shows that weekday's cases, to check a weekday from the weekend.
   const index = parseDay(params.day) ?? workdayIndex(today);
+  // ?holiday=วันปิยมหาราช shows the board as on a holiday; otherwise today's real holiday, if any, applies.
+  const holiday = params.holiday?.trim() || (params.day ? null : (await holidayOn(today))?.name) || null;
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
@@ -27,7 +30,7 @@ export default async function PreviewPage({
         pathname="/preview"
         showAccount={false}
       />
-      <SuiteBoard board={boardFor(today, index)} today={today} roomId={params.room ?? null} pathname="/preview" />
+      <SuiteBoard board={holiday ? null : boardFor(today, index)} holiday={holiday} roomId={params.room ?? null} pathname="/preview" />
     </div>
   );
 }

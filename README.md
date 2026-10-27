@@ -2,7 +2,7 @@
 
 Operating-suite board. Staff sign in with LINE, then pick a room on the floor plan to see that day’s cases.
 
-The board shows **today** only, dated in Thai with the Buddhist year (Thailand time, so it turns over at midnight in Bangkok). There is no paging between days. When an export is loaded it covers one week, so each weekday shows that weekday's cases from it; at the weekend the plan is shown with no cases. In development, `/preview?day=tue` shows another weekday of this week.
+The board shows **today** only, dated in Thai with the Buddhist year (Thailand time, so it turns over at midnight in Bangkok). There is no paging between days. At the weekend and on Thai public and special holidays the suite runs no list, so the board shows no cases and every OR keeps the plain colour with no department. Holidays come from the Bank of Thailand's Financial Institutions' Holidays API (public holidays, substitution days and the special holidays the cabinet announces), fetched again every six hours, plus any dates in `EXTRA_HOLIDAYS` (`src/lib/holidays.ts`). When an export is loaded it covers one week, so each weekday shows that weekday's cases from it; at the weekend the plan is shown with no cases. In development, `/preview?day=tue` shows another weekday of this week and `/preview?holiday=วันปิยมหาราช` shows the holiday view.
 
 ## Case data
 
@@ -45,6 +45,8 @@ Copy `.env.example` to `.env.local` and fill in:
 | `AUTH_TEST_MODE` | On unless `false`. In test mode every signed-in LINE account may open the board and the allowlist is ignored. |
 | `AUTH_LINE_ALLOWLIST` | Optional comma-separated LINE user IDs. Only used when `AUTH_TEST_MODE=false`. |
 | `DATABASE_URL` | Neon pooled connection string. Server only. |
+| `BOT_API_TOKEN` | Bank of Thailand API token for the Financial Institutions' Holidays API (free, from [portal.api.bot.or.th](https://portal.api.bot.or.th)). Server only. Without it only weekends and `EXTRA_HOLIDAYS` close the board. |
+| `EXTRA_HOLIDAYS` | Optional closures the API does not list, comma-separated `YYYY-MM-DD`, each optionally `=name`. |
 
 In the LINE Developers console, open the Login channel and add this callback:
 
