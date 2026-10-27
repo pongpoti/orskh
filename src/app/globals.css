@@ -248,6 +248,21 @@ body {
     color: var(--ink);
   }
 
+  /* Destructive: a deep red fill for the confirm button, and a red tint on the quiet delete icon. */
+  .btn-danger {
+    background: linear-gradient(180deg, #b23224, var(--stop));
+    color: #fff;
+    box-shadow: 0 1px 2px rgb(41 29 20 / 0.22), inset 0 1px 0 rgb(255 255 255 / 0.14);
+  }
+  .btn-danger:hover:not(:disabled) {
+    filter: brightness(1.12);
+  }
+  .btn-ghost-danger:hover:not(:disabled) {
+    background: rgb(253 236 234 / 0.9);
+    border-color: rgb(163 39 27 / 0.3);
+    color: var(--stop);
+  }
+
   /* 16px text keeps iOS from zooming the page when a field is focused. */
   .field {
     min-height: 2.75rem;
@@ -266,6 +281,14 @@ body {
   }
   .field:hover {
     border-color: var(--ink-3);
+  }
+  /* A text input: the same field without the dropdown chevron. */
+  .field-text {
+    background-image: none;
+    padding-right: 0.875rem;
+  }
+  .field::placeholder {
+    color: var(--ink-3);
   }
 
   .case-row {
