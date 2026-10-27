@@ -26,6 +26,14 @@ export function workdayIndex(iso: string): number | null {
   return weekday > 4 ? null : weekday;
 }
 
+/** Monday to Friday of the week holding a YYYY-MM-DD date, as YYYY-MM-DD (a weekend date gives the week before it). */
+export function weekDates(iso: string): string[] {
+  const [y, m, d] = iso.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  const monday = date.getUTCDate() - ((date.getUTCDay() + 6) % 7);
+  return DAY_KEYS.map((_, offset) => new Date(Date.UTC(y, m - 1, monday + offset)).toISOString().slice(0, 10));
+}
+
 /**
  * A date written out in Thai with the Buddhist year: "วันอังคารที่ 27 ตุลาคม 2569", or with `short`,
  * "วันอังคารที่ 27 ต.ค. 2569" for narrow screens.
@@ -38,9 +46,6 @@ export function thaiDate(iso: string, month: "long" | "short" = "long"): string 
   const [day, ...tail] = rest.split(" ");
   return `${weekday}ที่ ${day} ${tail.join(" ")}`;
 }
-
-/** Selection id for cases that no room can be worked out for. */
-export const UNPLACED_ID = "unplaced";
 
 /** Board URL with an optional selected room. Other parameters in `search` (such as the preview's `day`) are kept. */
 export function boardHref(room?: string | null, pathname = "/", search = ""): string {

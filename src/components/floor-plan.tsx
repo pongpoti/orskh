@@ -6,10 +6,7 @@ import { allocationFor, allocationText, DEPARTMENTS, readableTextOn, type Depart
 import { isSelectableRoom, roomBounds, roomLabel, ROOMS, type Room } from "@/lib/rooms";
 import type { RoomMark } from "@/lib/schedule";
 
-/** A room with no case that day: diagonal stripes, so it never reads as a department colour (CVT's slate is close). White text reads on both stripes (5.4:1 and above). */
-const EMPTY_FILL = "url(#fp-empty)";
-const EMPTY_STRIPES = ["#6b5d52", "#77695d"] as const;
-/** A room the schedule gives to no department, yet has cases: the list's "unknown department" gray. */
+/** A room the schedule gives to no department: the list's "unknown department" gray. */
 export const UNALLOCATED_FILL = DEPARTMENTS.UNK.color;
 
 const MARK_LABEL: Record<Exclude<RoomMark, null>, string> = {
@@ -17,8 +14,8 @@ const MARK_LABEL: Record<Exclude<RoomMark, null>, string> = {
   delayed: "มีเคสเลื่อน",
 };
 
-function floorFill(room: Room, allocation: RoomAllocation | null, empty: boolean): string | undefined {
-  if (empty) return EMPTY_FILL;
+/** Every OR takes the colour of the department the schedule gives it that day, whether or not it has cases. */
+function floorFill(room: Room, allocation: RoomAllocation | null): string | undefined {
   if (!allocation) return undefined;
   if (allocation.split) return `url(#fp-split-${room.id})`;
   return allocation.am?.color ?? UNALLOCATED_FILL;
@@ -41,7 +38,6 @@ function DeptText({
   width,
   max,
   min,
-  empty,
 }: {
   x: number;
   y: number;
@@ -49,7 +45,6 @@ function DeptText({
   width: number;
   max: number;
   min: number;
-  empty: boolean;
 }) {
   const text = dept ? dept.label : "ไม่จัดสรร";
   return (
@@ -58,7 +53,7 @@ function DeptText({
       x={x}
       y={y}
       dy="0.35em"
-      style={{ fontSize: fitSize(text, width, max, min), fill: empty ? "#ffffff" : dept ? readableTextOn(dept.color) : "var(--fp-ink)" }}
+      style={{ fontSize: fitSize(text, width, max, min), fill: dept ? readableTextOn(dept.color) : "var(--fp-ink)" }}
     >
       {text}
     </text>
@@ -66,7 +61,7 @@ function DeptText({
 }
 
 /** Room number in a white badge, with the owning department(s) beside it. */
-function RoomLabel({ room, allocation, empty }: { room: Room; allocation: RoomAllocation | null; empty: boolean }) {
+function RoomLabel({ room, allocation }: { room: Room; allocation: RoomAllocation | null }) {
   const { minX, maxX, minY, maxY } = roomBounds(room);
   const { labelX: x, labelY: y } = room;
   const width = maxX - minX - 48;
@@ -76,8 +71,8 @@ function RoomLabel({ room, allocation, empty }: { room: Room; allocation: RoomAl
     const radius = 36;
     return (
       <>
-        <DeptText x={x} y={(minY + (y - radius)) / 2} dept={allocation.am} width={width} max={36} min={26} empty={empty} />
-        <DeptText x={x} y={(y + radius + maxY) / 2} dept={allocation.pm} width={width} max={36} min={26} empty={empty} />
+        <DeptText x={x} y={(minY + (y - radius)) / 2} dept={allocation.am} width={width} max={36} min={26} />
+        <DeptText x={x} y={(y + radius + maxY) / 2} dept={allocation.pm} width={width} max={36} min={26} />
         <circle className="fp-badge" cx={x} cy={y} r={radius} />
         <text className="fp-label" x={x} y={y} dy="0.35em" style={{ fontSize: 44 }}>
           {room.number}
@@ -86,15 +81,17 @@ function RoomLabel({ room, allocation, empty }: { room: Room; allocation: RoomAl
     );
   }
 
-  const badgeY = allocation ? y - 36 : y;
+  // OR 7 is shorter than the others, so its badge and label sit closer together.
+  const short = maxY - minY < 170;
+  const badgeY = allocation ? y - (short ? 30 : 36) : y;
   return (
     <>
-      <circle className="fp-badge" cx={x} cy={badgeY} r={47} />
-      <text className="fp-label" x={x} y={badgeY} dy="0.35em">
+      <circle className="fp-badge" cx={x} cy={badgeY} r={short ? 36 : 47} />
+      <text className="fp-label" x={x} y={badgeY} dy="0.35em" style={short ? { fontSize: 44 } : undefined}>
         {room.number}
       </text>
       {allocation ? (
-        <DeptText x={x} y={y + 54} dept={allocation.am} width={width} max={allocation.am ? 46 : 34} min={28} empty={empty} />
+        <DeptText x={x} y={y + (short ? 44 : 54)} dept={allocation.am} width={width} max={allocation.am ? (short ? 40 : 46) : 34} min={28} />
       ) : null}
     </>
   );
@@ -118,25 +115,22 @@ export function FloorPlan({
   marks: Record<string, RoomMark>;
   /** Number of cases in each room that day. */
   cases: Record<string, number>;
-  date: string;
+  /** The day whose allocation colours the rooms, or null when the suite is closed and no room is allocated. */
+  date: string | null;
   onSelect: (id: string) => void;
 }) {
   const allocations: Record<string, RoomAllocation | null> = {};
   for (const room of ROOMS) {
-    if (room.kind === "or") allocations[room.id] = allocationFor(room.id, date);
+    if (room.kind === "or") allocations[room.id] = date ? allocationFor(room.id, date) : null;
   }
 
   return (
     <svg viewBox="0 0 1207 1706" preserveAspectRatio="xMidYMin meet" className="h-full w-auto max-w-none" role="group" aria-label="แปลนห้องผ่าตัด">
       <FloorScenery />
       <defs>
-        <pattern id="fp-empty" width="28" height="28" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-          <rect width="28" height="28" fill={EMPTY_STRIPES[0]} />
-          <rect width="12" height="28" fill={EMPTY_STRIPES[1]} />
-        </pattern>
         {ROOMS.map((room) => {
           const allocation = allocations[room.id];
-          if (!allocation?.split || (cases[room.id] ?? 0) === 0) return null;
+          if (!allocation?.split) return null;
           return (
             <linearGradient key={room.id} id={`fp-split-${room.id}`} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0.5" stopColor={allocation.am?.color ?? UNALLOCATED_FILL} />
@@ -152,7 +146,7 @@ export function FloorPlan({
           const selectable = isSelectableRoom(room);
           const allocation = allocations[room.id] ?? null;
           const empty = room.kind === "or" && (cases[room.id] ?? 0) === 0;
-          const fill = floorFill(room, allocation, empty);
+          const fill = floorFill(room, allocation);
           const bounds = roomBounds(room);
           const parts = [roomLabel(room)];
           if (allocation) parts.push(allocationText(allocation));
@@ -187,7 +181,7 @@ export function FloorPlan({
                 }
               />
               <path className={room.kind === "or" ? "fp-wall" : "fp-wall fp-thin"} d={room.d} pointerEvents="none" />
-              {room.kind === "or" ? <RoomLabel room={room} allocation={allocation} empty={empty} /> : null}
+              {room.kind === "or" ? <RoomLabel room={room} allocation={allocation} /> : null}
               {mark && selectable ? (
                 <StatusMark
                   kind={mark}

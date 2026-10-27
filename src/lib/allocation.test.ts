@@ -28,76 +28,94 @@ test("reads the weekday and the week of the month from a date", () => {
   assert.equal(weekdayIndex("2026-02-31"), null);
 });
 
-test("gives each OR to the department the schedule names", () => {
-  assert.equal(code("or-1", MON), "INFECT");
-  assert.equal(code("or-2", MON), "GENSX");
-  assert.equal(code("or-3", MON), "SCOPE");
-  assert.equal(code("or-4", MON), "OBGYN");
-  assert.equal(code("or-4", "2026-10-06"), "ENT");
-  assert.equal(code("or-8", "2026-10-09"), "EMER");
-  assert.equal(code("or-10", "2026-10-07"), "EYE");
-  assert.equal(code("or-11", "2026-10-08"), "CVT");
-  assert.equal(code("or-12", MON), "NEURO");
-  assert.equal(code("or-13", "2026-10-09"), "CVT");
+test("gives each OR to the department the proposed schedule names", () => {
+  // Monday to Friday, one row per OR, as drawn in the schedule (OR 5 Tuesday and OR 10 Friday tested below).
+  const grid: Record<string, string[]> = {
+    "or-1": ["INFECT", "INFECT", "INFECT", "INFECT", "INFECT"],
+    "or-2": ["GENSX", "GENSX", "GENSX", "GENSX", "GENSX"],
+    "or-3": ["SCOPE", "SCOPE", "SCOPE", "SCOPE", "SCOPE"],
+    "or-4": ["OBGYN", "ENT", "ENT", "ENT", "ENT"],
+    "or-5": ["GENSX", "GENSX", "PEDSX", "GENSX", "GENSX"],
+    "or-6": ["OBGYN", "OBGYN", "OBGYN", "OBGYN", "OBGYN"],
+    "or-7": ["URO", "URO", "URO", "URO", "URO"],
+    "or-8": ["EMER", "EMER", "EMER", "EMER", "EMER"],
+    "or-9": ["PLASTIC", "MAXILLO", "PLASTIC", "PLASTIC", "OBGYN"],
+    "or-10": ["CVT", "ORTHO", "ORTHO", "ORTHO", "VAS"],
+    "or-11": ["EYE", "EYE", "EYE", "EYE", "EYE"],
+    "or-12": ["ORTHO", "NEURO", "ORTHO", "NEURO", "ORTHO"],
+    "or-13": ["ORTHO", "ORTHO", "CVT", "ORTHO", "ORTHO"],
+  };
+  for (const [roomId, codes] of Object.entries(grid)) {
+    assert.deepEqual(WEEK.map((date) => code(roomId, date)), codes, roomId); // 6 Oct is the 1st Tuesday: GENSX
+  }
 });
 
-test("splits ORs 7 and 9 into morning and afternoon", () => {
-  const or7 = allocationFor("or-7", MON);
-  assert.equal(or7?.am?.code, "URO");
-  assert.equal(or7?.pm?.code, "PLASTIC");
-  assert.equal(or7?.split, true);
-  assert.equal(allocationText(or7!), "เช้า ศัลยกรรมทางเดินปัสสาวะ · บ่าย ศัลยกรรมตกแต่ง");
-
-  const or9 = allocationFor("or-9", MON);
-  assert.deepEqual([or9?.am?.code, or9?.pm?.code], ["VAS", "NEPHRO"]);
-
-  const friday = allocationFor("or-7", "2026-10-09");
-  assert.equal(friday?.split, false);
-  assert.equal(friday?.am?.code, "OBGYN");
-  assert.equal(allocationText(friday!), "สูติ-นรีเวชกรรม");
+test("keeps each room's department all day, except OR 10 on Friday", () => {
+  const friday = allocationFor("or-10", "2026-10-09");
+  assert.deepEqual([friday?.am?.code, friday?.pm?.code, friday?.split], ["VAS", "NEPHRO", true]);
+  assert.equal(allocationText(friday!), "เช้า ศัลยกรรมหลอดเลือด · บ่าย อายุรกรรมโรคไต");
+  for (const room of ROOMS.filter((item) => item.kind === "or")) {
+    for (const date of WEEK) {
+      if (room.id === "or-10" && date === "2026-10-09") continue;
+      const allocation = allocationFor(room.id, date);
+      assert.equal(allocation?.split, false, `${room.id} ${date}`);
+      assert.equal(allocation?.am?.code, allocation?.pm?.code);
+    }
+  }
+  assert.equal(allocationText(allocationFor("or-7", MON)!), "ศัลยกรรมทางเดินปัสสาวะ");
 });
 
-test("alternates OR 5 by the week of the month", () => {
-  // Tuesday: weeks 2 and 4 are paediatric surgery, 1, 3 and 5 general surgery.
+test("alternates OR 5 on Tuesday by the week of the month", () => {
+  // Weeks 2 and 4 are paediatric surgery, 1, 3 and 5 general surgery.
   assert.equal(code("or-5", "2026-10-06"), "GENSX");
   assert.equal(code("or-5", "2026-10-13"), "PEDSX");
   assert.equal(code("or-5", "2026-10-20"), "GENSX");
   assert.equal(code("or-5", "2026-10-27"), "PEDSX");
-  // Thursday: weeks 1, 3 and 5 are maxillofacial, 2 and 4 general surgery.
-  assert.equal(code("or-5", "2026-10-01"), "MAXILLO");
-  assert.equal(code("or-5", "2026-10-08"), "GENSX");
-  assert.equal(code("or-5", "2026-10-15"), "MAXILLO");
-  assert.equal(code("or-5", "2026-10-22"), "GENSX");
-  assert.equal(code("or-5", "2026-10-29"), "MAXILLO");
+  assert.equal(code("or-5", "2026-09-29"), "GENSX"); // a 5th Tuesday
+  assert.equal(code("or-5", "2026-10-27", "pm"), "PEDSX"); // the whole day, not half
   // Other days do not alternate.
-  assert.equal(code("or-5", MON), "GENSX");
+  for (const date of ["2026-10-01", "2026-10-08", "2026-10-15", "2026-10-22", "2026-10-29"]) assert.equal(code("or-5", date), "GENSX", date);
   assert.equal(code("or-5", "2026-10-07"), "PEDSX");
-  assert.equal(code("or-5", "2026-10-09"), "ORTHO");
+  assert.equal(code("or-5", "2026-10-14"), "PEDSX");
 });
 
-test("knows when a room is unallocated or the schedule is silent", () => {
-  const empty = allocationFor("or-11", "2026-10-06");
-  assert.deepEqual([empty?.am, empty?.pm, empty?.split], [null, null, false]);
-  assert.equal(allocationText(empty!), "ไม่จัดสรร");
-
+test("knows when the schedule is silent", () => {
   assert.equal(allocationFor("or-2", "2026-10-03"), null, "Saturday");
   assert.equal(allocationFor("or-2", "2026-10-04"), null, "Sunday");
   assert.equal(allocationFor("r-1", MON), null, "recovery room");
   assert.equal(allocationFor("or-2", "nope"), null);
 });
 
-test("covers every OR on every weekday, with one gap", () => {
+test("gives every OR a department on every weekday", () => {
   const ors = ROOMS.filter((room) => room.kind === "or");
   assert.equal(ors.length, 13);
-  let gaps = 0;
   for (const room of ors) {
     for (const date of WEEK) {
       const allocation = allocationFor(room.id, date);
-      assert.ok(allocation, `${room.id} ${date}`);
-      if (!allocation.am && !allocation.pm) gaps += 1;
+      assert.ok(allocation?.am && allocation.pm, `${room.id} ${date}`);
     }
   }
-  assert.equal(gaps, 1);
+});
+
+test("matches the schedule's half-day periods per department", () => {
+  // The schedule's legend, in periods a week (one period is a half day). OR 5 Tuesday counts one each.
+  const periods: Record<string, number> = {};
+  for (const room of ROOMS.filter((item) => item.kind === "or")) {
+    for (const date of WEEK) {
+      const allocation = allocationFor(room.id, date)!;
+      if (room.id === "or-5" && date === "2026-10-06") {
+        periods.GENSX = (periods.GENSX ?? 0) + 1;
+        periods.PEDSX = (periods.PEDSX ?? 0) + 1;
+        continue;
+      }
+      for (const dept of [allocation.am!, allocation.pm!]) periods[dept.code] = (periods[dept.code] ?? 0) + 1;
+    }
+  }
+  assert.deepEqual(periods, {
+    INFECT: 10, GENSX: 17, SCOPE: 10, OBGYN: 14, ENT: 8, PEDSX: 3, URO: 10, EMER: 10,
+    PLASTIC: 6, MAXILLO: 2, CVT: 4, ORTHO: 20, VAS: 1, NEPHRO: 1, EYE: 10, NEURO: 4,
+  });
+  assert.equal(Object.values(periods).reduce((a, b) => a + b, 0), 130);
 });
 
 test("keeps the plan labels", () => {
@@ -141,9 +159,7 @@ test("every department label meets 4.5:1 contrast on its colour", () => {
   for (const dept of Object.values(DEPARTMENTS)) {
     assert.ok(contrast(dept.color, readableTextOn(dept.color)) >= 4.5, `${dept.code} ${dept.color}`);
   }
-  // White text on both stripes of a "no case" room, and ink text on the "no department" gray.
-  assert.ok(contrast("#6b5d52", "#ffffff") >= 4.5);
-  assert.ok(contrast("#77695d", "#ffffff") >= 4.5);
+  // Ink text on the "no department" gray.
   assert.ok(contrast(DEPARTMENTS.UNK.color, INK) >= 4.5);
 });
 

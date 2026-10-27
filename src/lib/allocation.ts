@@ -1,10 +1,10 @@
 /**
  * Which department owns each operating room, Monday to Friday.
  *
- * Source: the schedule page of "รายงานวิเคราะห์การใช้งานห้องผ่าตัด ปีงบประมาณ 2569"
- * (ตารางจัดสรรห้องผ่าตัด, updated 5 August 2567) and its department colours.
- * ORs 7 and 9 are split: morning 08:00–12:00, afternoon 13:00–16:00. OR 5
- * alternates by week of the month on Tuesday and Thursday.
+ * Source: the proposed OR schedule (ตารางห้องผ่าตัดที่เสนอ, 27 Oct 2026). Each room has one department
+ * all day, except OR 10 on Friday (vascular in the morning, nephrology in the afternoon) and OR 5 on
+ * Tuesday, which alternates by week of the month. Periods the schedule marks as over quota (*) count
+ * as the department's like any other.
  */
 
 export type DeptCode =
@@ -75,7 +75,6 @@ type Slot = readonly Turn[];
 /** Monday to Friday. */
 type WeekPlan = readonly [Slot, Slot, Slot, Slot, Slot];
 
-const NONE: Slot = [];
 const one = (code: DeptCode): Slot => [{ dept: code }];
 const always = (code: DeptCode): WeekPlan => [one(code), one(code), one(code), one(code), one(code)];
 
@@ -94,26 +93,20 @@ const PLAN: Record<string, RoomPlan> = {
       { dept: "GENSX", nth: [1, 3, 5] },
     ],
     one("PEDSX"),
-    [
-      { dept: "MAXILLO", nth: [1, 3, 5] },
-      { dept: "GENSX", nth: [2, 4] },
-    ],
-    one("ORTHO"),
+    one("GENSX"),
+    one("GENSX"),
   ]),
   "or-6": whole(always("OBGYN")),
-  "or-7": {
-    am: [one("URO"), one("MAXILLO"), one("URO"), one("URO"), one("OBGYN")],
-    pm: [one("PLASTIC"), one("PLASTIC"), one("MAXILLO"), one("PLASTIC"), one("OBGYN")],
-  },
+  "or-7": whole(always("URO")),
   "or-8": whole(always("EMER")),
-  "or-9": {
-    am: [one("VAS"), one("MINOR"), one("MINOR"), one("MINOR"), one("VAS")],
-    pm: always("NEPHRO"),
+  "or-9": whole([one("PLASTIC"), one("MAXILLO"), one("PLASTIC"), one("PLASTIC"), one("OBGYN")]),
+  "or-10": {
+    am: [one("CVT"), one("ORTHO"), one("ORTHO"), one("ORTHO"), one("VAS")],
+    pm: [one("CVT"), one("ORTHO"), one("ORTHO"), one("ORTHO"), one("NEPHRO")],
   },
-  "or-10": whole(always("EYE")),
-  "or-11": whole([one("ORTHO"), NONE, one("ORTHO"), one("CVT"), one("ORTHO")]),
-  "or-12": whole([one("NEURO"), one("ORTHO"), one("NEURO"), one("ORTHO"), one("NEURO")]),
-  "or-13": whole([one("CVT"), one("ORTHO"), one("ORTHO"), one("ORTHO"), one("CVT")]),
+  "or-11": whole(always("EYE")),
+  "or-12": whole([one("ORTHO"), one("NEURO"), one("ORTHO"), one("NEURO"), one("ORTHO")]),
+  "or-13": whole([one("ORTHO"), one("ORTHO"), one("CVT"), one("ORTHO"), one("ORTHO")]),
 };
 
 export type RoomAllocation = {
