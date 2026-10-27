@@ -36,6 +36,7 @@ test("shows today's date in Thailand and that weekday's cases", () => {
   assert.equal(workdayIndex("2026-10-31"), null);
   assert.equal(workdayIndex("2026-11-01"), null);
   assert.equal(thaiDate("2026-10-27"), "วันอังคารที่ 27 ตุลาคม 2569");
+  assert.equal(thaiDate("2026-11-26", "short"), "วันพฤหัสบดีที่ 26 พ.ย. 2569");
   assert.equal(boardFor("2026-10-27")?.key, "tue");
   assert.equal(boardFor("2026-10-31"), null);
   assert.equal(boardFor("2026-10-31", 2)?.key, "wed");

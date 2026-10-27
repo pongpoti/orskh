@@ -26,12 +26,15 @@ export function workdayIndex(iso: string): number | null {
   return weekday > 4 ? null : weekday;
 }
 
-/** A date written out in Thai with the Buddhist year, e.g. "วันอังคารที่ 27 ตุลาคม 2569". */
-export function thaiDate(iso: string): string {
+/**
+ * A date written out in Thai with the Buddhist year: "วันอังคารที่ 27 ตุลาคม 2569", or with `short`,
+ * "วันอังคารที่ 27 ต.ค. 2569" for narrow screens.
+ */
+export function thaiDate(iso: string, month: "long" | "short" = "long"): string {
   const [y, m, d] = iso.split("-").map(Number);
   const date = new Date(Date.UTC(y, m - 1, d));
   const weekday = new Intl.DateTimeFormat("th-TH", { weekday: "long", timeZone: "UTC" }).format(date);
-  const rest = new Intl.DateTimeFormat("th-TH-u-ca-buddhist", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(date);
+  const rest = new Intl.DateTimeFormat("th-TH-u-ca-buddhist", { day: "numeric", month, year: "numeric", timeZone: "UTC" }).format(date);
   const [day, ...tail] = rest.split(" ");
   return `${weekday}ที่ ${day} ${tail.join(" ")}`;
 }

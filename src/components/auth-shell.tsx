@@ -73,12 +73,12 @@ export function AuthShell({
 }) {
   return (
     <main className="flex h-dvh overflow-y-auto overscroll-contain px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-      <div className="card m-auto w-full max-w-[26.25rem] px-6 pt-10 pb-8 sm:px-8">
+      <div className="card m-auto w-full max-w-[24rem] px-6 pt-8 pb-7 sm:px-7">
         <div className="flex flex-col items-center text-center">
-          <BrandMark className="h-16 rounded-2xl px-[18px] text-[1.9rem] shadow-[inset_0_1px_0_rgb(255_255_255/0.18),0_4px_12px_-2px_rgb(63_47_36/0.35)]" />
-          <Wordmark className="mt-5 text-2xl leading-tight" />
-          <h1 className="mt-1 text-base leading-snug font-semibold text-ink-2">{title}</h1>
-          {description ? <p className="mt-2 text-sm leading-6 text-muted">{description}</p> : null}
+          <BrandMark className="h-14 rounded-[18px] px-4 text-[1.625rem] shadow-[inset_0_1px_0_rgb(255_255_255/0.16),0_8px_20px_-6px_rgb(63_47_36/0.4)]" />
+          <Wordmark className="mt-4 text-[1.375rem] leading-tight" />
+          <h1 className="mt-0.5 text-[0.9375rem] leading-snug font-semibold text-ink-2">{title}</h1>
+          {description ? <p className="mt-1.5 text-sm leading-6 text-muted">{description}</p> : null}
         </div>
         <div className="mt-6">{children}</div>
       </div>

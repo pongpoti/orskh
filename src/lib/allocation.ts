@@ -24,7 +24,8 @@ export type DeptCode =
   | "MAXILLO"
   | "INFECT"
   | "EMER"
-  | "MINOR";
+  | "MINOR"
+  | "UNK";
 
 export type Department = {
   code: DeptCode;
@@ -40,24 +41,31 @@ function dept(code: DeptCode, name: string, color: string, label: string = code)
   return { code, name, label, color };
 }
 
+/**
+ * Department names and colours from the hospital's department colour list (October 2026). Three colours are
+ * nudged by an invisible amount so their room labels clear 4.5:1: VASCULAR #D1495B → #CC4759,
+ * MAXILLO #8D6A9F → #8C699E and NEPHRO #7C8B2E → #7D8C2F.
+ */
 export const DEPARTMENTS: Record<DeptCode, Department> = {
   GENSX: dept("GENSX", "ศัลยกรรมทั่วไป", "#0E5E6F"),
-  SCOPE: dept("SCOPE", "ศัลย์ scope", "#B79CED"),
-  VAS: dept("VAS", "ศัลยกรรมหลอดเลือด", "#1D3F8F"),
-  ORTHO: dept("ORTHO", "ศัลยกรรมกระดูกและข้อ", "#E3A21A"),
-  OBGYN: dept("OBGYN", "สูติ-นรีเวชกรรม", "#C9D86A"),
-  EYE: dept("EYE", "จักษุวิทยา", "#81D4FA"),
-  URO: dept("URO", "ศัลยกรรมระบบปัสสาวะ", "#3FA37A"),
-  PLASTIC: dept("PLASTIC", "ศัลยกรรมตกแต่ง", "#8E5BA8"),
-  ENT: dept("ENT", "โสต ศอ นาสิก", "#5A92D6"),
-  NEPHRO: dept("NEPHRO", "อายุรกรรมโรคไต", "#16A5B8"),
-  PEDSX: dept("PEDSX", "ศัลยกรรมเด็ก", "#E0607E"),
-  NEURO: dept("NEURO", "ศัลยกรรมระบบประสาท", "#A8662A"),
-  CVT: dept("CVT", "ศัลยกรรมหัวใจและทรวงอก", "#9A9A94"),
-  MAXILLO: dept("MAXILLO", "ศัลยกรรมแม๊กซิลโลเฟเชียล", "#E8825A"),
-  INFECT: dept("INFECT", "ห้องติดเชื้อ / dressing", "#B3261E", "dressing"),
-  EMER: dept("EMER", "เคส emer", "#B5179E"),
-  MINOR: dept("MINOR", "หัตถการเล็ก (minor)", "#E3E8EA"),
+  SCOPE: dept("SCOPE", "ส่องกล้องทางเดินอาหาร", "#B04A3A"),
+  VAS: dept("VAS", "ศัลยกรรมหลอดเลือด", "#CC4759", "VASCULAR"),
+  ORTHO: dept("ORTHO", "ออร์โธปิดิกส์", "#4F3D8C"),
+  OBGYN: dept("OBGYN", "สูติ-นรีเวชกรรม", "#8C3B6E"),
+  EYE: dept("EYE", "จักษุ", "#1A9BB0"),
+  URO: dept("URO", "ศัลยกรรมทางเดินปัสสาวะ", "#2E7D5B"),
+  PLASTIC: dept("PLASTIC", "ศัลยกรรมตกแต่ง", "#D9822B"),
+  ENT: dept("ENT", "โสต ศอ นาสิก", "#2F5FA8"),
+  NEPHRO: dept("NEPHRO", "อายุรกรรมโรคไต", "#7D8C2F"),
+  PEDSX: dept("PEDSX", "ศัลยกรรมเด็ก", "#E0A800"),
+  NEURO: dept("NEURO", "ศัลยกรรมระบบประสาท", "#8A5A22"),
+  CVT: dept("CVT", "ศัลยกรรมหัวใจและทรวงอก", "#5E6A73"),
+  MAXILLO: dept("MAXILLO", "แม็กซิลโลเฟเชียล", "#8C699E"),
+  INFECT: dept("INFECT", "เคสทำแผล (ทุกสาขา)", "#B9A67A", "dressing"),
+  EMER: dept("EMER", "เคสฉุกเฉิน (ทุกสาขา)", "#1C1C1C"),
+  MINOR: dept("MINOR", "เคส LA ทุกแผนก", "#E3E8EA"),
+  /** Not in the schedule: the colour of a room that has cases but no department. */
+  UNK: dept("UNK", "ไม่ทราบสาขา", "#CFCFCF"),
 };
 
 /** A department holding the room on a given day. `nth` limits it to those occurrences of the weekday in the month. */
@@ -159,7 +167,7 @@ export function allocationFor(roomId: string, date: string): RoomAllocation | nu
   return { am, pm, split: am?.code !== pm?.code };
 }
 
-/** Plain-text owner for labels and tooltips, e.g. "เช้า ศัลยกรรมระบบปัสสาวะ · บ่าย ศัลยกรรมตกแต่ง". */
+/** Plain-text owner for labels and tooltips, e.g. "เช้า ศัลยกรรมทางเดินปัสสาวะ · บ่าย ศัลยกรรมตกแต่ง". */
 export function allocationText(allocation: RoomAllocation): string {
   if (allocation.split) {
     return [

@@ -12,9 +12,9 @@
   --brand: #3f2f24;
   --brand-top: #54402f;
   --brand-strong: #2e2219;
+  /* One pale tint for the order number and the avatar fallback; tan for the secondary button. */
   --brand-tint: #f1e7da;
-  --tan: #a68966;
-  --tan-light: #ddbf94;
+  --accent-light: #ddbf94;
   --tan-fill: #eadcc8;
   --tan-fill-hover: #e0cdb3;
 
@@ -25,6 +25,7 @@
   --glass-edge: rgb(255 255 255 / 0.75);
   --line: #e9e0d5;
   --line-strong: #d3c4b2;
+  --line-input: #8c7a69;
 
   --ink: #241c16;
   --ink-2: #4a3b30;
@@ -53,6 +54,7 @@
   --fp-support: #efe7dc;
   --fp-core: #ffffff;
   --fp-wall: var(--ink);
+  --fp-wall-outer: #b9a996;
   --fp-detail: #8a7a6c;
   --fp-grate-line: #cdbfae;
   --fp-shell: var(--fp-floor);
@@ -68,7 +70,11 @@
 }
 
 @theme inline {
-  --font-sans: var(--font-inter), var(--font-noto-thai), system-ui, sans-serif;
+  --font-sans: var(--font-inter), var(--font-thai), system-ui, sans-serif;
+  /* Thai stacks vowels and tone marks above and below the line, so small text gets more leading than Tailwind's default. */
+  --text-xs--line-height: 1.5;
+  --text-sm--line-height: 1.6;
+  --text-base--line-height: 1.6;
   --color-canvas: var(--canvas);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
@@ -80,8 +86,6 @@
   --color-brand: var(--brand);
   --color-brand-strong: var(--brand-strong);
   --color-brand-tint: var(--brand-tint);
-  --color-tan: var(--tan);
-  --color-tan-light: var(--tan-light);
   --color-live: var(--live);
   --color-live-tint: var(--live-tint);
   --color-late: var(--late);
@@ -109,6 +113,7 @@ body {
     linear-gradient(160deg, #fbf6ef 0%, #f8f1e7 50%, #fbf7f1 100%);
   background-attachment: fixed;
   color: var(--foreground);
+  line-height: 1.6;
   font-feature-settings: "tnum" 0;
 }
 
@@ -119,18 +124,9 @@ body {
 }
 
 @layer components {
-  /* shadcn Card, frosted. */
-  .glass {
-    background: var(--glass);
-    border: 1px solid var(--glass-edge);
-    box-shadow: var(--shadow-md), var(--highlight);
-    backdrop-filter: blur(20px) saturate(160%);
-    -webkit-backdrop-filter: blur(20px) saturate(160%);
-  }
-
   .appbar {
-    background: rgb(255 255 255 / 0.55);
-    border-bottom: 1px solid rgb(63 47 36 / 0.11);
+    background: rgb(255 255 255 / 0.6);
+    border-bottom: 1px solid rgb(63 47 36 / 0.08);
     backdrop-filter: blur(20px) saturate(160%);
     -webkit-backdrop-filter: blur(20px) saturate(160%);
   }
@@ -154,10 +150,10 @@ body {
     line-height: 1;
     color: #fff;
     background: linear-gradient(180deg, var(--brand-top), var(--brand));
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18), 0 1px 2px rgb(0 0 0 / 0.2);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.16), 0 1px 2px rgb(41 29 20 / 0.25);
   }
   .logo-mark b {
-    color: var(--tan-light);
+    color: var(--accent-light);
     font-weight: 800;
   }
 
@@ -181,8 +177,7 @@ body {
     border-radius: 50%;
     background: currentColor;
   }
-  .badge-warning { color: var(--late); background: rgb(217 140 0 / 0.13); border-color: rgb(217 140 0 / 0.22); }
-  .badge-muted { color: var(--ink-3); background: rgb(255 255 255 / 0.65); border-color: var(--line); }
+  .badge-warning { color: var(--late); background: var(--late-tint); border-color: rgb(217 140 0 / 0.3); }
 
   /* Department chip, coloured by --chip (the department's own colour). */
   .chip {
@@ -227,7 +222,7 @@ body {
   .btn-primary {
     background: linear-gradient(180deg, var(--brand-top), var(--brand));
     color: #fff;
-    box-shadow: 0 1px 2px rgb(41 29 20 / 0.2), inset 0 1px 0 rgb(255 255 255 / 0.15);
+    box-shadow: 0 1px 2px rgb(41 29 20 / 0.22), inset 0 1px 0 rgb(255 255 255 / 0.14);
   }
   .btn-primary:hover:not(:disabled) {
     filter: brightness(1.18);
@@ -236,7 +231,7 @@ body {
   .btn-secondary {
     background: var(--tan-fill);
     color: var(--brand);
-    border: 1px solid rgb(124 96 66 / 0.35);
+    border: 1px solid rgb(124 96 66 / 0.28);
     box-shadow: var(--shadow-sm);
   }
   .btn-secondary:hover:not(:disabled) {
@@ -259,7 +254,7 @@ body {
     width: 100%;
     appearance: none;
     border-radius: 10px;
-    border: 1px solid rgb(63 47 36 / 0.22);
+    border: 1px solid var(--line-input);
     background-color: #fff;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235f5045' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
     background-position: right 0.875rem center;
@@ -282,6 +277,8 @@ body {
     padding: 0.875rem 1.25rem 0.875rem 1rem;
     transition: background-color 0.15s ease;
   }
+  /* Dividers live here, not in a divide-* utility, so they never override the status colour on the left edge. */
+  .case-row + .case-row { border-top: 1px solid var(--line); }
   .case-row:hover { background: rgb(166 137 102 / 0.08); }
   .case-row[data-status="in-progress"] { border-left-color: var(--live); background: color-mix(in srgb, var(--live-tint) 55%, transparent); }
   .case-row[data-status="delayed"] { border-left-color: var(--late); }
@@ -299,6 +296,67 @@ body {
     font-weight: 700;
     text-align: center;
     font-variant-numeric: tabular-nums;
+  }
+
+  /* Floating control over the plan: frosted, 44px tall. */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+    padding: 0 0.5rem 0 1rem;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.72);
+    border: 1px solid var(--glass-edge);
+    box-shadow: var(--shadow-md), var(--highlight);
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--ink-2);
+    -webkit-tap-highlight-color: transparent;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+  }
+  button.pill { cursor: pointer; }
+  button.pill:hover { background: rgb(255 255 255 / 0.9); }
+  .pill[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .pill[aria-pressed="true"] .pill-count { background: #fff; color: var(--brand); }
+  .pill-count {
+    min-width: 1.75rem;
+    height: 1.75rem;
+    padding: 0 0.5rem;
+    border-radius: 999px;
+    display: inline-grid;
+    place-items: center;
+    background: var(--brand);
+    color: #fff;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Account menu, opened from the avatar. Solid, since it hangs below the blurred bar. */
+  .menu {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* Case count beside the room name. */
+  .count-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    height: 1.625rem;
+    padding: 0 0.625rem;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.75);
+    border: 1px solid var(--line);
+    color: var(--ink-2);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    white-space: nowrap;
   }
 
   .notice {
@@ -355,7 +413,7 @@ dialog[open]::backdrop {
 
 /* The department's colour as a wash across the top of the sheet. */
 .sheet-head {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--wash, transparent) 32%, transparent), transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--wash, transparent) 18%, transparent), transparent 85%);
 }
 
 @media (max-width: 1023.98px) {
@@ -398,24 +456,27 @@ dialog[open]::backdrop {
   .fp-or:hover .fp-floor { filter: brightness(0.9); }
 }
 .fp-or:active .fp-floor { filter: brightness(0.9); }
-.fp-or.is-selected { filter: drop-shadow(0 0 9px rgb(41 29 20 / 0.5)); }
+/* A selected room gets a heavy wall and an inverted number badge, so it reads on every department colour without relying on a glow. */
+.fp-or.is-selected { filter: drop-shadow(0 0 8px rgb(41 29 20 / 0.4)); }
 .fp-or.is-selected .fp-wall { stroke: var(--fp-ink); stroke-width: 9; }
+.fp-or.is-selected .fp-badge { fill: var(--brand); stroke: #fff; stroke-width: 4; }
+.fp-or.is-selected .fp-label { fill: #fff; }
 .fp-recovery .fp-floor { fill: var(--fp-recovery); }
 /* Keyboard focus lands on the floor path; show it as a blue wall instead of a box around the shape. */
-.fp-floor:focus-visible { outline: none; }
+.fp-floor:focus-visible { outline: none; stroke: #fff; stroke-width: 22; stroke-linejoin: round; }
 .fp-or:has(.fp-floor:focus-visible) .fp-wall,
 .fp-recovery:has(.fp-floor:focus-visible) .fp-wall { stroke: var(--focus); stroke-width: 10; }
 .fp-support .fp-floor { fill: var(--fp-support); }
 .fp-core .fp-floor { fill: var(--fp-core); }
 .fp-wall { fill: none; stroke: var(--fp-wall); stroke-width: 4; stroke-linejoin: miter; stroke-linecap: butt; }
 .fp-wall.fp-thin { stroke-width: 2.5; }
-.fp-wall.fp-outer { stroke-width: 3; }
+.fp-wall.fp-outer { stroke: var(--fp-wall-outer); stroke-width: 3; }
 .fp-detail { fill: none; stroke: var(--fp-detail); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .fp-cab { fill: none; stroke: var(--fp-detail); stroke-width: 2; }
 /* Room number sits in a white badge so it reads on any department colour. */
 .fp-badge { fill: #fff; stroke: var(--fp-wall); stroke-width: 2.5; pointer-events: none; }
 .fp-label {
-  font-family: var(--font-inter), var(--font-noto-thai), sans-serif;
+  font-family: var(--font-inter), var(--font-thai), sans-serif;
   font-size: 56px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -424,7 +485,7 @@ dialog[open]::backdrop {
   pointer-events: none;
 }
 .fp-dept {
-  font-family: var(--font-inter), var(--font-noto-thai), sans-serif;
+  font-family: var(--font-inter), var(--font-thai), sans-serif;
   font-weight: 700;
   text-anchor: middle;
   pointer-events: none;
@@ -436,6 +497,14 @@ dialog[open]::backdrop {
 .fp-mark { stroke: #fff; stroke-width: 5; stroke-linejoin: round; filter: drop-shadow(0 0 2px rgb(41 29 20 / 0.6)); pointer-events: none; }
 .fp-mark-active { fill: var(--fp-active); }
 .fp-mark-delayed { fill: var(--fp-delayed); }
+
+/* Without the Popover API the account menu cannot open, so the bar falls back to a plain sign-out button. */
+.no-popover-only { display: none; }
+@supports not selector(:popover-open) {
+  [popovertarget="account-menu"],
+  #account-menu { display: none; }
+  .no-popover-only { display: flex; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .fp-or .fp-floor,

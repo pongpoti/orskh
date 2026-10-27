@@ -2,14 +2,15 @@
 
 import type { CSSProperties } from "react";
 import { FloorScenery } from "@/components/floor-scenery";
-import { allocationFor, allocationText, readableTextOn, type Department, type RoomAllocation } from "@/lib/allocation";
+import { allocationFor, allocationText, DEPARTMENTS, readableTextOn, type Department, type RoomAllocation } from "@/lib/allocation";
 import { isSelectableRoom, roomBounds, roomLabel, ROOMS, type Room } from "@/lib/rooms";
 import type { RoomMark } from "@/lib/schedule";
 
-/** A room with no case that day. White text reads on it (6:1). */
-const EMPTY_FILL = "#6b5d52";
-/** A room the schedule gives to no department, yet has cases. Darker than the service-area beige so the two differ. */
-const UNALLOCATED_FILL = "#dcd2c6";
+/** A room with no case that day: diagonal stripes, so it never reads as a department colour (CVT's slate is close). White text reads on both stripes (5.4:1 and above). */
+const EMPTY_FILL = "url(#fp-empty)";
+const EMPTY_STRIPES = ["#6b5d52", "#77695d"] as const;
+/** A room the schedule gives to no department, yet has cases: the list's "unknown department" gray. */
+export const UNALLOCATED_FILL = DEPARTMENTS.UNK.color;
 
 const MARK_LABEL: Record<Exclude<RoomMark, null>, string> = {
   active: "กำลังใช้งาน",
@@ -126,9 +127,13 @@ export function FloorPlan({
   }
 
   return (
-    <svg viewBox="0 0 1207 1706" className="h-full w-auto max-w-none" role="group" aria-label="แปลนห้องผ่าตัด">
+    <svg viewBox="0 0 1207 1706" preserveAspectRatio="xMidYMin meet" className="h-full w-auto max-w-none" role="group" aria-label="แปลนห้องผ่าตัด">
       <FloorScenery />
       <defs>
+        <pattern id="fp-empty" width="28" height="28" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <rect width="28" height="28" fill={EMPTY_STRIPES[0]} />
+          <rect width="12" height="28" fill={EMPTY_STRIPES[1]} />
+        </pattern>
         {ROOMS.map((room) => {
           const allocation = allocations[room.id];
           if (!allocation?.split || (cases[room.id] ?? 0) === 0) return null;

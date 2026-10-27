@@ -21,6 +21,7 @@ export default async function PreviewPage({
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
       <TopBar
+        date={today}
         name="สมหญิง ไลน์"
         image="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='32' fill='%23eadcc8'/%3E%3Ccircle cx='32' cy='26' r='10' fill='%233f2f24'/%3E%3Cpath d='M14 54c3-10 10-14 18-14s15 4 18 14' fill='%233f2f24'/%3E%3C/svg%3E"
         pathname="/preview"
