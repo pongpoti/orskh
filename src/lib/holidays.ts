@@ -40,10 +40,7 @@ export function holidayIn(holidays: readonly Holiday[], iso: string): Holiday | 
   return holidays.find((holiday) => holiday.date === iso) ?? null;
 }
 
-/**
- * What the BOT API gave for one year: the holidays, or why there are none. The admin page shows it, so a wrong
- * or missing token is visible without reading the server logs.
- */
+/** What the BOT API gave for one year: the holidays, or why there are none. */
 export type HolidayFeed =
   | { state: "ok"; holidays: Holiday[] }
   | { state: "no-token" }
@@ -51,18 +48,17 @@ export type HolidayFeed =
   | { state: "failed"; status: number | null };
 
 /**
- * One year's holidays from the BOT API. The board uses the cached answer (only 200 answers are cached, so a refused
- * token is asked about again on the next request). `fresh` skips the cache, so the admin page shows how the API
- * answers the token now, not a 200 from up to six hours ago.
+ * One year's holidays from the BOT API, kept for six hours. Only 200 answers are cached, so a refused token is asked
+ * about again on the next request.
  */
-export async function botHolidayFeed(year: number, options: { token?: string; fresh?: boolean } = {}): Promise<HolidayFeed> {
+export async function botHolidayFeed(year: number, options: { token?: string } = {}): Promise<HolidayFeed> {
   // A token pasted into Vercel can pick up a stray space or line break.
   const token = (options.token ?? process.env.BOT_API_TOKEN)?.trim();
   if (!token) return { state: "no-token" };
   try {
     const response = await fetch(`${ENDPOINT}?year=${year}`, {
       headers: { Authorization: token, Accept: "application/json" },
-      ...(options.fresh ? { cache: "no-store" } : { next: { revalidate: REVALIDATE_SECONDS } }),
+      next: { revalidate: REVALIDATE_SECONDS },
     } as RequestInit);
     if (!response.ok) {
       console.warn(`BOT holidays API answered ${response.status} for ${year}`);
