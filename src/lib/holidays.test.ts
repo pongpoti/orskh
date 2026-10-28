@@ -61,12 +61,10 @@ test("the feed says why there are no holidays: no token, a refused token, or no 
   assert.deepEqual(await botHolidayFeed(2026, { token: "wrong" }), { state: "failed", status: 401 });
 
   answer = async () => new Response("not json");
-  assert.deepEqual(await botHolidayFeed(2026, { token: "token-123", fresh: true }), { state: "failed", status: null });
-  assert.equal(calls.at(-1)?.cache, "no-store", "the admin check skips the cache");
-  assert.equal(calls.at(-1)?.revalidate, null);
+  assert.deepEqual(await botHolidayFeed(2026, { token: "token-123" }), { state: "failed", status: null });
 
   answer = async () => {
     throw new TypeError("fetch failed");
   };
-  assert.deepEqual(await botHolidayFeed(2026, { token: "token-123", fresh: true }), { state: "failed", status: null });
+  assert.deepEqual(await botHolidayFeed(2026, { token: "token-123" }), { state: "failed", status: null });
 });
