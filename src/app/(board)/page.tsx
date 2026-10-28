@@ -1,7 +1,8 @@
-import { auth } from "@/auth";
 import { SuiteBoard } from "@/components/suite-board";
 import { TopBar } from "@/components/top-bar";
 import { isAdmin } from "@/lib/admin";
+import { displayNameFor } from "@/lib/auth/display-name";
+import { requireUser } from "@/lib/auth/server";
 import { todayIso } from "@/lib/days";
 import { holidayOn } from "@/lib/holidays";
 import { boardFor } from "@/lib/week";
@@ -13,19 +14,25 @@ export default async function BoardPage({
 }: {
   searchParams: Promise<{ room?: string }>;
 }) {
+  const user = await requireUser();
   const params = await searchParams;
-  const session = await auth();
   const today = todayIso();
-  // On a Thai public or special holiday the suite runs no list, so the plan shows no allocation.
-  const holiday = await holidayOn(today);
+  // The full name from the physicians table, read on every request (a corrected name shows without signing out).
+  const [name, holiday] = await Promise.all([
+    displayNameFor(user.email, user.name),
+    // On a Thai public or special holiday the suite runs no list, so the plan shows no allocation.
+    holidayOn(today),
+  ]);
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
       <TopBar
         date={today}
-        name={session?.user?.physicianName || session?.user?.name || "ผู้ใช้ LINE"}
-        image={session?.user?.image}
-        adminHref={isAdmin(session?.user?.id) ? "/admin" : null}
+        name={name}
+        email={user.email}
+        image={user.picture}
+        // Admins are listed by LINE user id (AUTH_ADMIN_LINE_IDS), the session's sub.
+        adminHref={isAdmin(user.sub) ? "/admin" : null}
       />
       <SuiteBoard board={holiday ? null : boardFor(today)} holiday={holiday?.name} roomId={params.room ?? null} />
     </div>

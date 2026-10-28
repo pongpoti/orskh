@@ -61,7 +61,7 @@ export function Notice({
   );
 }
 
-/** Shared frame for the sign-in, registration and access pages. */
+/** Shared frame for the sign-in, email-code, access-request and error pages. */
 export function AuthShell({
   title,
   description,

@@ -122,6 +122,10 @@ body {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
+/* Headings that receive focus from script (a sign-in step changed) are announced, not outlined. */
+[tabindex="-1"]:focus {
+  outline: none;
+}
 
 @layer components {
   .appbar {
@@ -178,6 +182,7 @@ body {
     background: currentColor;
   }
   .badge-warning { color: var(--late); background: var(--late-tint); border-color: rgb(217 140 0 / 0.3); }
+  .badge-success { color: var(--live); background: var(--live-tint); border-color: rgb(21 127 61 / 0.25); }
 
   /* Department chip, coloured by --chip (the department's own colour). */
   .chip {
@@ -382,6 +387,47 @@ body {
     white-space: nowrap;
   }
 
+  /* A quiet text button on the sign-in card (change email, resend the code): 44px tall, underlined. */
+  .text-btn {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    border-radius: 8px;
+    padding: 0 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--brand);
+    text-decoration: underline;
+    text-decoration-color: var(--line-strong);
+    text-underline-offset: 4px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .text-btn:hover:not(:disabled) {
+    text-decoration-color: var(--brand);
+  }
+  .text-btn:disabled {
+    cursor: not-allowed;
+    color: var(--ink-3);
+    text-decoration: none;
+  }
+
+  /* "Waiting for a decision": a pulsing dot before the text. */
+  .waiting {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .waiting::before {
+    content: "";
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--brand);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+
   .notice {
     display: flex;
     gap: 0.625rem;
@@ -413,6 +459,12 @@ dialog[open]::backdrop {
   from {
     opacity: 0;
     transform: translateY(8px) scale(0.98);
+  }
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.25;
   }
 }
 
@@ -540,7 +592,8 @@ dialog[open]::backdrop {
   }
   .scrim,
   dialog[open],
-  dialog[open]::backdrop {
+  dialog[open]::backdrop,
+  .waiting::before {
     animation: none;
   }
 }

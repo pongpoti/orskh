@@ -1,48 +1,29 @@
 import { redirect } from "next/navigation";
-import { auth, lineLoginConfigured } from "@/auth";
-import { AuthShell, Notice } from "@/components/auth-shell";
+import { AuthShell } from "@/components/auth-shell";
 import { LineLoginButton } from "@/components/line-login-button";
-import { isUserAllowed } from "@/lib/allowlist";
+import { getAccessGrant, getUser } from "@/lib/auth/server";
+import { safeNextPath } from "@/lib/security";
 
-export const dynamic = "force-dynamic";
-
-const ERRORS: Record<string, string> = {
-  Configuration: "ตั้งค่า LINE Login ยังไม่ครบ",
-  AccessDenied: "LINE ปฏิเสธการเข้าสู่ระบบ",
-  Verification: "ยืนยันตัวตนไม่สำเร็จ",
-  OAuthSignin: "เริ่มเข้าสู่ระบบกับ LINE ไม่สำเร็จ",
-  OAuthCallback: "LINE ส่งกลับมาไม่สำเร็จ ตรวจ Callback URL ของช่อง",
-  Callback: "LINE ส่งกลับมาไม่สำเร็จ ตรวจ Callback URL ของช่อง",
-  Default: "เข้าสู่ระบบไม่สำเร็จ ลองอีกครั้ง",
-};
-
-export default async function LoginPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string }>;
-}) {
-  const session = await auth();
-  if (session?.user) {
-    if (!isUserAllowed(session.user.id)) redirect("/pending");
-    redirect(session.user.registered ? "/" : "/register");
-  }
-
-  const params = await searchParams;
-  const error = params.error ? (ERRORS[params.error] ?? ERRORS.Default) : null;
-  const configured = lineLoginConfigured();
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string | string[] }> }) {
+  const sp = await searchParams;
+  const next = safeNextPath(typeof sp.next === "string" ? sp.next : undefined);
+  if (await getUser()) redirect(next);
+  // A verified email that is not authorized yet (access request in progress on this browser).
+  const requesting = (await getAccessGrant()) !== null;
 
   return (
     <AuthShell title="ตารางห้องผ่าตัด" description="เข้าสู่ระบบเพื่อดูเคสผ่าตัดของวันนี้">
-      {error ? (
-        <Notice tone="warning" role="alert" className="mb-4">
-          {error}
-        </Notice>
+      <LineLoginButton next={next} />
+      <p className="mt-4 text-center text-sm leading-6 text-muted">
+        สำหรับแพทย์และพยาบาลที่ได้รับอนุญาตเท่านั้น
+        <br />
+        ครั้งแรกต้องยืนยันอีเมลด้วยรหัส 6&nbsp;หลัก
+      </p>
+      {requesting ? (
+        <a className="btn btn-secondary mt-4 w-full" href="/login/request" data-testid="request-status-link">
+          ดูสถานะคำขอเข้าใช้งาน
+        </a>
       ) : null}
-      {configured ? (
-        <LineLoginButton />
-      ) : (
-        <Notice tone="info">ยังไม่ได้ตั้งค่า LINE Login บนเซิร์ฟเวอร์</Notice>
-      )}
     </AuthShell>
   );
 }

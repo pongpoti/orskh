@@ -40,3 +40,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# safety nets: the physician roster CSV (emails) lives outside the repository, the dev email outbox holds codes and
+# addresses, and screenshots may show names
+*.csv
+outbox/
+screens/
+test-results/
+playwright-report/

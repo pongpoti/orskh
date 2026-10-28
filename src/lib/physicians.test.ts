@@ -44,7 +44,7 @@ test("knows each general-surgery sub-specialty team", () => {
   assert.equal(teamOf("เฉลิมพล กินรี"), null); // not in the surgery group
   const all = Object.values(SURGICAL_TEAMS).flat() as string[];
   assert.equal(all.length, 24);
-  const surgeons = new Set(PHYSICIAN_GROUPS.find((group) => group.id === "surgery")?.names);
+  const surgeons = new Set<string>(PHYSICIAN_GROUPS.find((group) => group.id === "surgery")?.names);
   for (const name of all) assert.ok(surgeons.has(name), name);
 });
 

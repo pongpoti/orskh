@@ -2,20 +2,8 @@ import Link from "next/link";
 import { BrandMark } from "@/components/brand-mark";
 import { ProfileAvatar } from "@/components/profile-avatar";
 import { SignOutButton } from "@/components/sign-out-button";
+import { avatarSrc, initialOf } from "@/lib/avatar";
 import { thaiDate } from "@/lib/days";
-
-function profileImageSrc(image: string | null | undefined): string | null {
-  if (!image) return null;
-  try {
-    const url = new URL(image);
-    if (url.protocol === "https:" || url.protocol === "http:" || url.protocol === "data:") {
-      return url.toString();
-    }
-  } catch {
-    return null;
-  }
-  return null;
-}
 
 const ADMIN_ICON = (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -28,13 +16,18 @@ const ADMIN_ICON = (
 /** One bar: the mark, today's date as the page heading, the admin page for admins, and the account menu behind the avatar. */
 export function TopBar({
   name,
+  email,
   image,
   date,
   pathname = "/",
   showAccount = true,
   adminHref = null,
 }: {
+  /** The person's full name (physicians table, else the approved request, else the LINE name). */
   name: string;
+  /** The signed-in email, shown under the name in the account menu. */
+  email?: string;
+  /** LINE profile picture; only https *.line-scdn.net is shown, otherwise the name's first letter. */
   image?: string | null;
   /** Today's date, YYYY-MM-DD. */
   date: string;
@@ -43,8 +36,8 @@ export function TopBar({
   /** The admin page, shown only to admins. */
   adminHref?: string | null;
 }) {
-  const src = profileImageSrc(image);
-  const initial = name.trim().slice(0, 1) || "•";
+  const src = avatarSrc(image);
+  const initial = initialOf(name);
 
   return (
     <header className="appbar z-30">
@@ -71,6 +64,7 @@ export function TopBar({
             className="btn btn-ghost hidden size-11 min-h-0 shrink-0 p-0 min-[390px]:inline-flex md:w-auto md:px-3.5"
             aria-label="จัดการแพทย์"
             title="จัดการรายชื่อแพทย์"
+            data-testid="admin-button"
           >
             {ADMIN_ICON}
             <span className="hidden text-sm md:inline">จัดการแพทย์</span>
@@ -83,19 +77,43 @@ export function TopBar({
               type="button"
               popoverTarget="account-menu"
               aria-label={`บัญชี ${name}`}
+              data-testid="user-menu"
               className="flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-full sm:pr-3 sm:pl-1 sm:hover:bg-white/70"
             >
               <ProfileAvatar src={src} initial={initial} />
-              <span className="hidden max-w-44 truncate text-sm font-medium text-ink-2 sm:block">{name}</span>
+              <span className="hidden max-w-56 truncate text-sm font-medium text-ink-2 sm:block" data-testid="user-name">
+                {name}
+              </span>
             </button>
             <div
               id="account-menu"
               popover="auto"
-              className="menu fixed inset-auto top-[calc(max(0.5rem,env(safe-area-inset-top))+3.5rem)] right-4 sm:right-[max(1.5rem,calc((100vw-120rem)/2+1.5rem))] m-0 w-64 p-2 sm:top-[calc(max(0.625rem,env(safe-area-inset-top))+3.75rem)]"
+              data-testid="account-menu"
+              className="menu fixed inset-auto top-[calc(max(0.5rem,env(safe-area-inset-top))+3.5rem)] right-4 sm:right-[max(1.5rem,calc((100vw-120rem)/2+1.5rem))] m-0 w-[min(18rem,calc(100vw-2rem))] p-2 sm:top-[calc(max(0.625rem,env(safe-area-inset-top))+3.75rem)]"
             >
-              <p className="truncate px-3 pt-1.5 pb-2.5 text-sm font-semibold text-ink">{name}</p>
+              <div className="flex items-center gap-3 px-2 pt-1.5 pb-3">
+                <ProfileAvatar src={src} initial={initial} size={40} />
+                <div className="min-w-0">
+                  <p className="text-sm leading-snug font-semibold break-words text-ink" data-testid="account-name">
+                    {name}
+                  </p>
+                  {email ? (
+                    // The whole address, wrapped (after the @ when it can be): touch screens show no title tooltip,
+                    // so cutting it off would hide the domain the session is bound to.
+                    <p className="text-xs leading-snug wrap-anywhere text-muted" data-testid="account-email">
+                      {email.split("@")[0]}
+                      {email.includes("@") ? (
+                        <>
+                          @<wbr />
+                        </>
+                      ) : null}
+                      {email.split("@").slice(1).join("@")}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
               {adminHref ? (
-                <Link href={adminHref} className="btn btn-ghost mb-2 w-full">
+                <Link href={adminHref} className="btn btn-ghost mb-2 w-full" data-testid="account-admin-link">
                   {ADMIN_ICON}
                   จัดการรายชื่อแพทย์
                 </Link>
