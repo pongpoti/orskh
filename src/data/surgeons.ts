@@ -1,6 +1,6 @@
 import type { SpecialtyCode } from "@/lib/specialties";
 
-/** Surgeons and their specialty codes, as supplied on 27 Oct 2026. The list writes VASCULAR, stored here as VAS. */
+/** Surgeons and their specialty codes, as supplied on 27 Oct 2026. */
 export const SURGEONS: readonly { name: string; specialty: SpecialtyCode }[] = [
   { name: "ขจรศักดิ์ โภคสมบัติ", specialty: "GENSX" },
   { name: "ครองขวัญ รั้วมั่น", specialty: "GENSX" },
@@ -33,8 +33,8 @@ export const SURGEONS: readonly { name: string; specialty: SpecialtyCode }[] = [
   { name: "ณัฐพงศ์ รั้วมั่น", specialty: "CVT" },
   { name: "พีรวิชญ์ ศรียารันต์", specialty: "CVT" },
   { name: "เพ็ญศิริ ชาญวรัญญู", specialty: "CVT" },
-  { name: "ภวินทร์ พานิชยานนท์", specialty: "VAS" },
-  { name: "ศิรประภา เตียวมรกฎ", specialty: "VAS" },
+  { name: "ภวินทร์ พานิชยานนท์", specialty: "VASCULAR" },
+  { name: "ศิรประภา เตียวมรกฎ", specialty: "VASCULAR" },
   { name: "ชวพล กิตตินภดล", specialty: "ORTHO" },
   { name: "ชัยวัฒน์ ล้อพงศ์ไพบูลย์", specialty: "ORTHO" },
   { name: "ธนกร วงศ์สล้างกุล", specialty: "ORTHO" },

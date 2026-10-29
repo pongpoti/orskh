@@ -10,7 +10,7 @@
 export type DeptCode =
   | "GENSX"
   | "SCOPE"
-  | "VAS"
+  | "VASCULAR"
   | "ORTHO"
   | "OBGYN"
   | "EYE"
@@ -49,7 +49,7 @@ function dept(code: DeptCode, name: string, color: string, label: string = code)
 export const DEPARTMENTS: Record<DeptCode, Department> = {
   GENSX: dept("GENSX", "ศัลยกรรมทั่วไป", "#0E5E6F"),
   SCOPE: dept("SCOPE", "ส่องกล้องทางเดินอาหาร", "#B04A3A"),
-  VAS: dept("VAS", "ศัลยกรรมหลอดเลือด", "#CC4759", "VASCULAR"),
+  VASCULAR: dept("VASCULAR", "ศัลยกรรมหลอดเลือด", "#CC4759"),
   ORTHO: dept("ORTHO", "ออร์โธปิดิกส์", "#4F3D8C"),
   OBGYN: dept("OBGYN", "สูติ-นรีเวชกรรม", "#8C3B6E"),
   EYE: dept("EYE", "จักษุ", "#1A9BB0"),
@@ -101,7 +101,7 @@ const PLAN: Record<string, RoomPlan> = {
   "or-8": whole(always("EMER")),
   "or-9": whole([one("PLASTIC"), one("MAXILLO"), one("PLASTIC"), one("PLASTIC"), one("OBGYN")]),
   "or-10": {
-    am: [one("CVT"), one("ORTHO"), one("ORTHO"), one("ORTHO"), one("VAS")],
+    am: [one("CVT"), one("ORTHO"), one("ORTHO"), one("ORTHO"), one("VASCULAR")],
     pm: [one("CVT"), one("ORTHO"), one("ORTHO"), one("ORTHO"), one("NEPHRO")],
   },
   "or-11": whole(always("EYE")),

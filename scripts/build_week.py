@@ -74,7 +74,7 @@ KIND = {
 }
 SPECIFIC = {
     "ศัลยกรรมกระดูก": "ORTHO", "จักษุ": "EYE", "ศัลยกรรมทางเดินปัสสาวะ": "URO",
-    "ศัลยกรรมหลอดเลือด": "VAS", "โสต ศอ นาสิก": "ENT", "นรีเวชกรรม": "OBGYN",
+    "ศัลยกรรมหลอดเลือด": "VASCULAR", "โสต ศอ นาสิก": "ENT", "นรีเวชกรรม": "OBGYN",
     "สูติกรรม": "OBGYN", "ศัลยกรรมตกแต่ง": "PLASTIC", "ศัลยกรรมหัวใจและหลอดเลือด": "CVT",
     "ศัลยกรรมหัวใจและทรวงอก": "CVT", "ศัลยกรรมทรวงอก": "CVT",
 }
@@ -99,7 +99,7 @@ for i, row in rows.iterrows():
     day = days.index(done_on[i])
     kind, name = text(cell(row, "kind")), text(cell(row, "dept_name"))
     dept = SPECIFIC.get(name) or KIND.get(kind) or ("GENSX" if name == "ศัลยกรรม" else None)
-    if dept == "VAS" and day in (1, 2, 3):
+    if dept == "VASCULAR" and day in (1, 2, 3):
         dropped["vascular Tue-Thu (Tha Chalom quota)"] += 1
         continue
 
