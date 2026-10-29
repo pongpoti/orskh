@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
       await logEvent(await db(), {
         event: "logout",
         sub: user.sub,
-        email: user.email,
+        phone: user.phone,
         ip: clientIp(req.headers),
         userAgent: userAgent(req.headers),
       });

@@ -2,7 +2,7 @@ import "./_setup";
 import assert from "node:assert/strict";
 import { after, before, beforeEach, describe, test } from "node:test";
 import {
-  approvedEmails,
+  approvedPhones,
   approvedRequest,
   cleanPersonName,
   createRequest,
@@ -70,7 +70,7 @@ describe("access request validation", () => {
 describe("what /login/request shows", () => {
   const base: AccessRequest = {
     id: "1",
-    email: "a@example.com",
+    phone: "0900000001",
     lineSub: "U1",
     lineName: "x",
     firstName: "ก",
@@ -84,10 +84,10 @@ describe("what /login/request shows", () => {
   };
   const now = new Date("2026-10-25T12:00:00Z").getTime();
 
-  test("by the latest request of the email", () => {
+  test("by the latest request of the number", () => {
     assert.equal(viewFor(null, "U1", now), "form");
     assert.equal(viewFor(base, "U1", now), "pending");
-    assert.equal(viewFor(base, "U2", now), "pending", "pending for the email, whichever LINE account asked");
+    assert.equal(viewFor(base, "U2", now), "pending", "pending for the number, whichever LINE account asked");
     const approved = { ...base, status: "approved" as const, decidedAt: new Date(now - 60_000) };
     assert.equal(viewFor(approved, "U1", now), "approved");
     assert.equal(viewFor(approved, "U2", now), "signin", "another LINE account signs in with LINE + code");
@@ -107,6 +107,7 @@ describe("access requests (database)", () => {
   const person = { lineName: "LINE คน", firstName: "สมหญิง", lastName: "ใจดี", position: "nurse" as const, ip: "203.0.113.9" };
 
   before(async () => {
+    await pool.query("DROP TABLE IF EXISTS otp_codes, line_bindings, login_events, physicians, access_requests");
     await ensureSchema(pool);
   });
   beforeEach(async () => {
@@ -114,39 +115,39 @@ describe("access requests (database)", () => {
   });
   after(() => pool.end());
 
-  const create = (email: string, sub: string) => createRequest(pool, { email, sub, ...person });
+  const create = (phone: string, sub: string) => createRequest(pool, { phone, sub, ...person });
 
-  test("creates a pending request; a second one for the same email is not stored", async () => {
-    const r = await create("new@example.com", "U1");
+  test("creates a pending request; a second one for the same phone is not stored", async () => {
+    const r = await create("0900000011", "U1");
     assert.equal(r.status, "created");
     assert.ok(r.status === "created");
     assert.equal(r.request.status, "pending");
     assert.equal(r.request.firstName, "สมหญิง");
     assert.equal(r.request.position, "nurse");
     assert.equal(r.request.lineName, "LINE คน");
-    assert.deepEqual(await create("new@example.com", "U1"), { status: "exists", view: "pending" });
-    assert.deepEqual(await create("new@example.com", "U2"), { status: "exists", view: "pending" });
+    assert.deepEqual(await create("0900000011", "U1"), { status: "exists", view: "pending" });
+    assert.deepEqual(await create("0900000011", "U2"), { status: "exists", view: "pending" });
     const { rows } = await pool.query("SELECT count(*)::int AS n FROM access_requests");
     assert.equal(rows[0].n, 1);
   });
 
-  test("concurrent requests for one email store exactly one", async () => {
-    const results = await Promise.all(Array.from({ length: 8 }, (_, i) => create("race@example.com", `Ur${i}`)));
+  test("concurrent requests for one phone store exactly one", async () => {
+    const results = await Promise.all(Array.from({ length: 8 }, (_, i) => create("0900000012", `Ur${i}`)));
     assert.equal(results.filter((r) => r.status === "created").length, 1);
     assert.ok(results.every((r) => r.status === "created" || (r.status === "exists" && r.view === "pending")));
   });
 
   test(`at most ${REQUEST_LIMITS.perSubDay} requests per LINE account per 24 h`, async () => {
-    for (let i = 0; i < REQUEST_LIMITS.perSubDay; i++) assert.equal((await create(`e${i}@example.com`, "Umany")).status, "created");
-    const r = await create("e9@example.com", "Umany");
+    for (let i = 0; i < REQUEST_LIMITS.perSubDay; i++) assert.equal((await create(`090000010${i}`, "Umany")).status, "created");
+    const r = await create("0900000109", "Umany");
     assert.ok(r.status === "limited" && r.retryAfterS > 0 && r.retryAfterS <= 24 * 3600, JSON.stringify(r));
-    assert.equal((await create("e9@example.com", "Uother")).status, "created", "other accounts are not affected");
+    assert.equal((await create("0900000109", "Uother")).status, "created", "other accounts are not affected");
     await pool.query("UPDATE access_requests SET created_at = created_at - interval '24 hours 1 second'");
-    assert.equal((await create("e10@example.com", "Umany")).status, "created");
+    assert.equal((await create("0900000110", "Umany")).status, "created");
   });
 
   test("decisions are atomic: one of many concurrent taps decides, the rest see it decided", async () => {
-    const r = await create("tap@example.com", "U1");
+    const r = await create("0900000013", "U1");
     assert.ok(r.status === "created");
     const results = await Promise.all(
       Array.from({ length: 6 }, (_, i) => decideRequest(pool, r.request.id, i % 2 ? "rejected" : "approved", "111")),
@@ -161,31 +162,31 @@ describe("access requests (database)", () => {
     assert.deepEqual(await decideRequest(pool, "999999", "approved", "111"), { outcome: "missing" });
   });
 
-  test("approval: approved emails, the approved request per LINE account, and no new request", async () => {
-    const r = await create("ok@example.com", "U1");
+  test("approval: approved numbers, the approved request per LINE account, and no new request", async () => {
+    const r = await create("0900000014", "U1");
     assert.ok(r.status === "created");
-    assert.deepEqual([...(await approvedEmails(pool))], []);
+    assert.deepEqual([...(await approvedPhones(pool))], []);
     await decideRequest(pool, r.request.id, "approved", "111");
-    assert.deepEqual([...(await approvedEmails(pool))], ["ok@example.com"]);
-    assert.equal((await approvedRequest(pool, "ok@example.com"))?.id, r.request.id);
-    assert.equal((await approvedRequest(pool, "ok@example.com", "U1"))?.id, r.request.id);
-    assert.equal(await approvedRequest(pool, "ok@example.com", "U2"), null);
-    assert.deepEqual(await create("ok@example.com", "U1"), { status: "exists", view: "approved" });
-    assert.deepEqual(await create("ok@example.com", "U2"), { status: "exists", view: "signin" });
+    assert.deepEqual([...(await approvedPhones(pool))], ["0900000014"]);
+    assert.equal((await approvedRequest(pool, "0900000014"))?.id, r.request.id);
+    assert.equal((await approvedRequest(pool, "0900000014", "U1"))?.id, r.request.id);
+    assert.equal(await approvedRequest(pool, "0900000014", "U2"), null);
+    assert.deepEqual(await create("0900000014", "U1"), { status: "exists", view: "approved" });
+    assert.deepEqual(await create("0900000014", "U2"), { status: "exists", view: "signin" });
   });
 
   test("rejection: no new request for 24 h, then allowed again", async () => {
-    const r = await create("no@example.com", "U1");
+    const r = await create("0900000015", "U1");
     assert.ok(r.status === "created");
     await decideRequest(pool, r.request.id, "rejected", "111");
-    assert.deepEqual(await create("no@example.com", "U1"), { status: "exists", view: "rejected" });
+    assert.deepEqual(await create("0900000015", "U1"), { status: "exists", view: "rejected" });
     await pool.query("UPDATE access_requests SET decided_at = now() - interval '25 hours', created_at = now() - interval '25 hours'");
-    assert.equal((await create("no@example.com", "U1")).status, "created");
-    assert.equal((await latestRequest(pool, "no@example.com"))?.status, "pending");
+    assert.equal((await create("0900000015", "U1")).status, "created");
+    assert.equal((await latestRequest(pool, "0900000015"))?.status, "pending");
   });
 
   test("Telegram message references are appended to the row", async () => {
-    const r = await create("tg@example.com", "U1");
+    const r = await create("0900000016", "U1");
     assert.ok(r.status === "created");
     await saveTelegramRefs(pool, r.request.id, [{ chat_id: "111", message_id: 7 }]);
     await saveTelegramRefs(pool, r.request.id, [{ chat_id: "222", message_id: 9 }]);

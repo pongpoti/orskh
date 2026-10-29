@@ -27,51 +27,51 @@ describe("database schema", () => {
     }
   });
 
-  test("physicians: one row per normalized email, a name is required, active by default", async () => {
-    const insert = (email: string, name = "สมชาย ใจดี", dept: string | null = null) =>
-      pool.query("INSERT INTO physicians (email, name, dept) VALUES ($1, $2, $3)", [email, name, dept]);
+  test("physicians: one row per canonical number, a name is required, active by default", async () => {
+    const insert = (phone: string, name = "สมชาย ใจดี", dept: string | null = null) =>
+      pool.query("INSERT INTO physicians (phone, name, dept) VALUES ($1, $2, $3)", [phone, name, dept]);
     await pool.query("TRUNCATE physicians");
-    await insert("doc@example.com", "สมชาย ใจดี", "ศัลยกรรมทั่วไป");
-    await insert("doc.alt@example.com"); // an alternate address: another row, same name
-    await assert.rejects(insert("doc@example.com"), (e: { code?: string }) => e.code === "23505");
-    for (const bad of ["Doc@Example.com", " doc2@example.com", "doc2@example.com ", ""]) {
+    await insert("0812345678", "สมชาย ใจดี", "ศัลยกรรมทั่วไป");
+    await insert("0912345678"); // a second number: another row, same name
+    await assert.rejects(insert("0812345678"), (e: { code?: string }) => e.code === "23505");
+    for (const bad of ["081-234-5679", " 0812345679", "0812345679 ", "66812345679", "0212345678", "081234567", ""]) {
       await assert.rejects(insert(bad), (e: { code?: string }) => e.code === "23514", JSON.stringify(bad));
     }
-    await assert.rejects(insert("doc3@example.com", "  "), (e: { code?: string }) => e.code === "23514");
-    await assert.rejects(insert("doc3@example.com", null as unknown as string), (e: { code?: string }) => e.code === "23502");
-    const { rows } = await pool.query("SELECT active, updated_at FROM physicians WHERE email = 'doc@example.com'");
+    await assert.rejects(insert("0812345670", "  "), (e: { code?: string }) => e.code === "23514");
+    await assert.rejects(insert("0812345670", null as unknown as string), (e: { code?: string }) => e.code === "23502");
+    const { rows } = await pool.query("SELECT active, updated_at FROM physicians WHERE phone = '0812345678'");
     assert.equal(rows[0].active, true);
     assert.ok(rows[0].updated_at instanceof Date);
     await pool.query("TRUNCATE physicians");
   });
 
-  test("access_requests: one pending request per email, valid positions and statuses only", async () => {
-    const insert = (email: string, status = "pending", position = "nurse") =>
+  test("access_requests: one pending request per number, valid positions and statuses only", async () => {
+    const insert = (phone: string, status = "pending", position = "nurse") =>
       pool.query(
-        `INSERT INTO access_requests (email, line_sub, first_name, last_name, position, status)
+        `INSERT INTO access_requests (phone, line_sub, first_name, last_name, position, status)
          VALUES ($1, 'U1', 'ก', 'ข', $2, $3)`,
-        [email, position, status],
+        [phone, position, status],
       );
     await pool.query("TRUNCATE access_requests");
-    await insert("a@example.com");
-    await assert.rejects(insert("a@example.com"), (e: { code?: string }) => e.code === "23505");
-    await insert("a@example.com", "rejected");
-    await insert("a@example.com", "approved");
-    await insert("b@example.com");
-    await assert.rejects(insert("c@example.com", "pending", "admin"), (e: { code?: string }) => e.code === "23514");
-    await assert.rejects(insert("c@example.com", "maybe"), (e: { code?: string }) => e.code === "23514");
+    await insert("0900000001");
+    await assert.rejects(insert("0900000001"), (e: { code?: string }) => e.code === "23505");
+    await insert("0900000001", "rejected");
+    await insert("0900000001", "approved");
+    await insert("0900000002");
+    await assert.rejects(insert("0900000003", "pending", "admin"), (e: { code?: string }) => e.code === "23514");
+    await assert.rejects(insert("0900000003", "maybe"), (e: { code?: string }) => e.code === "23514");
     const { rows } = await pool.query("SELECT tg_messages, decided_at FROM access_requests LIMIT 1");
     assert.deepEqual(rows[0], { tg_messages: [], decided_at: null });
     await pool.query("TRUNCATE access_requests");
   });
 
-  test("otp_codes has no column that could hold a plaintext code", async () => {
+  test("otp_codes has no column that could hold a plaintext code (only an HMAC or the sealed provider token)", async () => {
     const { rows } = await pool.query<{ column_name: string }>(
       "SELECT column_name FROM information_schema.columns WHERE table_name = 'otp_codes' ORDER BY ordinal_position",
     );
     assert.deepEqual(
       rows.map((r) => r.column_name),
-      ["id", "email", "line_sub", "code_hash", "created_at", "expires_at", "attempts", "used_at", "ip"],
+      ["id", "phone", "line_sub", "code_hash", "provider_token", "ref", "created_at", "expires_at", "attempts", "used_at", "ip"],
     );
   });
 });

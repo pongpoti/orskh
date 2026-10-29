@@ -16,7 +16,7 @@ const ADMIN_ICON = (
 /** One bar: the mark, today's date as the page heading, the admin page for admins, and the account menu behind the avatar. */
 export function TopBar({
   name,
-  email,
+  phone,
   image,
   date,
   pathname = "/",
@@ -25,8 +25,8 @@ export function TopBar({
 }: {
   /** The person's full name (physicians table, else the approved request, else the LINE name). */
   name: string;
-  /** The signed-in email, shown under the name in the account menu. */
-  email?: string;
+  /** The signed-in mobile number as shown (081-234-5678), under the name in the account menu. */
+  phone?: string;
   /** LINE profile picture; only https *.line-scdn.net is shown, otherwise the name's first letter. */
   image?: string | null;
   /** Today's date, YYYY-MM-DD. */
@@ -97,17 +97,10 @@ export function TopBar({
                   <p className="text-sm leading-snug font-semibold break-words text-ink" data-testid="account-name">
                     {name}
                   </p>
-                  {email ? (
-                    // The whole address, wrapped (after the @ when it can be): touch screens show no title tooltip,
-                    // so cutting it off would hide the domain the session is bound to.
-                    <p className="text-xs leading-snug wrap-anywhere text-muted" data-testid="account-email">
-                      {email.split("@")[0]}
-                      {email.includes("@") ? (
-                        <>
-                          @<wbr />
-                        </>
-                      ) : null}
-                      {email.split("@").slice(1).join("@")}
+                  {phone ? (
+                    // The whole number, never cut off: it is what the session is bound to.
+                    <p className="text-xs leading-snug whitespace-nowrap text-muted tabular-nums" data-testid="account-phone">
+                      {phone}
                     </p>
                   ) : null}
                 </div>

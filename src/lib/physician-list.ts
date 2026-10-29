@@ -4,9 +4,9 @@ import type { Pool, PoolClient } from "pg";
 type Q = Pool | PoolClient;
 
 /**
- * The physician list: table `physicians` (db/schema.sql), one row per normalized email (alternate addresses are
- * extra rows with the same name). An active row authorizes the email (lib/authz.ts); the name and department label
- * the sign-in alert, for inactive rows too. Edited in SQL or with scripts/sync-physicians.mjs, no redeploy.
+ * The physician list: table `physicians` (db/schema.sql), one row per canonical mobile number (a second number is
+ * another row with the same name). An active row authorizes the number (lib/authz.ts); the name and department label
+ * the board and the sign-in alert, for inactive rows too. Edited in SQL or with scripts/sync-physicians.mjs, no redeploy.
  */
 
 export interface Physician {
@@ -15,24 +15,24 @@ export interface Physician {
   dept: string | null;
 }
 
-/** True when this one email has an active row (primary key lookup). */
-export async function isActivePhysician(pool: Q, email: string): Promise<boolean> {
-  const { rowCount } = await pool.query("SELECT 1 FROM physicians WHERE email = $1 AND active", [email]);
+/** True when this one number has an active row (primary key lookup). */
+export async function isActivePhysician(pool: Q, phone: string): Promise<boolean> {
+  const { rowCount } = await pool.query("SELECT 1 FROM physicians WHERE phone = $1 AND active", [phone]);
   return rowCount === 1;
 }
 
-/** Every email with an active row (normalized when stored). */
-export async function activePhysicianEmails(pool: Q): Promise<Set<string>> {
-  const { rows } = await pool.query<{ email: string }>("SELECT email FROM physicians WHERE active");
-  return new Set(rows.map((r) => r.email));
+/** Every number with an active row (canonical when stored). */
+export async function activePhysicianPhones(pool: Q): Promise<Set<string>> {
+  const { rows } = await pool.query<{ phone: string }>("SELECT phone FROM physicians WHERE active");
+  return new Set(rows.map((r) => r.phone));
 }
 
-/** Name and department for a normalized email (active or not), or null. Never throws: a failed read is logged. */
-export async function physicianFor(pool: Q, email: string): Promise<Physician | null> {
+/** Name and department for a canonical number (active or not), or null. Never throws: a failed read is logged. */
+export async function physicianFor(pool: Q, phone: string): Promise<Physician | null> {
   try {
     const { rows } = await pool.query<{ name: string; dept: string | null }>(
-      "SELECT name, dept FROM physicians WHERE email = $1",
-      [email],
+      "SELECT name, dept FROM physicians WHERE phone = $1",
+      [phone],
     );
     if (!rows.length) return null;
     const dept = rows[0].dept?.trim();

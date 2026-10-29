@@ -2,7 +2,7 @@ import "./_setup";
 import assert from "node:assert/strict";
 import { after, afterEach, before, beforeEach, describe, test } from "node:test";
 import type { Pool } from "pg";
-import { isAuthorizedEmail, isListedPhysician, LIST_TTL_MS, noteApproved, resetAuthzCache, RETRY_MS } from "@/lib/authz";
+import { isAuthorizedPhone, isListedPhysician, LIST_TTL_MS, noteApproved, resetAuthzCache, RETRY_MS } from "@/lib/authz";
 import { db } from "@/lib/db";
 import { setTestEnv, TEST_DB } from "./_setup";
 
@@ -24,23 +24,23 @@ async function pool(): Promise<Pool> {
   return p;
 }
 
-async function approve(email: string, status = "approved") {
+async function approve(phone: string, status = "approved") {
   await (await pool()).query(
-    `INSERT INTO access_requests (email, line_sub, first_name, last_name, position, status, decided_at)
+    `INSERT INTO access_requests (phone, line_sub, first_name, last_name, position, status, decided_at)
      VALUES ($1, 'U1', 'ก', 'ข', 'nurse', $2, now())`,
-    [email, status],
+    [phone, status],
   );
 }
 
-async function physician(email: string, active = true) {
-  await (await pool()).query("INSERT INTO physicians (email, name, dept, active) VALUES ($1, 'สมชาย ใจดี', NULL, $2)", [
-    email,
+async function physician(phone: string, active = true) {
+  await (await pool()).query("INSERT INTO physicians (phone, name, dept, active) VALUES ($1, 'สมชาย ใจดี', NULL, $2)", [
+    phone,
     active,
   ]);
 }
 
-async function setActive(email: string, active: boolean) {
-  await (await pool()).query("UPDATE physicians SET active = $2, updated_at = now() WHERE email = $1", [email, active]);
+async function setActive(phone: string, active: boolean) {
+  await (await pool()).query("UPDATE physicians SET active = $2, updated_at = now() WHERE phone = $1", [phone, active]);
 }
 
 /** Captures console.error (expected while the database is down). */
@@ -59,7 +59,7 @@ async function clear() {
   await (await pool()).query("TRUNCATE access_requests, physicians");
 }
 
-describe("authorization: an active physicians row or an approved access request (or ALLOWED_EMAILS)", () => {
+describe("authorization: an active physicians row or an approved access request (or ALLOWED_PHONES)", () => {
   before(clear);
   beforeEach(() => resetAuthzCache());
   afterEach(async () => {
@@ -73,206 +73,206 @@ describe("authorization: an active physicians row or an approved access request 
     await Promise.all([...pools].map((p) => p.end().catch(() => {})));
   });
 
-  test("break-glass ALLOWED_EMAILS never needs the database", async () => {
+  test("break-glass ALLOWED_PHONES never needs the database", async () => {
     process.env.DATABASE_URL = DOWN;
     const { value, logged } = await quietly(async () => [
-      await isAuthorizedEmail(" DOC2@example.com "),
-      await isAuthorizedEmail("third@example.com", { fresh: true }),
-      await isAuthorizedEmail("newcomer@example.com"),
+      await isAuthorizedPhone(" +66 90 000 0002 "),
+      await isAuthorizedPhone("0611111111", { fresh: true }),
+      await isAuthorizedPhone("0910000003"),
     ]);
     assert.deepEqual(value, [true, true, false]);
-    assert.equal(logged.length, 1, "only the non-listed email tried the database");
-    assert.match(logged[0], /email list unavailable/);
-    assert.equal(await isAuthorizedEmail("not an email"), false);
+    assert.equal(logged.length, 1, "only the non-listed number tried the database");
+    assert.match(logged[0], /phone list unavailable/);
+    assert.equal(await isAuthorizedPhone("not a number"), false);
   });
 
-  test("ALLOWED_EMAILS is optional: unset or empty adds nobody, and the table still authorizes", async () => {
-    await physician("doc@example.com");
+  test("ALLOWED_PHONES is optional: unset or empty adds nobody, and the table still authorizes", async () => {
+    await physician("0910000001");
     for (const raw of [undefined, "", "  "]) {
       resetAuthzCache();
-      if (raw === undefined) delete process.env.ALLOWED_EMAILS;
-      else process.env.ALLOWED_EMAILS = raw;
-      assert.equal(await isAuthorizedEmail("doc.one@example.com"), false, `ALLOWED_EMAILS=${JSON.stringify(raw)}`);
-      assert.equal(await isAuthorizedEmail("Doc@Example.com"), true);
-      assert.equal(await isAuthorizedEmail("doc@example.com", { fresh: true }), true);
+      if (raw === undefined) delete process.env.ALLOWED_PHONES;
+      else process.env.ALLOWED_PHONES = raw;
+      assert.equal(await isAuthorizedPhone("0812345678"), false, `ALLOWED_PHONES=${JSON.stringify(raw)}`);
+      assert.equal(await isAuthorizedPhone("091-000-0001"), true);
+      assert.equal(await isAuthorizedPhone("0910000001", { fresh: true }), true);
     }
   });
 
-  test("active physicians rows authorize; inactive rows and unknown emails do not", async () => {
-    await physician("doc@example.com");
-    await physician("retired@example.com", false);
-    assert.equal(await isAuthorizedEmail(" Doc@Example.com "), true);
-    assert.equal(await isAuthorizedEmail("retired@example.com"), false);
-    assert.equal(await isAuthorizedEmail("nobody@example.com"), false);
-    assert.equal(await isAuthorizedEmail("doc@example.com", { fresh: true }), true);
-    assert.equal(await isAuthorizedEmail("retired@example.com", { fresh: true }), false);
+  test("active physicians rows authorize; inactive rows and unknown numbers do not", async () => {
+    await physician("0910000001");
+    await physician("0910000004", false);
+    assert.equal(await isAuthorizedPhone(" 091 000 0001 "), true);
+    assert.equal(await isAuthorizedPhone("0910000004"), false);
+    assert.equal(await isAuthorizedPhone("0910000013"), false);
+    assert.equal(await isAuthorizedPhone("0910000001", { fresh: true }), true);
+    assert.equal(await isAuthorizedPhone("0910000004", { fresh: true }), false);
   });
 
   test("approved requests authorize; pending and rejected ones do not", async () => {
-    await approve("nurse@example.com");
-    await approve("waiting@example.com", "pending");
-    await approve("refused@example.com", "rejected");
-    assert.equal(await isAuthorizedEmail("Nurse@Example.com"), true);
-    assert.equal(await isAuthorizedEmail("waiting@example.com"), false);
-    assert.equal(await isAuthorizedEmail("refused@example.com"), false);
+    await approve("0910000002");
+    await approve("0910000005", "pending");
+    await approve("0910000006", "rejected");
+    assert.equal(await isAuthorizedPhone("+66910000002"), true);
+    assert.equal(await isAuthorizedPhone("0910000005"), false);
+    assert.equal(await isAuthorizedPhone("0910000006"), false);
   });
 
   test("one cached list holds active physicians and approved requests", async () => {
-    await physician("doc@example.com");
-    await approve("nurse@example.com");
-    assert.equal(await isAuthorizedEmail("doc@example.com"), true); // loads the list
+    await physician("0910000001");
+    await approve("0910000002");
+    assert.equal(await isAuthorizedPhone("0910000001"), true); // loads the list
     process.env.DATABASE_URL = DOWN;
     const { value, logged } = await quietly(async () => [
-      await isAuthorizedEmail("doc@example.com"),
-      await isAuthorizedEmail("nurse@example.com"),
+      await isAuthorizedPhone("0910000001"),
+      await isAuthorizedPhone("0910000002"),
     ]);
     assert.deepEqual([value, logged], [[true, true], []], "both answered from the cached list");
   });
 
   test("cache: removing a physician (active = false) applies once the cached list expires, or after a reset", async () => {
-    await physician("doc@example.com");
-    assert.equal(await isAuthorizedEmail("doc@example.com"), true);
-    await setActive("doc@example.com", false);
-    assert.equal(await isAuthorizedEmail("doc@example.com"), true, "still cached");
+    await physician("0910000001");
+    assert.equal(await isAuthorizedPhone("0910000001"), true);
+    await setActive("0910000001", false);
+    assert.equal(await isAuthorizedPhone("0910000001"), true, "still cached");
     advance(LIST_TTL_MS - 1000);
-    assert.equal(await isAuthorizedEmail("doc@example.com"), true, "within the cache window");
+    assert.equal(await isAuthorizedPhone("0910000001"), true, "within the cache window");
     advance(1000);
-    assert.equal(await isAuthorizedEmail("doc@example.com"), false, "reloaded after the window");
+    assert.equal(await isAuthorizedPhone("0910000001"), false, "reloaded after the window");
     // back on the list: found once the remembered miss expires
-    await setActive("doc@example.com", true);
+    await setActive("0910000001", true);
     advance(RETRY_MS);
-    assert.equal(await isAuthorizedEmail("doc@example.com"), true);
+    assert.equal(await isAuthorizedPhone("0910000001"), true);
     // a fresh instance (empty cache) sees a removal at once
-    await setActive("doc@example.com", false);
+    await setActive("0910000001", false);
     resetAuthzCache();
-    assert.equal(await isAuthorizedEmail("doc@example.com"), false);
+    assert.equal(await isAuthorizedPhone("0910000001"), false);
   });
 
-  test("cache: a fresh check that reads a removal also drops the email from this instance's cached list", async () => {
-    await physician("doc@example.com");
-    await approve("nurse@example.com");
-    assert.equal(await isAuthorizedEmail("doc@example.com"), true); // loads the list
-    await setActive("doc@example.com", false);
-    await (await pool()).query("UPDATE access_requests SET status = 'rejected' WHERE email = 'nurse@example.com'");
+  test("cache: a fresh check that reads a removal also drops the number from this instance's cached list", async () => {
+    await physician("0910000001");
+    await approve("0910000002");
+    assert.equal(await isAuthorizedPhone("0910000001"), true); // loads the list
+    await setActive("0910000001", false);
+    await (await pool()).query("UPDATE access_requests SET status = 'rejected' WHERE phone = '0910000002'");
     // e.g. the code check: the database says no ...
-    assert.equal(await isAuthorizedEmail("doc@example.com", { fresh: true }), false);
-    assert.equal(await isAuthorizedEmail("nurse@example.com", { fresh: true }), false);
+    assert.equal(await isAuthorizedPhone("0910000001", { fresh: true }), false);
+    assert.equal(await isAuthorizedPhone("0910000002", { fresh: true }), false);
     // ... so the LINE fast path and the session check on this instance say no too, before the list expires
-    assert.equal(await isAuthorizedEmail("doc@example.com"), false);
-    assert.equal(await isAuthorizedEmail("nurse@example.com"), false);
+    assert.equal(await isAuthorizedPhone("0910000001"), false);
+    assert.equal(await isAuthorizedPhone("0910000002"), false);
     // a failed read removes nobody from the list (the cached list answers until it expires, as before)
-    await setActive("doc@example.com", true);
+    await setActive("0910000001", true);
     advance(RETRY_MS);
-    assert.equal(await isAuthorizedEmail("doc@example.com"), true);
+    assert.equal(await isAuthorizedPhone("0910000001"), true);
     process.env.DATABASE_URL = DOWN;
-    const down = await quietly(() => isAuthorizedEmail("doc@example.com", { fresh: true }));
+    const down = await quietly(() => isAuthorizedPhone("0910000001", { fresh: true }));
     assert.equal(down.value, false);
-    assert.equal(await isAuthorizedEmail("doc@example.com"), true, "still in the cached list");
+    assert.equal(await isAuthorizedPhone("0910000001"), true, "still in the cached list");
   });
 
   test("cache: a revoked request applies once the cached list expires", async () => {
-    await approve("nurse@example.com");
-    assert.equal(await isAuthorizedEmail("nurse@example.com"), true);
-    await (await pool()).query("UPDATE access_requests SET status = 'rejected', decided_at = now() WHERE email = 'nurse@example.com'");
-    assert.equal(await isAuthorizedEmail("nurse@example.com"), true, "still cached");
+    await approve("0910000002");
+    assert.equal(await isAuthorizedPhone("0910000002"), true);
+    await (await pool()).query("UPDATE access_requests SET status = 'rejected', decided_at = now() WHERE phone = '0910000002'");
+    assert.equal(await isAuthorizedPhone("0910000002"), true, "still cached");
     advance(LIST_TTL_MS - 1000);
-    assert.equal(await isAuthorizedEmail("nurse@example.com"), true, "within the cache window");
+    assert.equal(await isAuthorizedPhone("0910000002"), true, "within the cache window");
     advance(1000);
-    assert.equal(await isAuthorizedEmail("nurse@example.com"), false, "reloaded after the window");
+    assert.equal(await isAuthorizedPhone("0910000002"), false, "reloaded after the window");
   });
 
-  test("cache: an email added or approved after the list was loaded is found at once, by a lookup of that email", async () => {
-    // the list is loaded for another email (e.g. another approved user's request on this instance) ...
-    assert.equal(await isAuthorizedEmail("other@example.com"), false);
+  test("cache: a number added or approved after the list was loaded is found at once, by a lookup of that number", async () => {
+    // the list is loaded for another number (e.g. another approved user's request on this instance) ...
+    assert.equal(await isAuthorizedPhone("0910000007"), false);
     // ... then someone is added to the table (by SQL or the sync script) or approved elsewhere (the webhook and
     // /api/auth/access/complete run in other functions than the proxy on Vercel, so noteApproved() never reaches
     // this cache)
-    await physician("new.doc@example.com");
-    await approve("late@example.com");
-    assert.equal(await isAuthorizedEmail("new.doc@example.com"), true, "no wait for a reload");
-    assert.equal(await isAuthorizedEmail("late@example.com"), true, "no wait for a reload");
-    assert.equal(await isAuthorizedEmail("late@example.com"), true, "now in the cached list");
+    await physician("0910000008");
+    await approve("0910000009");
+    assert.equal(await isAuthorizedPhone("0910000008"), true, "no wait for a reload");
+    assert.equal(await isAuthorizedPhone("0910000009"), true, "no wait for a reload");
+    assert.equal(await isAuthorizedPhone("0910000009"), true, "now in the cached list");
     // fresh: true reads the database right away
-    await approve("now@example.com");
-    assert.equal(await isAuthorizedEmail("now@example.com", { fresh: true }), true);
+    await approve("0910000010");
+    assert.equal(await isAuthorizedPhone("0910000010", { fresh: true }), true);
     // this instance learns about its own approvals immediately
     process.env.DATABASE_URL = DOWN;
-    noteApproved("Instant@Example.com");
-    assert.equal(await isAuthorizedEmail("instant@example.com"), true);
+    noteApproved("091-000-0011");
+    assert.equal(await isAuthorizedPhone("0910000011"), true);
   });
 
   test("cache: a miss is remembered for RETRY_MS, so a revoked session cannot query the database on every request", async () => {
-    assert.equal(await isAuthorizedEmail("revoked@example.com"), false);
+    assert.equal(await isAuthorizedPhone("0910000012"), false);
     process.env.DATABASE_URL = DOWN;
-    const again = await quietly(() => isAuthorizedEmail("revoked@example.com"));
+    const again = await quietly(() => isAuthorizedPhone("0910000012"));
     assert.deepEqual([again.value, again.logged], [false, []], "answered from memory");
     process.env.DATABASE_URL = TEST_DB;
-    await physician("revoked@example.com"); // listed after the miss
-    assert.equal(await isAuthorizedEmail("revoked@example.com"), false, "within RETRY_MS of the miss");
+    await physician("0910000012"); // listed after the miss
+    assert.equal(await isAuthorizedPhone("0910000012"), false, "within RETRY_MS of the miss");
     advance(RETRY_MS);
-    assert.equal(await isAuthorizedEmail("revoked@example.com"), true);
+    assert.equal(await isAuthorizedPhone("0910000012"), true);
     // noteApproved() forgets the miss on this instance
-    assert.equal(await isAuthorizedEmail("waiting@example.com"), false);
-    noteApproved("waiting@example.com");
-    assert.equal(await isAuthorizedEmail("waiting@example.com"), true);
+    assert.equal(await isAuthorizedPhone("0910000005"), false);
+    noteApproved("0910000005");
+    assert.equal(await isAuthorizedPhone("0910000005"), true);
   });
 
   test("concurrent checks while the list loads wait for that load (cold and expired cache)", async () => {
-    await physician("doc@example.com");
-    await approve("nurse@example.com");
-    const four = (email: string) => Promise.all(Array.from({ length: 4 }, () => isAuthorizedEmail(email)));
-    assert.deepEqual(await four("nurse@example.com"), [true, true, true, true], "cold cache");
+    await physician("0910000001");
+    await approve("0910000002");
+    const four = (phone: string) => Promise.all(Array.from({ length: 4 }, () => isAuthorizedPhone(phone)));
+    assert.deepEqual(await four("0910000002"), [true, true, true, true], "cold cache");
     advance(LIST_TTL_MS);
-    assert.deepEqual(await four("doc@example.com"), [true, true, true, true], "expired cache being reloaded");
-    // removed emails are refused by all of them
-    await (await pool()).query("UPDATE access_requests SET status = 'rejected' WHERE email = 'nurse@example.com'");
-    await setActive("doc@example.com", false);
+    assert.deepEqual(await four("0910000001"), [true, true, true, true], "expired cache being reloaded");
+    // removed numbers are refused by all of them
+    await (await pool()).query("UPDATE access_requests SET status = 'rejected' WHERE phone = '0910000002'");
+    await setActive("0910000001", false);
     advance(LIST_TTL_MS);
-    assert.deepEqual(await four("nurse@example.com"), [false, false, false, false]);
-    assert.deepEqual(await four("doc@example.com"), [false, false, false, false]);
+    assert.deepEqual(await four("0910000002"), [false, false, false, false]);
+    assert.deepEqual(await four("0910000001"), [false, false, false, false]);
   });
 
-  test("fail closed: with the database down, table-only and approved-only emails stop working after the cache window", async () => {
-    await physician("doc@example.com");
-    await approve("nurse@example.com");
-    assert.equal(await isAuthorizedEmail("nurse@example.com"), true);
+  test("fail closed: with the database down, table-only and approved-only numbers stop working after the cache window", async () => {
+    await physician("0910000001");
+    await approve("0910000002");
+    assert.equal(await isAuthorizedPhone("0910000002"), true);
     process.env.DATABASE_URL = DOWN;
-    assert.equal(await isAuthorizedEmail("doc@example.com"), true, "cached list still valid");
+    assert.equal(await isAuthorizedPhone("0910000001"), true, "cached list still valid");
     advance(LIST_TTL_MS);
     const down = await quietly(async () => [
-      await isAuthorizedEmail("doc@example.com"),
-      await isAuthorizedEmail("nurse@example.com"),
-      await isAuthorizedEmail("doc@example.com", { fresh: true }),
-      await isAuthorizedEmail("doc.one@example.com"),
+      await isAuthorizedPhone("0910000001"),
+      await isAuthorizedPhone("0910000002"),
+      await isAuthorizedPhone("0910000001", { fresh: true }),
+      await isAuthorizedPhone("0812345678"),
     ]);
     assert.deepEqual(down.value, [false, false, false, true]);
     assert.ok(down.logged.length >= 1 && down.logged.every((l) => !l.includes("postgres:postgres")), "no credentials logged");
     // back up: authorized again on the next attempt
     process.env.DATABASE_URL = TEST_DB;
     advance(RETRY_MS);
-    assert.equal(await isAuthorizedEmail("doc@example.com"), true);
-    assert.equal(await isAuthorizedEmail("nurse@example.com"), true);
+    assert.equal(await isAuthorizedPhone("0910000001"), true);
+    assert.equal(await isAuthorizedPhone("0910000002"), true);
   });
 
-  test("isListedPhysician: ALLOWED_EMAILS or an active row, read now (not cached); a failed read is not listed", async () => {
-    await physician("doc@example.com");
-    await physician("retired@example.com", false);
-    await approve("nurse@example.com");
-    assert.equal(await isListedPhysician("Doc@Example.com"), true);
-    assert.equal(await isListedPhysician("retired@example.com"), false);
-    assert.equal(await isListedPhysician("nurse@example.com"), false, "an approved request is not the physician list");
-    assert.equal(await isListedPhysician("not an email"), false);
+  test("isListedPhysician: ALLOWED_PHONES or an active row, read now (not cached); a failed read is not listed", async () => {
+    await physician("0910000001");
+    await physician("0910000004", false);
+    await approve("0910000002");
+    assert.equal(await isListedPhysician("091-000-0001"), true);
+    assert.equal(await isListedPhysician("0910000004"), false);
+    assert.equal(await isListedPhysician("0910000002"), false, "an approved request is not the physician list");
+    assert.equal(await isListedPhysician("not a number"), false);
     // a change is seen at once, whatever the authorization cache holds
-    assert.equal(await isAuthorizedEmail("doc@example.com"), true);
-    await setActive("doc@example.com", false);
-    await setActive("retired@example.com", true);
-    assert.equal(await isListedPhysician("doc@example.com"), false);
-    assert.equal(await isListedPhysician("retired@example.com"), true);
+    assert.equal(await isAuthorizedPhone("0910000001"), true);
+    await setActive("0910000001", false);
+    await setActive("0910000004", true);
+    assert.equal(await isListedPhysician("0910000001"), false);
+    assert.equal(await isListedPhysician("0910000004"), true);
     // database down: the break-glass list still answers, everything else is not listed
     process.env.DATABASE_URL = DOWN;
     const down = await quietly(async () => [
-      await isListedPhysician("third@example.com"),
-      await isListedPhysician("retired@example.com"),
+      await isListedPhysician("0611111111"),
+      await isListedPhysician("0910000004"),
     ]);
     assert.deepEqual(down.value, [true, false]);
     assert.equal(down.logged.length, 1);

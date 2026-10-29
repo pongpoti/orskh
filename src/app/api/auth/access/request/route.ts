@@ -7,7 +7,7 @@ import { logEvent } from "@/lib/otp";
 import { clientIp, readJsonBody, userAgent } from "@/lib/security";
 import { ensureWebhook, sendRequestMessages } from "@/lib/telegram";
 
-/** Stores an access request (name + position) for the verified email and asks the administrators in Telegram. */
+/** Stores an access request (name + position) for the verified number and asks the administrators in Telegram. */
 export async function POST(req: NextRequest) {
   const blocked = guardPost(req);
   if (blocked) return blocked;
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   try {
     const pool = await db();
     const result = await createRequest(pool, {
-      email: grant.email,
+      phone: grant.phone,
       sub: grant.sub,
       lineName: grant.name,
       firstName,
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
       ip,
     });
     if (result.status === "limited") {
-      await logEvent(pool, { event: "access_request_limited", sub: grant.sub, email: grant.email, ip, userAgent: ua });
+      await logEvent(pool, { event: "access_request_limited", sub: grant.sub, phone: grant.phone, ip, userAgent: ua });
       return json({ error: MSG.requestTooMany, retryAfter: result.retryAfterS }, 429, {
         headers: { "Retry-After": String(result.retryAfterS) },
       });
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
       if (result.view === "rejected") return json({ error: MSG.requestRejected, status: "rejected" }, 409);
       return json({ ok: true, status: result.view });
     }
-    await logEvent(pool, { event: "access_requested", sub: grant.sub, email: grant.email, ip, userAgent: ua });
+    await logEvent(pool, { event: "access_requested", sub: grant.sub, phone: grant.phone, ip, userAgent: ua });
     const request = result.request;
     // After the response: Telegram being slow or down never fails the request (it stays pending).
     after(async () => {

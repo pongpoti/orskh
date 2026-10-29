@@ -5,13 +5,13 @@ import type { AddressInfo } from "node:net";
 import { after, afterEach, before, describe, test } from "node:test";
 import { createPool, ensureSchema } from "@/lib/db";
 import { ConfigError, telegramConfig, telegramEnabled } from "@/lib/env";
-import { countOtpEmails, logEvent, otpHistory } from "@/lib/otp";
-import { buildVerifiedAlert, buildVolumeAlert, escapeHtml, notifyVerified, notifyVolume, sendTelegram } from "@/lib/telegram";
+import { countOtpPhones, logEvent, otpHistory } from "@/lib/otp";
+import { buildVerifiedAlert, buildVolumeAlert, escapeHtml, notify, notifyVerified, sendTelegram } from "@/lib/telegram";
 import { setTestEnv, TEST_DB } from "./_setup";
 
 const TOKEN = "123456789:AAtestTOKENtestTOKENtestTOKEN_x-y";
 const AT = new Date("2026-10-25T08:47:00Z"); // 15:47 in Bangkok
-const NONE = { email: null, account: null };
+const NONE = { phone: null, account: null };
 
 function clearTelegram() {
   delete process.env.TELEGRAM_BOT_TOKEN;
@@ -29,10 +29,10 @@ describe("Telegram alert text", () => {
     const html = buildVerifiedAlert({
       physician: { name: "สมชาย ใจดี", dept: "ศัลยกรรมทั่วไป" },
       lineName: "Pong",
-      email: "pong@example.com",
+      phone: "0812345678",
       at: AT,
       history: NONE,
-      verifiedEmails: 12,
+      verifiedPhones: 12,
     });
     assert.equal(
       html,
@@ -42,9 +42,9 @@ describe("Telegram alert text", () => {
         "",
         "🩺 แพทย์: สมชาย ใจดี (ศัลยกรรมทั่วไป)",
         "👤 ชื่อ LINE: Pong",
-        "📧 อีเมล: pong@example.com",
+        "📱 เบอร์: 081-234-5678",
         "🕒 เวลา: 25 ต.ค. 2569 15:47 น.",
-        "👥 ยืนยันแล้วทั้งหมด: 12 อีเมล",
+        "👥 ยืนยันแล้วทั้งหมด: 12 เบอร์",
       ].join("\n"),
     );
   });
@@ -53,45 +53,45 @@ describe("Telegram alert text", () => {
     const html = buildVerifiedAlert({
       physician: { name: "สมหญิง รักดี", dept: null },
       lineName: "หมอ A",
-      email: "a@example.com",
+      phone: "0900000001",
       at: AT,
-      history: { email: new Date("2026-04-12T03:00:00Z"), account: new Date("2026-04-12T03:00:00Z") },
-      verifiedEmails: 1234,
+      history: { phone: new Date("2026-04-12T03:00:00Z"), account: new Date("2026-04-12T03:00:00Z") },
+      verifiedPhones: 1234,
     });
     assert.match(html, /^🔁 <b>ยืนยันตัวตนอีกครั้ง<\/b>\n/);
-    assert.match(html, /\n🗓 อีเมลนี้ยืนยันครั้งก่อน: 12 เม\.ย\. 2569\n/);
-    assert.match(html, /👥 ยืนยันแล้วทั้งหมด: 1,234 อีเมล$/);
+    assert.match(html, /\n🗓 เบอร์นี้ยืนยันครั้งก่อน: 12 เม\.ย\. 2569\n/);
+    assert.match(html, /👥 ยืนยันแล้วทั้งหมด: 1,234 เบอร์$/);
     assert.doesNotMatch(html, /ผู้ใช้ใหม่/);
     assert.match(html, /\n🩺 แพทย์: สมหญิง รักดี\n/, "no department brackets when the doctor has none");
   });
 
-  test("known email on a LINE account that never verified it: warning header", () => {
+  test("known number on a LINE account that never verified it: warning header", () => {
     const html = buildVerifiedAlert({
       physician: { name: "สมชาย ใจดี", dept: "ศัลยกรรมทั่วไป" },
       lineName: "someone",
-      email: "doc2@example.com",
+      phone: "0900000002",
       at: AT,
-      history: { email: new Date("2026-10-20T03:00:00Z"), account: null },
-      verifiedEmails: 3,
+      history: { phone: new Date("2026-10-20T03:00:00Z"), account: null },
+      verifiedPhones: 3,
     });
-    assert.match(html, /^⚠️ <b>บัญชี LINE ใหม่ของอีเมลที่เคยยืนยันแล้ว<\/b>\n/);
-    assert.match(html, /\n🗓 อีเมลนี้ยืนยันครั้งก่อน: 20 ต\.ค\. 2569\n/);
+    assert.match(html, /^⚠️ <b>บัญชี LINE ใหม่ของเบอร์ที่เคยยืนยันแล้ว<\/b>\n/);
+    assert.match(html, /\n🗓 เบอร์นี้ยืนยันครั้งก่อน: 20 ต\.ค\. 2569\n/);
   });
 
   test("LINE name cannot inject markup or fake lines", () => {
     const html = buildVerifiedAlert({
       physician: null,
-      lineName: '<a href="https://evil.test">x</a>\n📧 อีเมล: boss@example.com\u202E',
-      email: "a@example.com",
+      lineName: '<a href="https://evil.test">x</a>\n📱 เบอร์: 081-234-5678\u202E',
+      phone: "0900000001",
       at: AT,
       history: NONE,
-      verifiedEmails: 1,
+      verifiedPhones: 1,
     });
     const nameLine = html.split("\n").find((l) => l.startsWith("👤"));
     assert.ok(nameLine);
     assert.ok(!nameLine.includes("<a") && nameLine.includes("&lt;a href="), nameLine);
     assert.ok(!/\u202E/.test(html), "bidi override removed");
-    assert.equal(html.split("\n").filter((l) => l.startsWith("📧")).length, 1, "only one email line");
+    assert.equal(html.split("\n").filter((l) => l.startsWith("📱")).length, 1, "only one number line");
     assert.match(html, /\n🩺 แพทย์: ไม่พบในรายชื่อแพทย์\n/);
     assert.equal(escapeHtml("a&b<c>"), "a&amp;b&lt;c&gt;");
   });
@@ -101,61 +101,60 @@ describe("Telegram alert text", () => {
       physician: null,
       requester: { firstName: "สมชาย", lastName: "ใจดี", position: "nurse" },
       lineName: "Som",
-      email: "newcomer@example.com",
+      phone: "0910000003",
       at: AT,
       history: NONE,
-      verifiedEmails: 2,
+      verifiedPhones: 2,
     });
     assert.match(html, /\n🩺 พยาบาล: สมชาย ใจดี \(อนุมัติจากคำขอ\)\n/);
     const doctor = buildVerifiedAlert({
       physician: null,
       requester: { firstName: "A", lastName: "B", position: "doctor" },
       lineName: "x",
-      email: "a@example.com",
+      phone: "0900000001",
       at: AT,
       history: NONE,
-      verifiedEmails: 2,
+      verifiedPhones: 2,
     });
     assert.match(doctor, /\n🩺 แพทย์: A B \(อนุมัติจากคำขอ\)\n/);
     assert.doesNotMatch(doctor, /ไม่พบในรายชื่อแพทย์/);
   });
 
-  test("the email and an approved requester's name are never shortened (the domain stays visible)", () => {
-    const lookalike = ["samutsakhon-hospital", "moph", "go", "th", "x".repeat(60), "attacker", "example", "com"].join(".");
-    for (const email of [`somchai.jaidee@${lookalike}`, `${"somchai.jaidee.".repeat(13)}x@example.com`]) {
+  test("the number and an approved requester's name are never shortened", () => {
+    for (const phone of ["0812345678", "0611111111"]) {
       const html = buildVerifiedAlert({
         physician: null,
         requester: { firstName: "ก".repeat(60), lastName: "ข".repeat(60), position: "doctor" },
         lineName: "x",
-        email,
+        phone,
         at: AT,
         history: NONE,
-        verifiedEmails: 1,
+        verifiedPhones: 1,
       });
-      assert.ok(html.includes(`\n📧 อีเมล: ${email}\n`), html);
+      assert.ok(html.includes(`\n📱 เบอร์: ${phone.slice(0, 3)}-${phone.slice(3, 6)}-${phone.slice(6)}\n`), html);
       assert.ok(html.includes(`\n🩺 แพทย์: ${"ก".repeat(60)} ${"ข".repeat(60)} (อนุมัติจากคำขอ)\n`), "whole name");
       assert.ok(!html.includes("…"));
     }
   });
 
-  test("code volume alert", () => {
+  test("SMS volume alert", () => {
     assert.equal(
-      buildVolumeAlert(1234, AT),
+      buildVolumeAlert(1234, 2000, AT),
       [
-        "⚠️ <b>มีการขอรหัสทางอีเมลมากผิดปกติ</b>",
+        "⚠️ <b>มีการขอรหัสทาง SMS มากผิดปกติ</b>",
         "ORSKH.APP ตารางห้องผ่าตัด",
         "",
-        "📨 ส่งรหัสไปแล้ว 1,234 ครั้งใน 24 ชั่วโมงที่ผ่านมา",
-        "อีเมลที่ใช้ส่งรหัสมีโควตาต่อวัน ถ้าเกินโควตา ผู้ใช้ใหม่จะไม่ได้รับรหัส ตรวจสอบตาราง otp_codes",
+        "📨 ส่ง SMS ไปแล้ว 1,234 ครั้งใน 24 ชั่วโมงที่ผ่านมา (เพดาน 2,000 ครั้ง)",
+        "เมื่อถึงเพดาน ระบบจะหยุดส่งรหัสให้ทุกคน ตรวจสอบตาราง otp_codes",
         "🕒 เวลา: 25 ต.ค. 2569 15:47 น.",
       ].join("\n"),
     );
   });
 
   test("empty or very long LINE names", () => {
-    const empty = buildVerifiedAlert({ physician: null, lineName: "  ", email: "a@example.com", at: AT, history: NONE, verifiedEmails: 1 });
+    const empty = buildVerifiedAlert({ physician: null, lineName: "  ", phone: "0900000001", at: AT, history: NONE, verifiedPhones: 1 });
     assert.match(empty, /👤 ชื่อ LINE: ไม่ระบุ/);
-    const long = buildVerifiedAlert({ physician: null, lineName: "ก".repeat(300), email: "a@example.com", at: AT, history: NONE, verifiedEmails: 1 });
+    const long = buildVerifiedAlert({ physician: null, lineName: "ก".repeat(300), phone: "0900000001", at: AT, history: NONE, verifiedPhones: 1 });
     const line = long.split("\n").find((l) => l.startsWith("👤")) ?? "";
     assert.ok(line.length < 130 && line.endsWith("…"), line);
   });
@@ -240,18 +239,18 @@ describe("Telegram sending (mock Bot API)", () => {
     }
   });
 
-  test("volume alert goes to every chat", async () => {
+  test("SMS alerts go to every chat", async () => {
     configure();
-    await notifyVolume(150);
+    await notify(buildVolumeAlert(150, 300, AT));
     assert.equal(calls.length, 2);
-    assert.ok(String(calls[0].body.text).startsWith("⚠️ <b>มีการขอรหัสทางอีเมลมากผิดปกติ</b>"));
+    assert.ok(String(calls[0].body.text).startsWith("⚠️ <b>มีการขอรหัสทาง SMS มากผิดปกติ</b>"));
   });
 
   test("not configured: nothing is sent", async () => {
     calls.length = 0;
     assert.equal(await sendTelegram("x"), false);
-    await notifyVolume(150);
-    await notifyVerified({ physician: null, lineName: "A", email: "a@example.com", at: AT, history: NONE, verifiedEmails: 1 });
+    await notify(buildVolumeAlert(150, 300, AT));
+    await notifyVerified({ physician: null, lineName: "A", phone: "0900000001", at: AT, history: NONE, verifiedPhones: 1 });
     assert.equal(calls.length, 0);
   });
 
@@ -264,11 +263,11 @@ describe("Telegram sending (mock Bot API)", () => {
     const orig = console.error;
     console.error = (...a: unknown[]) => void logged.push(a.map(String).join(" "));
     try {
-      await notifyVerified({ physician: null, lineName: "A", email: "a@example.com", at: AT, history: NONE, verifiedEmails: 1 });
+      await notifyVerified({ physician: null, lineName: "A", phone: "0900000001", at: AT, history: NONE, verifiedPhones: 1 });
       process.env.TELEGRAM_API_URL = "http://127.0.0.1:9"; // nothing listens there
-      await notifyVerified({ physician: null, lineName: "A", email: "a@example.com", at: AT, history: NONE, verifiedEmails: 1 });
+      await notifyVerified({ physician: null, lineName: "A", phone: "0900000001", at: AT, history: NONE, verifiedPhones: 1 });
       process.env.TELEGRAM_CHAT_ID = "not a chat";
-      await notifyVerified({ physician: null, lineName: "A", email: "a@example.com", at: AT, history: NONE, verifiedEmails: 1 });
+      await notifyVerified({ physician: null, lineName: "A", phone: "0900000001", at: AT, history: NONE, verifiedPhones: 1 });
     } finally {
       console.error = orig;
     }
@@ -284,27 +283,27 @@ describe("verification history (database)", () => {
   const pool = createPool(TEST_DB);
 
   before(async () => {
-    await pool.query("DROP TABLE IF EXISTS otp_codes, line_bindings, login_events, access_requests");
+    await pool.query("DROP TABLE IF EXISTS otp_codes, line_bindings, login_events, physicians, access_requests");
     await ensureSchema(pool);
   });
   after(() => pool.end());
 
-  test("history per email and per LINE account, and distinct verified emails, come from login_otp events only", async () => {
-    assert.deepEqual(await otpHistory(pool, "doc2@example.com", "U1"), { email: null, account: null });
-    assert.equal(await countOtpEmails(pool), 0);
-    await logEvent(pool, { event: "otp_sent", sub: "U1", email: "doc2@example.com" });
-    await logEvent(pool, { event: "login_binding", sub: "U1", email: "doc2@example.com" });
-    assert.deepEqual(await otpHistory(pool, "doc2@example.com", "U1"), { email: null, account: null });
+  test("history per number and per LINE account, and distinct verified numbers, come from login_otp events only", async () => {
+    assert.deepEqual(await otpHistory(pool, "0900000002", "U1"), { phone: null, account: null });
+    assert.equal(await countOtpPhones(pool), 0);
+    await logEvent(pool, { event: "otp_sent", sub: "U1", phone: "0900000002" });
+    await logEvent(pool, { event: "login_binding", sub: "U1", phone: "0900000002" });
+    assert.deepEqual(await otpHistory(pool, "0900000002", "U1"), { phone: null, account: null });
     await pool.query(
-      "INSERT INTO login_events (line_sub, email, event, at) VALUES ('U1', 'doc2@example.com', 'login_otp', now() - interval '200 days'), ('U1', 'doc2@example.com', 'login_otp', now() - interval '20 days'), ('U2', 'third@example.com', 'login_otp', now())",
+      "INSERT INTO login_events (line_sub, phone, event, at) VALUES ('U1', '0900000002', 'login_otp', now() - interval '200 days'), ('U1', '0900000002', 'login_otp', now() - interval '20 days'), ('U2', '0611111111', 'login_otp', now())",
     );
     const days = (d: Date | null) => (d ? (Date.now() - d.getTime()) / 86_400_000 : NaN);
-    const same = await otpHistory(pool, "doc2@example.com", "U1");
-    assert.ok(days(same.email) > 19 && days(same.email) < 21, `latest of the two: ${days(same.email)}`);
+    const same = await otpHistory(pool, "0900000002", "U1");
+    assert.ok(days(same.phone) > 19 && days(same.phone) < 21, `latest of the two: ${days(same.phone)}`);
     assert.ok(days(same.account) > 19 && days(same.account) < 21);
-    const other = await otpHistory(pool, "doc2@example.com", "U9");
-    assert.ok(days(other.email) > 19 && days(other.email) < 21);
+    const other = await otpHistory(pool, "0900000002", "U9");
+    assert.ok(days(other.phone) > 19 && days(other.phone) < 21);
     assert.equal(other.account, null, "a new LINE account has no history of its own");
-    assert.equal(await countOtpEmails(pool), 2);
+    assert.equal(await countOtpPhones(pool), 2);
   });
 });

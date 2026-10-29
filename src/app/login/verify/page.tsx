@@ -12,7 +12,7 @@ export default async function VerifyPage() {
   // The LINE display name is attacker-controlled: rendered as a text node only.
   const name = pending.name || "ผู้ใช้ LINE";
   return (
-    <AuthShell title="ยืนยันอีเมล">
+    <AuthShell title="ยืนยันเบอร์มือถือ">
       <div className="flex items-center gap-3 rounded-xl border border-line bg-surface-2 px-3 py-2.5">
         <ProfileAvatar src={avatarSrc(pending.picture)} initial={initialOf(name)} size={40} />
         <p className="min-w-0 text-sm leading-6 text-ink-2" data-testid="line-name">

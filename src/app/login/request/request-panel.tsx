@@ -67,16 +67,16 @@ const HELP = "mt-2 text-sm leading-6 text-muted";
 const NOTE = "mt-3 text-[0.8125rem] leading-5 text-muted";
 const LABEL = "mb-1.5 block text-sm font-semibold text-ink-2";
 
-/** Back to the email step (LINE again, then another address), e.g. after verifying a personal address by mistake. */
-function OtherEmail() {
+/** Back to the number step (LINE again, then another number), e.g. after verifying the wrong number by mistake. */
+function OtherPhone() {
   return (
-    <a className="text-btn mt-2" href="/api/auth/line/start" data-testid="other-email">
-      ใช้อีเมลอื่น
+    <a className="text-btn mt-2" href="/api/auth/line/start" data-testid="other-phone">
+      ใช้เบอร์อื่น
     </a>
   );
 }
 
-export function RequestPanel({ initial, email }: { initial: PanelView; email: string }) {
+export function RequestPanel({ initial, phone }: { initial: PanelView; phone: string }) {
   const [view, setView] = useState<PanelView>(initial);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -243,8 +243,9 @@ export function RequestPanel({ initial, email }: { initial: PanelView; email: st
           ส่งคำขอแล้ว รอผู้ดูแลอนุมัติ
         </h2>
         <p className={HELP}>
-          เมื่อได้รับอนุมัติ หน้านี้จะเข้าสู่ระบบให้อัตโนมัติ และระบบจะส่งอีเมลแจ้งไปที่{" "}
-          <strong className="font-semibold break-words text-ink">{email}</strong> ด้วย
+          เปิดหน้านี้ไว้ เมื่อผู้ดูแลอนุมัติเบอร์{" "}
+          <strong className="font-semibold whitespace-nowrap text-ink tabular-nums">{phone}</strong> แล้ว
+          หน้านี้จะเข้าสู่ระบบให้อัตโนมัติ
         </p>
         <p className="mt-4 rounded-xl border border-line bg-white/70 px-3 py-2.5 text-sm text-ink-2" role="status" data-testid="poll-status">
           {paused ? "หยุดตรวจสอบอัตโนมัติแล้ว" : <span className="waiting">กำลังรอการอนุมัติ ตรวจสอบทุก 10&nbsp;วินาที</span>}
@@ -262,9 +263,10 @@ export function RequestPanel({ initial, email }: { initial: PanelView; email: st
           </button>
         )}
         <p className={NOTE}>
-          ปิดหน้านี้ได้ เมื่อได้รับอีเมลแจ้งอนุมัติ ให้เข้าสู่ระบบด้วย LINE แล้วยืนยันอีเมลด้วยรหัส 6&nbsp;หลักอีกครั้ง
+          ปิดหน้านี้ได้ ระบบไม่ส่ง SMS แจ้งผล กลับมาดูผลได้ที่ปุ่ม “ดูสถานะคำขอเข้าใช้งาน” ในหน้าเข้าสู่ระบบภายใน
+          12&nbsp;ชั่วโมง (หลังจากนั้นหรือจากเครื่องอื่น ให้เข้าสู่ระบบด้วย LINE แล้วยืนยันเบอร์อีกครั้ง)
         </p>
-        <OtherEmail />
+        <OtherPhone />
       </div>
     );
   }
@@ -311,7 +313,7 @@ export function RequestPanel({ initial, email }: { initial: PanelView; email: st
           คำขอนี้ไม่ได้รับอนุมัติ
         </h2>
         <p className={HELP}>หากต้องการใช้งาน กรุณาติดต่อผู้ดูแลระบบ</p>
-        <p className={NOTE}>ส่งคำขอใหม่จากอีเมลนี้ได้หลังจาก 24&nbsp;ชั่วโมง</p>
+        <p className={NOTE}>ส่งคำขอใหม่จากเบอร์นี้ได้หลังจาก 24&nbsp;ชั่วโมง</p>
         <a className="btn btn-secondary mt-4 w-full" href="/login">
           กลับไปหน้าเข้าสู่ระบบ
         </a>
@@ -324,9 +326,9 @@ export function RequestPanel({ initial, email }: { initial: PanelView; email: st
       <div className="text-center" data-testid="request-signin">
         <StateIcon icon="check" tone="ok" />
         <h2 className={H2} ref={headingRef} tabIndex={-1}>
-          อีเมลนี้ได้รับอนุญาตแล้ว
+          เบอร์นี้ได้รับอนุญาตแล้ว
         </h2>
-        <p className={HELP}>กรุณาเข้าสู่ระบบด้วย LINE อีกครั้ง แล้วยืนยันอีเมลด้วยรหัส 6&nbsp;หลัก</p>
+        <p className={HELP}>กรุณาเข้าสู่ระบบด้วย LINE อีกครั้ง แล้วยืนยันเบอร์ด้วยรหัสทาง SMS</p>
         <a className="btn btn-primary mt-4 min-h-12 w-full" href="/login">
           เข้าสู่ระบบด้วย LINE
         </a>
@@ -358,7 +360,7 @@ export function RequestPanel({ initial, email }: { initial: PanelView; email: st
       data-testid="request-form"
     >
       <h2 className={H2} ref={headingRef} tabIndex={-1}>
-        อีเมลนี้ยังไม่อยู่ในรายชื่อ
+        เบอร์นี้ยังไม่อยู่ในรายชื่อ
       </h2>
       <p className={HELP}>กรอกข้อมูลด้านล่างเพื่อส่งคำขอให้ผู้ดูแลอนุมัติ</p>
       <div className="mt-4 grid gap-4">
@@ -427,8 +429,8 @@ export function RequestPanel({ initial, email }: { initial: PanelView; email: st
       <button className="btn btn-primary mt-5 min-h-12 w-full" type="submit" disabled={busy}>
         {busy ? "กำลังส่ง…" : "ส่งคำขอ"}
       </button>
-      <p className={NOTE}>ผู้ดูแลจะพิจารณาคำขอ เมื่ออนุมัติแล้วระบบจะแจ้งทางอีเมล</p>
-      <OtherEmail />
+      <p className={NOTE}>ผู้ดูแลจะพิจารณาคำขอ เมื่ออนุมัติแล้ว ระบบจะเข้าสู่ระบบให้อัตโนมัติ</p>
+      <OtherPhone />
     </form>
   );
 }

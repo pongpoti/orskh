@@ -1,11 +1,15 @@
 #!/usr/bin/env node
-// End-to-end sign-in tests: mock LINE (+ mock Telegram) + production build (next start) + Playwright (Chromium).
+// End-to-end sign-in tests: mock LINE (+ mock Telegram) + mock deeSMSX + production build (next start) + Playwright
+// (Chromium). The main app runs in provider mode (SMS_PROVIDER=deesmsx against tests/mock-deesmsx.mjs through
+// DEESMSX_API_URL); a second app on the same build runs in local file mode (SMS_PROVIDER=file) near the end.
 // Configurable so several copies can run in parallel:
-//   E2E_APP_PORT (3100)  E2E_LINE_PORT (4010)  E2E_DATABASE_URL (postgres://postgres:postgres@localhost:5432/orskh_e2e)
+//   E2E_APP_PORT (3100)  E2E_FILE_APP_PORT (3101)  E2E_LINE_PORT (4010)  E2E_SMS_PORT (4011)
+//   E2E_DATABASE_URL (postgres://postgres:postgres@localhost:5432/orskh_e2e)
 //   E2E_OUTBOX_DIR (tmp)  E2E_SCREENS_DIR (tmp)  E2E_SKIP_BUILD=1 (reuse .next)
 // The database's sign-in tables are dropped first (the built app creates them again on first use), then the physician
 // list (table physicians) is loaded with scripts/sync-physicians.mjs from a roster CSV in a new temp folder.
-// Only example.com addresses and invented names are used. Keep E2E_SCREENS_DIR outside the repository.
+// Only invented phone numbers (0812345678, 09000000xx, 0611111111) and invented names are used. Keep E2E_SCREENS_DIR
+// outside the repository.
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -23,27 +27,33 @@ const { chromium } = require("playwright");
 const pg = require("pg");
 
 const APP_PORT = Number(process.env.E2E_APP_PORT ?? 3100);
+const FILE_APP_PORT = Number(process.env.E2E_FILE_APP_PORT ?? 3101);
 const LINE_PORT = Number(process.env.E2E_LINE_PORT ?? 4010);
+const SMS_PORT = Number(process.env.E2E_SMS_PORT ?? 4011);
 const DB_URL = process.env.E2E_DATABASE_URL ?? "postgres://postgres:postgres@localhost:5432/orskh_e2e";
 const OUTBOX = process.env.E2E_OUTBOX_DIR ?? join(tmpdir(), `orskh-e2e-outbox-${APP_PORT}`);
 const SCREENS = process.env.E2E_SCREENS_DIR ?? join(tmpdir(), `orskh-e2e-screens-${APP_PORT}`);
 const LOG_DIR = join(tmpdir(), `orskh-e2e-logs-${APP_PORT}`);
 const APP = `http://localhost:${APP_PORT}`;
+const FILE_APP = `http://localhost:${FILE_APP_PORT}`;
 const LINE = `http://127.0.0.1:${LINE_PORT}`;
+const SMS = `http://127.0.0.1:${SMS_PORT}`;
 
 const SESSION_SECRET = randomBytes(32).toString("base64url");
 const OTP_PEPPER = randomBytes(24).toString("base64url");
 const LINE_ID = "1234567890";
 const LINE_SECRET = randomBytes(16).toString("hex");
-// the physician list (table physicians): DOC1 and DOC2 active, RETIRED deactivated; BREAK_GLASS only in ALLOWED_EMAILS
-const DOC1 = "doctor.one@example.com";
+const SMS_API_KEY = randomBytes(16).toString("hex");
+const SMS_SECRET_KEY = randomBytes(24).toString("hex");
+// the physician list (table physicians): DOC1 and DOC2 active, RETIRED deactivated; BREAK_GLASS only in ALLOWED_PHONES
+const DOC1 = "0812345678";
 const DOC1_NAME = "สมชาย ใจดี";
 const DOC1_DEPT = "ศัลยกรรมทั่วไป";
 const DOC1_FIXED = "สมชาย ใจงาม"; // the name after a correction in the table
-const DOC2 = "second.doc@example.com";
+const DOC2 = "0900000001";
 const DOC2_NAME = "สมหญิง รักดี";
-const RETIRED = "retired.doc@example.com";
-const BREAK_GLASS = "break.glass@example.com";
+const RETIRED = "0900000002";
+const BREAK_GLASS = "0611111111";
 
 const SUB_A = "U0000000000000000000000000000000a";
 const SUB_B = "U0000000000000000000000000000000b";
@@ -53,16 +63,22 @@ const SUB_E = "U0000000000000000000000000000000e";
 const SUB_F = "U0000000000000000000000000000000f";
 const SUB_G = "U0000000000000000000000000000000g";
 const SUB_H = "U0000000000000000000000000000000h";
+const SUB_I = "U0000000000000000000000000000000i";
+const SUB_J = "U0000000000000000000000000000000j";
+const SUB_K = "U0000000000000000000000000000000k";
+const SUB_L = "U0000000000000000000000000000000l";
 // AUTH_ADMIN_LINE_IDS: admins are listed by LINE user id, the session's sub
 const ADMIN_SUB = "U00000000000000000000000000000ad1";
 const TG_TOKEN = "123456789:AAe2eTOKENe2eTOKENe2eTOKEN_test";
 const TG_CHAT = "1228757000";
 const XSS_NAME = `<img src=x onerror="window.__xss=1">หมอ A`;
-const GENERIC = "ส่งรหัส 6 หลักไปที่อีเมลแล้ว";
-// access requests (emails that are not on the physician list)
-const UNLISTED = "intruder@example.com";
-const NURSE = "new.nurse@example.com";
-const WALK_IN = "walk.in@example.com";
+// the LINE name in every flow that takes screenshots: an ordinary Thai name (the XSS name is used where nothing is shot)
+const LINE_NAME_A = "ต้นข้าว";
+// access requests (numbers that are not on the physician list)
+const UNLISTED = "0900000003";
+const NURSE = "0900000004";
+const WALK_IN = "0900000005";
+const CAPPED = "0900000006";
 const ADMIN_ID = Number(TG_CHAT); // a private chat's id is the user's id
 const STRANGER_ID = 5550001;
 const WEBHOOK_PATH = "/api/telegram/webhook";
@@ -76,9 +92,16 @@ const children = [];
 const issuedCodes = [];
 const shots = [];
 
+/** 0812345678 -> 081-234-5678 (as the app shows it). */
+const fmt = (p) => `${p.slice(0, 3)}-${p.slice(3, 6)}-${p.slice(6)}`;
+/** 0812345678 -> 66812345678 (as deeSMSX takes it). */
+const intl = (p) => `66${p.slice(1)}`;
+
 function baseEnv() {
   const env = { ...process.env };
-  for (const k of Object.keys(env)) if (k.startsWith("VERCEL") || k.startsWith("SMTP_")) delete env[k];
+  for (const k of Object.keys(env)) {
+    if (/^(VERCEL|SMS_|DEESMSX_|ALLOWED_|TELEGRAM_|AUTH_ADMIN)/.test(k)) delete env[k];
+  }
   return env;
 }
 
@@ -210,22 +233,52 @@ function outboxFiles() {
   return existsSync(OUTBOX) ? readdirSync(OUTBOX).filter((f) => f.endsWith(".json")).sort() : [];
 }
 
-// Code emails by default; pass (m) => m.kind === "access_approved" for the approval email.
-async function waitForMail(to, seen, timeoutMs = 10_000, match = (m) => typeof m.code === "string") {
+/** Every OTP the mock deeSMSX issued [{to, pin, ref, sender, token, at}]. */
+async function smsIssued() {
+  return (await fetch(`${SMS}/__control/sms`)).json();
+}
+
+async function smsControl(path, body) {
+  const r = await fetch(`${SMS}/__control/${path}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(`mock deeSMSX ${path} failed`);
+}
+
+/** The next OTP the mock deeSMSX issued to `phone` that is not in `seen` (indexes into the issued list). */
+async function waitForSms(phone, seen, timeoutMs = 10_000) {
+  const end = Date.now() + timeoutMs;
+  while (Date.now() < end) {
+    const all = await smsIssued();
+    for (let i = 0; i < all.length; i++) {
+      if (seen.has(i) || all[i].to !== intl(phone)) continue;
+      seen.add(i);
+      issuedCodes.push(all[i].pin, all[i].token);
+      return all[i];
+    }
+    await sleep(150);
+  }
+  throw new Error(`no SMS to ${fmt(phone)} within ${timeoutMs} ms`);
+}
+
+/** The next local-mode SMS file {to, text, code, ref, at} for `phone` (SMS_PROVIDER=file). */
+async function waitForSmsFile(phone, seen, timeoutMs = 10_000) {
   const end = Date.now() + timeoutMs;
   while (Date.now() < end) {
     for (const f of outboxFiles()) {
       if (seen.has(f)) continue;
       const m = JSON.parse(readFileSync(join(OUTBOX, f), "utf8"));
-      if (m.to === to && match(m)) {
+      if (m.to === phone) {
         seen.add(f);
-        if (m.code) issuedCodes.push(m.code);
+        issuedCodes.push(m.code);
         return m;
       }
     }
     await sleep(150);
   }
-  throw new Error(`no email to ${to} within ${timeoutMs} ms`);
+  throw new Error(`no SMS file for ${fmt(phone)} within ${timeoutMs} ms`);
 }
 
 function assert(cond, msg) {
@@ -233,8 +286,8 @@ function assert(cond, msg) {
 }
 
 /** A session cookie value signed like signSession() in src/lib/tokens.ts (for checks that need no sign-in). */
-function sessionToken(email, secret = SESSION_SECRET, sub = "Ux") {
-  return new SignJWT({ email, name: "x", picture: null })
+function sessionToken(phone, secret = SESSION_SECRET, sub = "Ux") {
+  return new SignJWT({ phone, name: "x", picture: null })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(sub)
     .setIssuer("orskh")
@@ -259,8 +312,8 @@ function trackCsp(page, sink) {
   });
 }
 
-async function lineLogin(page, next) {
-  await page.goto(next ? `${APP}/login?next=${encodeURIComponent(next)}` : `${APP}/login`);
+async function lineLogin(page, next, base = APP) {
+  await page.goto(next ? `${base}/login?next=${encodeURIComponent(next)}` : `${base}/login`);
   await page.click('[data-testid="line-login"]');
   await page.waitForLoadState("networkidle");
 }
@@ -277,6 +330,13 @@ async function noSideScroll(page, label) {
   assert(w[0] <= w[1], `${label}: horizontal scroll ${w[0]} > ${w[1]}`);
 }
 
+/** `inner` lies within `outer` horizontally (nothing spills over a box's border). */
+async function within(page, inner, outer, label) {
+  const [a, b] = await Promise.all([page.locator(inner).boundingBox(), page.locator(outer).boundingBox()]);
+  assert(a && b, `${label}: both elements visible`);
+  assert(a.x >= b.x - 0.5 && a.x + a.width <= b.x + b.width + 0.5, `${label}: ${inner} [${a.x}, ${a.x + a.width}] outside ${outer} [${b.x}, ${b.x + b.width}]`);
+}
+
 /** Every visible button, link and field is at least 44 px tall (touch targets). */
 async function touchTargets(page, label) {
   const small = await page.evaluate(() =>
@@ -288,13 +348,17 @@ async function touchTargets(page, label) {
   assert(small.length === 0, `${label}: touch targets under 44 px: ${JSON.stringify(small)}`);
 }
 
-/** The page at 320 (overflow check), 360 and 1280 px; screenshots <name>-<width>.png. */
-async function shoot(page, name, { full = true } = {}) {
+/**
+ * The page at 320 (overflow check), 360 and 1280 px; screenshots <name>-<width>.png (320 too with `narrow`).
+ * `atEach(width)` runs extra checks at every width.
+ */
+async function shoot(page, name, { full = true, narrow = false, atEach = null } = {}) {
   const size = page.viewportSize();
   for (const width of [320, ...WIDTHS]) {
     await page.setViewportSize({ width, height: width === 1280 ? 900 : 780 });
     await noSideScroll(page, `${name} at ${width}px`);
-    if (width !== 320) {
+    if (atEach) await atEach(width);
+    if (width !== 320 || narrow) {
       // The sign-in card scrolls inside <main> (the page itself never scrolls): grow the window to show all of it.
       const tall = full ? await page.evaluate(() => document.querySelector("main")?.scrollHeight ?? 0) : 0;
       const height = width === 1280 ? 900 : 780;
@@ -336,11 +400,11 @@ async function boardName(page) {
 }
 
 /**
- * The built app creates every table on first use (here: the session check of an unlisted email), then the physician
+ * The built app creates every table on first use (here: the session check of an unlisted number), then the physician
  * list is loaded as in production: scripts/sync-physicians.mjs, from a roster CSV outside the repository.
  */
 async function loadPhysicians(db) {
-  const probe = await rawRequest("/", { host: `localhost:${APP_PORT}`, cookie: `session=${await sessionToken("schema.probe@example.com")}` });
+  const probe = await rawRequest("/", { host: `localhost:${APP_PORT}`, cookie: `session=${await sessionToken("0899999999")}` });
   assert(probe.status === 307, `unlisted session -> ${probe.status}`);
   const tables = await db.query(
     "SELECT string_agg(table_name, ',' ORDER BY table_name) AS t FROM information_schema.tables WHERE table_schema = 'public'",
@@ -354,9 +418,9 @@ async function loadPhysicians(db) {
     writeFileSync(
       roster,
       [
-        "email,name,dept",
-        `${DOC1},${DOC1_NAME},${DOC1_DEPT}`,
-        `Second.Doc@Example.com,${DOC2_NAME},`,
+        "phone,name,dept",
+        `${fmt(DOC1)},${DOC1_NAME},${DOC1_DEPT}`,
+        `+66 ${DOC2.slice(1, 3)} ${DOC2.slice(3, 6)} ${DOC2.slice(6)},${DOC2_NAME},`,
         `${RETIRED},สมศักดิ์ เกษียณ,จักษุ`,
       ].join("\n"),
     );
@@ -365,9 +429,9 @@ async function loadPhysicians(db) {
     rmSync(dir, { recursive: true, force: true });
   }
   // the removal step from README.md
-  await db.query("UPDATE physicians SET active = false, updated_at = now() WHERE email = lower($1)", [RETIRED]);
-  const listed = await db.query("SELECT email FROM physicians WHERE active ORDER BY email");
-  assert(listed.rows.map((r) => r.email).join(",") === `${DOC1},${DOC2}`, `active physicians: ${JSON.stringify(listed.rows)}`);
+  await db.query("UPDATE physicians SET active = false, updated_at = now() WHERE phone = $1", [RETIRED]);
+  const listed = await db.query("SELECT phone FROM physicians WHERE active ORDER BY phone");
+  assert(listed.rows.map((r) => r.phone).join(",") === `${DOC1},${DOC2}`, `active physicians: ${JSON.stringify(listed.rows)}`);
 }
 
 async function main() {
@@ -375,7 +439,9 @@ async function main() {
   // already listening there would answer in place of this build.
   const portsFree = async () => {
     await assertPortFree(APP_PORT, undefined, "E2E_APP_PORT");
+    await assertPortFree(FILE_APP_PORT, undefined, "E2E_FILE_APP_PORT");
     await assertPortFree(LINE_PORT, "127.0.0.1", "E2E_LINE_PORT");
+    await assertPortFree(SMS_PORT, "127.0.0.1", "E2E_SMS_PORT");
   };
   await portsFree();
   rmSync(OUTBOX, { recursive: true, force: true });
@@ -401,11 +467,14 @@ async function main() {
     LINE_API_URL: LINE,
     SESSION_SECRET,
     OTP_PEPPER,
-    // break-glass only: everyone else is in the physicians table
-    ALLOWED_EMAILS: "Break.Glass@Example.com",
+    // break-glass only: everyone else is in the physicians table (any common way of writing the number)
+    ALLOWED_PHONES: ` ${fmt(BREAK_GLASS)} `,
     DATABASE_URL: DB_URL,
-    EMAIL_TRANSPORT: "file",
-    EMAIL_OUTBOX_DIR: OUTBOX,
+    // provider mode against the mock (DEESMSX_SENDER unset: the shared sender deeSMS.OTP)
+    SMS_PROVIDER: "deesmsx",
+    DEESMSX_API_KEY: SMS_API_KEY,
+    DEESMSX_SECRET_KEY: SMS_SECRET_KEY,
+    DEESMSX_API_URL: `${SMS}/v1`,
     TELEGRAM_BOT_TOKEN: TG_TOKEN,
     TELEGRAM_CHAT_ID: TG_CHAT,
     TELEGRAM_API_URL: LINE,
@@ -430,37 +499,51 @@ async function main() {
     MOCK_LINE_CLIENT_ID: LINE_ID,
     MOCK_LINE_CLIENT_SECRET: LINE_SECRET,
   });
+  const sms = startProcess("mock-deesmsx", ["tests/mock-deesmsx.mjs"], {
+    ...baseEnv(),
+    MOCK_SMS_PORT: String(SMS_PORT),
+    MOCK_SMS_API_KEY: SMS_API_KEY,
+    MOCK_SMS_SECRET_KEY: SMS_SECRET_KEY,
+  });
   const app = startProcess("app", ["node_modules/next/dist/bin/next", "start", "-p", String(APP_PORT)], appEnv);
+  let fileApp = null; // the local file mode app, started by its test
   try {
     await waitFor(`${LINE}/__control/health`, line);
+    await waitFor(`${SMS}/__control/health`, sms);
     await waitFor(`${APP}/login`, app);
     // a late exit (for example EADDRINUSE after a race) would leave another server answering
     await sleep(500);
-    for (const p of [line, app]) if (p.exit) throw new Error(`${p.name} exited (${p.exit}); log: ${p.logFile}`);
+    for (const p of [line, sms, app]) if (p.exit) throw new Error(`${p.name} exited (${p.exit}); log: ${p.logFile}`);
     await loadPhysicians(db);
   } catch (e) {
     await db.end();
     throw e;
   }
-  console.log(`[e2e] app ${APP}, mock LINE ${LINE}, db ${DB_URL.replace(/:[^:@/]+@/, ":***@")}`);
+  console.log(`[e2e] app ${APP}, mock LINE ${LINE}, mock deeSMSX ${SMS}, db ${DB_URL.replace(/:[^:@/]+@/, ":***@")}`);
 
   const browser = await chromium.launch();
-  const seenMail = new Set();
+  const seenSms = new Set();
+  const seenFiles = new Set();
   const results = [];
   let ctxA; // signed-in context reused by the logout test
   let genericMessage = "";
   let webhookSecret = ""; // read from the recorded setWebhook call
   let webhookPath = "";
 
-  /** LINE login with a fresh account, then an email that is not on the physician list, verified by code. */
-  async function verifyUnlisted(page, email) {
-    await lineLogin(page);
-    assert(new URL(page.url()).pathname === "/login/verify", `at ${page.url()}`);
-    await page.fill("#email", email);
+  /** On /login/verify: types the number (as `typed`), asks for the code, and returns the SMS the mock deeSMSX issued. */
+  async function requestCode(page, phone, typed = phone) {
+    await page.fill("#phone", typed);
     await page.click('button[type="submit"]');
     await page.waitForSelector('[data-testid="otp-info"]');
-    const mail = await waitForMail(email, seenMail);
-    await page.fill("#code", mail.code);
+    return waitForSms(phone, seenSms);
+  }
+
+  /** LINE login with a fresh account, then a number that is not on the physician list, verified by code. */
+  async function verifyUnlisted(page, phone) {
+    await lineLogin(page);
+    assert(new URL(page.url()).pathname === "/login/verify", `at ${page.url()}`);
+    const sms = await requestCode(page, phone);
+    await page.fill("#code", sms.pin);
     await page.waitForURL(`${APP}/login/request`);
     await page.waitForSelector('[data-testid="request-form"]');
   }
@@ -472,8 +555,8 @@ async function main() {
     await page.click('[data-testid="request-form"] button[type="submit"]');
   }
 
-  async function requestRow(email) {
-    return (await db.query("SELECT * FROM access_requests WHERE email = $1 ORDER BY id DESC LIMIT 1", [email])).rows[0];
+  async function requestRow(phone) {
+    return (await db.query("SELECT * FROM access_requests WHERE phone = $1 ORDER BY id DESC LIMIT 1", [phone])).rows[0];
   }
 
   async function t(name, fn) {
@@ -553,8 +636,8 @@ async function main() {
       assert(same.status === 200, `canonical host is served: ${same.status}`);
     });
 
-    await t("first login: LINE -> email -> code -> board with the physician's full name from the table", async () => {
-      await setIdentity({ sub: SUB_A, name: XSS_NAME, picture: "https://profile.line-scdn.net/0hMockPicture" });
+    await t("first login: LINE -> phone -> SMS code (deeSMSX) -> board with the physician's full name from the table", async () => {
+      await setIdentity({ sub: SUB_A, name: LINE_NAME_A, picture: "https://profile.line-scdn.net/0hMockPicture" });
       ctxA = await newContext(browser);
       const page = await ctxA.newPage();
       const csp = [];
@@ -564,61 +647,87 @@ async function main() {
       assert(!(await cookie(ctxA, "line-tx"))?.value, "tx cookie cleared");
       const pending = await cookie(ctxA, "pending");
       assert(pending?.httpOnly && pending.sameSite === "Lax", "pending cookie HttpOnly+Lax");
-      const who = await page.textContent('[data-testid="line-name"]');
-      assert(who.includes(XSS_NAME), `literal name shown: ${who}`);
-      assert((await page.locator('img[src="x"]').count()) === 0, "no injected <img>");
-      assert((await page.evaluate(() => window.__xss)) === undefined, "no script executed");
-      await touchTargets(page, "/login/verify (email)");
-      await shoot(page, "verify-email");
+      assert((await page.textContent("h1")).includes("ยืนยันเบอร์มือถือ"), `title: ${await page.textContent("h1")}`);
+      assert((await page.textContent('[data-testid="line-name"]')).includes(LINE_NAME_A), "LINE name shown");
+      // the number field: a phone keypad, the browser's saved number, a Thai example
+      const attrs = await page.$eval("#phone", (el) => ({
+        type: el.type,
+        inputMode: el.inputMode,
+        autocomplete: el.autocomplete,
+        placeholder: el.placeholder,
+      }));
+      assert(
+        JSON.stringify(attrs) === JSON.stringify({ type: "tel", inputMode: "numeric", autocomplete: "tel-national", placeholder: "08x-xxx-xxxx" }),
+        `phone field: ${JSON.stringify(attrs)}`,
+      );
+      assert((await page.textContent('label[for="phone"]')).trim() === "เบอร์มือถือ", "phone label");
+      assert(await page.isDisabled('button[type="submit"]'), "send button waits for a number");
+      await touchTargets(page, "/login/verify (phone)");
+      await shoot(page, "verify-phone");
 
-      await page.fill("#email", "  Doctor.One@EXAMPLE.com ");
+      // pasted as on a business card ("+66 (0)", 19 characters): kept whole, normalized by the server, shown back formatted
+      await page.focus("#phone");
+      await page.keyboard.insertText("+66 (0) 81 234 5678");
+      assert((await page.inputValue("#phone")) === "+66 (0) 81 234 5678", `pasted number kept whole: ${await page.inputValue("#phone")}`);
+      assert((await page.textContent('button[type="submit"]')).trim() === "ส่งรหัสทาง SMS", "send button text");
       await page.click('button[type="submit"]');
       await page.waitForSelector('[data-testid="otp-info"]');
-      genericMessage = await page.textContent('[data-testid="otp-info"]');
-      assert(genericMessage.includes(GENERIC), "generic message");
+      const sms = await waitForSms(DOC1, seenSms);
+      assert(sms.sender === "deeSMS.OTP", `shared sender by default: ${sms.sender}`);
+      assert(/^\d{6}$/.test(sms.pin), "a 6-digit pin");
+      genericMessage = (await page.textContent('[data-testid="otp-info"]')).trim();
+      assert(
+        genericMessage === `ส่งรหัสทาง SMS ไปที่ ${fmt(DOC1)} แล้ว · รหัสอ้างอิง ${sms.ref}`,
+        `code-step notice names the number and the SMS's reference: ${genericMessage}`,
+      );
+      assert((await page.textContent('[data-testid="otp-ref"]')) === sms.ref, "reference from deeSMSX");
       assert((await page.textContent('[data-testid="resend"]')).includes("วินาที"), "resend countdown");
+      // the number, the reference and the 5-minute limit are read with the code field
+      const describedBy = await page.getAttribute("#code", "aria-describedby");
+      assert(describedBy === "otp-info code-help code-error", `code field description: ${describedBy}`);
+      assert((await page.evaluate(() => document.activeElement?.id)) === "code", "focus on the code field");
+      const codeAttrs = await page.$eval("#code", (el) => [el.autocomplete, el.inputMode, el.getAttribute("pattern")].join(" "));
+      assert(codeAttrs === "one-time-code numeric [0-9]{6}", `code field: ${codeAttrs}`);
+      assert((await page.getByRole("button", { name: "เปลี่ยนเบอร์" }).count()) === 1, "change-number button");
       await touchTargets(page, "/login/verify (code)");
       await shoot(page, "verify-code");
 
-      const mail = await waitForMail(DOC1, seenMail);
-      assert(/^\d{6}$/.test(mail.code) && mail.subject.includes(mail.code), "mail has code in subject");
-      assert(mail.subject.includes("ORSKH.APP ตารางห้องผ่าตัด"), `subject names the board: ${mail.subject}`);
       // paste-friendly: spaces and Thai digits are accepted
-      const thai = mail.code.replace(/\d/g, (d) => String.fromCharCode(0x0e50 + Number(d)));
+      const thai = sms.pin.replace(/\d/g, (d) => String.fromCharCode(0x0e50 + Number(d)));
       await page.fill("#code", `${thai.slice(0, 3)} ${thai.slice(3)}`);
       await page.waitForURL(`${APP}/`);
       assert((await boardName(page)) === DOC1_NAME, `full name from the table: ${await boardName(page)}`);
       const header = await page.textContent("header");
-      assert(!header.includes("หมอ A"), "the LINE display name is not shown on the board");
-      assert((await page.textContent('[data-testid="account-email"]')).trim() === DOC1, "email in the account menu");
-      const emailStyle = await page.$eval('[data-testid="account-email"]', (el) => {
-        const cs = getComputedStyle(el);
-        return `${cs.whiteSpace} ${cs.textOverflow} ${cs.overflowWrap}`;
-      });
-      assert(emailStyle === "normal clip anywhere", `the whole email wraps, never an ellipsis: ${emailStyle}`);
+      assert(!header.includes(LINE_NAME_A), "the LINE display name is not shown on the board");
+      assert((await page.textContent('[data-testid="account-phone"]')).trim() === fmt(DOC1), "formatted number in the account menu");
+      const phoneStyle = await page.$eval('[data-testid="account-phone"]', (el) => getComputedStyle(el).whiteSpace);
+      assert(phoneStyle === "nowrap", `the number is never broken across lines: ${phoneStyle}`);
       assert((await page.getAttribute('[data-testid="user-menu"] img', "src")) === "https://profile.line-scdn.net/0hMockPicture", "LINE picture");
       const s = await cookie(ctxA, "session");
       assert(s?.httpOnly && s.sameSite === "Lax" && s.path === "/", "session cookie flags");
       assert(!(await cookie(ctxA, "pending"))?.value, "pending cleared");
       await page.waitForLoadState("networkidle");
       assert(csp.length === 0, `CSP violations: ${csp.join(" | ")}`);
-      const b = await db.query("SELECT email FROM line_bindings WHERE line_sub = $1", [SUB_A]);
-      assert(b.rows[0]?.email === DOC1, "binding stored with normalized email");
-      const ev = await db.query("SELECT 1 FROM login_events WHERE line_sub = $1 AND event = 'login_otp'", [SUB_A]);
+      const b = await db.query("SELECT phone FROM line_bindings WHERE line_sub = $1", [SUB_A]);
+      assert(b.rows[0]?.phone === DOC1, "binding stored with the canonical number");
+      const ev = await db.query("SELECT 1 FROM login_events WHERE line_sub = $1 AND phone = $2 AND event = 'login_otp'", [SUB_A, DOC1]);
       assert(ev.rowCount === 1, "login_otp event logged");
+      const row = await db.query("SELECT code_hash, provider_token, ref, used_at FROM otp_codes WHERE line_sub = $1", [SUB_A]);
+      assert(row.rows.length === 1 && row.rows[0].code_hash === null && row.rows[0].used_at, "provider mode stores no code hash; used");
+      assert(row.rows[0].provider_token.startsWith("v1.") && !row.rows[0].provider_token.includes(sms.token), "provider token sealed at rest");
+      assert(row.rows[0].ref === sms.ref, "reference stored");
       // Telegram alert, sent after the response
       const tg = await waitForTelegram(1);
       assert(tg.length === 1, `one Telegram alert: ${tg.length}`);
       assert(tg[0].token === TG_TOKEN && tg[0].chat_id === TG_CHAT && tg[0].parse_mode === "HTML", "alert to the configured chat");
       assert(tg[0].text.startsWith("🆕 <b>ผู้ใช้ใหม่ยืนยันตัวตนสำเร็จ</b>\nORSKH.APP ตารางห้องผ่าตัด\n"), `new-user header: ${tg[0].text}`);
-      assert(tg[0].text.includes(`📧 อีเมล: ${DOC1}`), "alert names the email");
+      assert(tg[0].text.includes(`📱 เบอร์: ${fmt(DOC1)}`), "alert names the number");
       assert(tg[0].text.includes(`\n🩺 แพทย์: ${DOC1_NAME} (${DOC1_DEPT})\n`), "name and department from the physicians table");
-      assert(tg[0].text.includes("&lt;img") && !tg[0].text.includes("<img"), "LINE name escaped in the alert");
-      assert(tg[0].text.includes("👥 ยืนยันแล้วทั้งหมด: 1 อีเมล"), "running total");
+      assert(tg[0].text.includes("👥 ยืนยันแล้วทั้งหมด: 1 เบอร์"), "running total");
       // the code was single use
       const again = await page.request.post(`${APP}/api/auth/otp/verify`, {
         headers: { origin: APP, "content-type": "application/json" },
-        data: { email: DOC1, code: mail.code },
+        data: { phone: DOC1, code: sms.pin },
       });
       assert(again.status() === 401, "pending cookie gone after login");
     });
@@ -646,6 +755,8 @@ async function main() {
         await menu.waitFor({ state: "visible" });
         const box = await menu.boundingBox();
         assert(box.x >= 0 && box.x + box.width <= width, `menu inside the viewport at ${width}px`);
+        const num = await page.locator('[data-testid="account-phone"]').boundingBox();
+        assert(num && num.x >= box.x && num.x + num.width <= box.x + box.width + 0.5, `the number fits in the menu at ${width}px`);
         const out = await page.locator('[data-testid="logout"]').boundingBox();
         assert(out.height >= 44, "sign-out button is 44px tall");
         const file = `board-menu-${width}.png`;
@@ -655,10 +766,10 @@ async function main() {
         await menu.waitFor({ state: "hidden" });
       }
       // a corrected name in the table shows on the next request, with the same session
-      await db.query("UPDATE physicians SET name = $2, updated_at = now() WHERE email = $1", [DOC1, DOC1_FIXED]);
+      await db.query("UPDATE physicians SET name = $2, updated_at = now() WHERE phone = $1", [DOC1, DOC1_FIXED]);
       await page.reload();
       assert((await boardName(page)) === DOC1_FIXED, `corrected name: ${await boardName(page)}`);
-      await db.query("UPDATE physicians SET name = $2, updated_at = now() WHERE email = $1", [DOC1, DOC1_NAME]);
+      await db.query("UPDATE physicians SET name = $2, updated_at = now() WHERE phone = $1", [DOC1, DOC1_NAME]);
       // a signed-in visit to /login must not follow a next= that leaves the site or normalizes to "//host"
       const session = await cookie(ctxA, "session");
       for (const next of ["/.//evil.test", "/..//evil.test", "/%2e//evil.test", "/a/..//evil.test", "//evil.test", "https://evil.test", "/\\evil.test"]) {
@@ -675,17 +786,17 @@ async function main() {
     });
 
     await t("second login with the same LINE account skips the code (binding) and keeps a safe next=", async () => {
-      await setIdentity({ sub: SUB_A, name: "หมอ A" });
+      await setIdentity({ sub: SUB_A, name: LINE_NAME_A });
       const ctx = await newContext(browser);
       const page = await ctx.newPage();
       const visited = [];
       page.on("framenavigated", (f) => f === page.mainFrame() && visited.push(new URL(f.url()).pathname));
-      const before = outboxFiles().length;
+      const before = (await smsIssued()).length;
       await lineLogin(page, "/?room=or-7");
       const at = new URL(page.url());
       assert(at.pathname === "/" && at.search === "?room=or-7", `next kept: ${page.url()}`);
       assert(!visited.includes("/login/verify"), "verify page not shown");
-      assert(outboxFiles().length === before, "no email sent");
+      assert((await smsIssued()).length === before, "no SMS sent");
       assert((await boardName(page)) === DOC1_NAME, "full name again");
       const ev = await db.query("SELECT 1 FROM login_events WHERE line_sub = $1 AND event = 'login_binding'", [SUB_A]);
       assert(ev.rowCount === 1, "login_binding event logged");
@@ -694,7 +805,7 @@ async function main() {
     });
 
     await t("open redirect: next= pointing elsewhere is dropped by /api/auth/line/start", async () => {
-      await setIdentity({ sub: SUB_A, name: "หมอ A" });
+      await setIdentity({ sub: SUB_A, name: LINE_NAME_A });
       for (const next of ["//evil.test/x", "https://evil.test/", "/\\evil.test", "/login/verify", "/api/auth/logout"]) {
         const ctx = await newContext(browser);
         const page = await ctx.newPage();
@@ -706,16 +817,27 @@ async function main() {
       }
     });
 
-    await t("5 wrong codes lock the code (correct code is refused afterwards)", async () => {
-      await setIdentity({ sub: SUB_B, name: "หมอ B" });
+    await t("5 wrong codes lock the code (correct code is refused afterwards); a hostile LINE name is shown as text", async () => {
+      await setIdentity({ sub: SUB_B, name: XSS_NAME });
       const ctx = await newContext(browser);
       const page = await ctx.newPage();
       await lineLogin(page);
-      await page.fill("#email", DOC2);
+      const who = await page.textContent('[data-testid="line-name"]');
+      assert(who.includes(XSS_NAME), `literal name shown: ${who}`);
+      assert((await page.locator('img[src="x"]').count()) === 0, "no injected <img>");
+      assert((await page.evaluate(() => window.__xss)) === undefined, "no script executed");
+      // a landline is refused before anything is sent
+      await page.fill("#phone", "02-123-4567");
       await page.click('button[type="submit"]');
-      await page.waitForSelector('[data-testid="otp-info"]');
-      const mail = await waitForMail(DOC2, seenMail);
-      const wrong = mail.code === "000000" ? "111111" : "000000";
+      await page.waitForSelector("#phone-error");
+      assert((await page.textContent("#phone-error")).includes("เบอร์มือถือไม่ถูกต้อง"), "invalid number message");
+      assert((await page.getAttribute("#phone", "aria-invalid")) === "true", "the number is marked invalid");
+      await page.waitForFunction(() => document.activeElement?.id === "phone", null, { timeout: 2000 });
+      await page.keyboard.press("End");
+      await page.keyboard.type("8");
+      assert((await page.getAttribute("#phone", "aria-invalid")) === null, "editing the number clears the invalid mark");
+      const sms = await requestCode(page, DOC2);
+      const wrong = sms.pin === "000000" ? "111111" : "000000";
       for (let i = 1; i <= 5; i++) {
         await page.fill("#code", wrong);
         const expected = i < 5 ? `เหลือโอกาสอีก ${5 - i} ครั้ง` : "ใส่รหัสผิดเกินจำนวนครั้งที่กำหนด";
@@ -728,49 +850,49 @@ async function main() {
         await page.waitForFunction(() => !document.querySelector("#code")?.value);
       }
       assert(await page.isDisabled("#code"), "code input disabled once locked");
+      // the disabled field cannot hold focus: it goes to the error while the resend countdown runs (not to <body>)
+      await page.waitForFunction(() => ["code-error", "resend"].includes(document.activeElement?.id || document.activeElement?.dataset?.testid), null, { timeout: 2000 });
       assert((await telegramMessages()).length === 1, "no Telegram alert for a locked code");
       const r = await page.request.post(`${APP}/api/auth/otp/verify`, {
         headers: { origin: APP, "content-type": "application/json" },
-        data: { email: DOC2, code: mail.code },
+        data: { phone: DOC2, code: sms.pin },
       });
       const body = await r.json();
       assert(r.status() === 400 && body.reason === "locked", `locked: ${JSON.stringify(body)}`);
       assert(!(await cookie(ctx, "session")), "no session");
       const a = await db.query("SELECT attempts FROM otp_codes WHERE line_sub = $1", [SUB_B]);
       assert(a.rows[0].attempts === 5, `attempts=${a.rows[0].attempts}`);
-      // "เปลี่ยนอีเมล" by keyboard: the button goes away with the code step, so focus must land on the email field
-      // (with the address selected for retyping), not drop to <body>.
-      await page.getByRole("button", { name: "เปลี่ยนอีเมล" }).focus();
+      // "เปลี่ยนเบอร์" by keyboard: the button goes away with the code step, so focus must land on the number field
+      // (with the number selected for retyping), not drop to <body>.
+      await page.getByRole("button", { name: "เปลี่ยนเบอร์" }).focus();
       await page.keyboard.press("Enter");
-      await page.waitForSelector("#email");
+      await page.waitForSelector("#phone");
       const focused = await page.evaluate(() => document.activeElement?.id);
-      assert(focused === "email", `focus after change-email: ${focused || "body"}`);
-      // type="email" exposes no selectionStart, so check the selection by typing over it
-      await page.keyboard.type("x");
-      assert((await page.inputValue("#email")) === "x", `address selected for retyping: ${await page.inputValue("#email")}`);
+      assert(focused === "phone", `focus after change-number: ${focused || "body"}`);
+      await page.keyboard.type("9");
+      assert((await page.inputValue("#phone")) === "9", `number selected for retyping: ${await page.inputValue("#phone")}`);
       await ctx.close();
     });
 
-    await t("unlisted email: same message, a real code is mailed, the code leads to /login/request (no session)", async () => {
+    await t("unlisted number: same answer, a real SMS code, the code leads to /login/request (no session)", async () => {
       await setIdentity({ sub: SUB_C, name: "คนนอก" });
       const ctx = await newContext(browser);
       const page = await ctx.newPage();
       const csp = [];
       trackCsp(page, csp);
       await lineLogin(page);
-      await page.fill("#email", UNLISTED);
-      await page.click('button[type="submit"]');
-      await page.waitForSelector('[data-testid="otp-info"]');
-      const msg = await page.textContent('[data-testid="otp-info"]');
-      assert(msg === genericMessage, "identical message for listed and unlisted emails");
-      const mail = await waitForMail(UNLISTED, seenMail);
-      assert(/^\d{6}$/.test(mail.code), "a real code was mailed");
-      // a wrong code gets exactly the same answer as for a listed email
-      await page.fill("#code", mail.code === "000000" ? "111111" : "000000");
+      const sms = await requestCode(page, UNLISTED);
+      const msg = (await page.textContent('[data-testid="otp-info"]')).trim();
+      const shape = (m) => m.replace(/\d{3}-\d{3}-\d{4}/, "N").replace(/รหัสอ้างอิง \S+$/, "R");
+      assert(shape(msg) === shape(genericMessage), `the same answer for listed and unlisted numbers: ${msg}`);
+      assert(msg.includes(fmt(UNLISTED)) && msg.endsWith(sms.ref), "names this number and its reference");
+      assert(/^\d{6}$/.test(sms.pin), "a real code was sent");
+      // a wrong code gets exactly the same answer as for a listed number
+      await page.fill("#code", sms.pin === "000000" ? "111111" : "000000");
       await page.waitForFunction(() =>
         document.querySelector('[data-testid="otp-error"]')?.textContent?.replace(/ /g, " ").includes("เหลือโอกาสอีก 4 ครั้ง"),
       );
-      await page.fill("#code", mail.code);
+      await page.fill("#code", sms.pin);
       await page.waitForURL(`${APP}/login/request`);
       await page.waitForSelector('[data-testid="request-form"]');
       assert(!(await cookie(ctx, "session")), "no session");
@@ -778,7 +900,7 @@ async function main() {
       const access = await cookie(ctx, "access");
       assert(access?.httpOnly && access.sameSite === "Lax" && access.path === "/", "access cookie HttpOnly+Lax");
       assert(access.expires - Date.now() / 1000 > 11 * 3600 && access.expires - Date.now() / 1000 <= 12 * 3600 + 5, "access cookie ~12 h");
-      assert((await page.textContent('[data-testid="request-email"]')).includes(UNLISTED), "verified email shown");
+      assert((await page.textContent('[data-testid="request-phone"]')).trim() === fmt(UNLISTED), "verified number shown");
       assert((await page.textContent('[data-testid="line-name"]')) === "คนนอก", "LINE name shown");
       for (const [id, label] of [["firstName", "ชื่อ"], ["lastName", "นามสกุล"], ["position", "ตำแหน่ง"]]) {
         assert((await page.textContent(`label[for="${id}"]`)).trim() === label, `label for #${id}`);
@@ -786,26 +908,27 @@ async function main() {
       const options = await page.$$eval("#position option", (os) => os.map((o) => [o.value, o.textContent]));
       assert(JSON.stringify(options) === JSON.stringify([["", "เลือกตำแหน่ง"], ["doctor", "แพทย์"], ["nurse", "พยาบาล"]]), `options ${JSON.stringify(options)}`);
       assert((await page.textContent('[data-testid="request-form"] button[type="submit"]')).trim() === "ส่งคำขอ", "submit button");
-      const ev = await db.query("SELECT 1 FROM login_events WHERE line_sub = $1 AND email = $2 AND event = 'otp_verified_unlisted'", [SUB_C, UNLISTED]);
+      const ev = await db.query("SELECT 1 FROM login_events WHERE line_sub = $1 AND phone = $2 AND event = 'otp_verified_unlisted'", [SUB_C, UNLISTED]);
       assert(ev.rowCount === 1, "otp_verified_unlisted event logged");
       assert((await telegramMessages()).length === 1, "no Telegram message before the form is sent");
-      // verified the wrong address? a way back to the email step (LINE again, then another email)
-      const other = page.locator('[data-testid="request-form"] [data-testid="other-email"]');
-      assert((await other.textContent()).trim() === "ใช้อีเมลอื่น", "use another email link");
+      // verified the wrong number? a way back to the number step (LINE again, then another number)
+      const other = page.locator('[data-testid="request-form"] [data-testid="other-phone"]');
+      assert((await other.textContent()).trim() === "ใช้เบอร์อื่น", "use another number link");
       await other.click();
       await page.waitForURL(`${APP}/login/verify`);
-      await page.waitForSelector("#email");
+      await page.waitForSelector("#phone");
       // still signed out everywhere else; /login offers the way back to the request
       await page.goto(`${APP}/`);
       assert(new URL(page.url()).pathname === "/login", "protected pages still redirect");
       assert((await page.locator('[data-testid="request-status-link"]').count()) === 1, "status link on /login");
+      assert((await page.textContent("main")).includes("SMS"), "/login mentions the SMS code");
       assert(csp.length === 0, `CSP violations: ${csp.join(" | ")}`);
       await ctx.close();
     });
 
     await t("deactivated physicians row: no session, the code leads to /login/request; reactivated: sign-in offered at once", async () => {
       const gated = await rawRequest("/", { host: `localhost:${APP_PORT}`, cookie: `session=${await sessionToken(RETIRED)}` });
-      assert(gated.status === 307 && gated.location?.startsWith("/login"), `session of a deactivated email -> ${gated.status}`);
+      assert(gated.status === 307 && gated.location?.startsWith("/login"), `session of a deactivated number -> ${gated.status}`);
       await setIdentity({ sub: SUB_G, name: "หมอเกษียณ" });
       const ctx = await newContext(browser);
       const page = await ctx.newPage();
@@ -815,19 +938,19 @@ async function main() {
       const status = async () => (await page.request.get(`${APP}/api/auth/access/status`)).json();
       assert((await status()).status === "form", "nothing requested yet");
       // back on the list (the waiting page and the status check read the table, not the 60 s cache)
-      await db.query("UPDATE physicians SET active = true, updated_at = now() WHERE email = lower($1)", [RETIRED]);
+      await db.query("UPDATE physicians SET active = true, updated_at = now() WHERE phone = $1", [RETIRED]);
       assert((await status()).status === "signin", "status says sign in again");
       await page.reload();
       await page.waitForSelector('[data-testid="request-signin"]');
       assert((await page.textContent('[data-testid="request-signin"] a')).includes("เข้าสู่ระบบด้วย LINE"), "sign-in link");
-      await db.query("UPDATE physicians SET active = false, updated_at = now() WHERE email = lower($1)", [RETIRED]);
+      await db.query("UPDATE physicians SET active = false, updated_at = now() WHERE phone = $1", [RETIRED]);
       assert((await status()).status === "form", "removed again");
       assert((await telegramMessages()).length === before, "no Telegram message");
       await ctx.close();
     });
 
     await t("access request approved in Telegram: request with buttons, webhook checks, waiting page signs in with the requested name", async () => {
-      await setIdentity({ sub: SUB_D, name: "พยาบาล <i>ใหม่</i>" });
+      await setIdentity({ sub: SUB_D, name: "มาลี" });
       const ctx = await newContext(browser);
       const page = await ctx.newPage();
       const csp = [];
@@ -836,7 +959,10 @@ async function main() {
       page.on("pageerror", (e) => errors.push(e.message));
       await verifyUnlisted(page, NURSE);
       await touchTargets(page, "/login/request (form)");
-      await shoot(page, "request-form");
+      await shoot(page, "request-form", {
+        narrow: true,
+        atEach: (width) => within(page, '[data-testid="request-phone"]', '[data-testid="request-identity"]', `request header at ${width}px`),
+      });
 
       // validation: field errors in Thai, marked on the field
       await fillRequest(page, "สมหญิง1", "ใจดี", "nurse");
@@ -851,15 +977,20 @@ async function main() {
 
       await fillRequest(page, "  มาลี ", "ศรีสุข", "nurse");
       await page.waitForSelector('[data-testid="request-pending"]');
-      const pendingText = await page.textContent('[data-testid="request-pending"]');
-      assert(pendingText.includes("ส่งคำขอแล้ว รอผู้ดูแลอนุมัติ") && pendingText.includes(NURSE), "pending view names the email");
-      assert(pendingText.includes("เข้าสู่ระบบให้อัตโนมัติ") && pendingText.includes("อีเมล"), "pending view explains what happens next");
-      assert(pendingText.replace(/ /g, " ").includes("ยืนยันอีเมลด้วยรหัส 6 หลักอีกครั้ง"), "closing the page means another code later");
+      const pendingText = (await page.textContent('[data-testid="request-pending"]')).replace(/ /g, " ");
+      assert(pendingText.includes("ส่งคำขอแล้ว รอผู้ดูแลอนุมัติ") && pendingText.includes(fmt(NURSE)), "pending view names the number");
+      assert(pendingText.includes("เข้าสู่ระบบให้อัตโนมัติ"), "pending view explains what happens next");
       assert(
-        (await page.getAttribute('[data-testid="request-pending"] [data-testid="other-email"]', "href")) === "/api/auth/line/start",
-        "use another email from the waiting page",
+        pendingText.includes("“ดูสถานะคำขอเข้าใช้งาน”") && pendingText.includes("12 ชั่วโมง"),
+        "closing the page: the result is on the login page's status button for 12 h (no new SMS code)",
       );
-      await shoot(page, "request-pending");
+      assert(
+        (await page.getAttribute('[data-testid="request-pending"] [data-testid="other-phone"]', "href")) === "/api/auth/line/start",
+        "use another number from the waiting page",
+      );
+      await shoot(page, "request-pending", {
+        atEach: (width) => within(page, '[data-testid="request-phone"]', '[data-testid="request-identity"]', `request header at ${width}px`),
+      });
 
       // the request in the database and in Telegram (sent after the response)
       const row = await requestRow(NURSE);
@@ -872,11 +1003,11 @@ async function main() {
       assert(msgs.length === 1, `one request message: ${msgs.length}`);
       const req = msgs[0];
       const lines = req.text.split("\n");
-      assert(lines[0] === "📝 <b>คำขอเข้าใช้งาน (อีเมลไม่อยู่ในรายชื่อ)</b>" && lines[1] === "ORSKH.APP ตารางห้องผ่าตัด" && lines[2] === "", "header");
+      assert(lines[0] === "📝 <b>คำขอเข้าใช้งาน (เบอร์ไม่อยู่ในรายชื่อ)</b>" && lines[1] === "ORSKH.APP ตารางห้องผ่าตัด" && lines[2] === "", "header");
       assert(lines[3] === "👤 ชื่อ-นามสกุล: มาลี ศรีสุข", lines[3]);
       assert(lines[4] === "💼 ตำแหน่ง: พยาบาล", lines[4]);
-      assert(lines[5] === `📧 อีเมล: ${NURSE} (ยืนยันรหัสแล้ว)`, lines[5]);
-      assert(lines[6] === "💬 ชื่อ LINE: พยาบาล &lt;i&gt;ใหม่&lt;/i&gt;", `LINE name escaped: ${lines[6]}`);
+      assert(lines[5] === `📱 เบอร์: ${fmt(NURSE)} (ยืนยันรหัสแล้ว)`, lines[5]);
+      assert(lines[6] === "💬 ชื่อ LINE: มาลี", lines[6]);
       assert(/^🕒 เวลา: \d{1,2} \S+ 25\d\d \d{2}:\d{2} น\.$/.test(lines[7]) && lines.length === 8, lines[7]);
       assert(req.chat_id === TG_CHAT && req.parse_mode === "HTML" && req.token === TG_TOKEN, "sent to the admin chat as HTML");
       const kb = req.reply_markup?.inline_keyboard;
@@ -916,6 +1047,7 @@ async function main() {
       assert((await telegramCalls("editMessageText")).length === 0, "message not edited");
 
       // the administrator approves
+      const smsBefore = (await smsIssued()).length;
       const ok = await tgWebhook(webhookPath, approve, webhookSecret);
       assert(ok.status === 200 && ok.body === '{"ok":true}', `approve -> ${ok.status} ${ok.body}`);
       const decided = await requestRow(NURSE);
@@ -926,20 +1058,19 @@ async function main() {
       assert(edit.body.reply_markup === undefined, "buttons removed");
       await waitUntil(async () => (await telegramCalls("answerCallbackQuery")).length === 2, "approval answer");
       const answer = (await telegramCalls("answerCallbackQuery"))[1].body.text;
-      assert(answer === "อนุมัติแล้ว ระบบจะส่งอีเมลแจ้งผู้ขอ", `answered before the email is sent: ${answer}`);
-      const mail = await waitForMail(NURSE, seenMail, 10_000, (m) => m.kind === "access_approved");
-      assert(mail.subject === "อนุมัติการเข้าใช้งานแล้ว · ORSKH.APP ตารางห้องผ่าตัด" && mail.text.includes(`${APP}/login`), "approval email");
-      assert(mail.text.includes("ระบบอาจขอให้ยืนยันอีเมลนี้ด้วยรหัส 6 หลักอีกครั้ง"), "approval email mentions the code");
+      assert(answer === "อนุมัติแล้ว หน้ารออนุมัติของผู้ขอจะเข้าสู่ระบบให้เอง", `approval answer: ${answer}`);
 
       // the waiting page notices (polling) and signs in by itself; the board shows the requested name
       await page.waitForURL(`${APP}/`, { timeout: 25_000 });
       assert((await boardName(page)) === "มาลี ศรีสุข", `requested name on the board: ${await boardName(page)}`);
+      assert((await page.textContent('[data-testid="account-phone"]')).trim() === fmt(NURSE), "the approved number in the menu");
       assert((await cookie(ctx, "session"))?.httpOnly, "session cookie");
       assert(!(await cookie(ctx, "access"))?.value, "access cookie cleared");
-      const b = await db.query("SELECT email FROM line_bindings WHERE line_sub = $1", [SUB_D]);
-      assert(b.rows[0]?.email === NURSE, "LINE account bound to the approved email");
+      const b = await db.query("SELECT phone FROM line_bindings WHERE line_sub = $1", [SUB_D]);
+      assert(b.rows[0]?.phone === NURSE, "LINE account bound to the approved number");
       const ev = await db.query("SELECT 1 FROM login_events WHERE line_sub = $1 AND event = 'login_access'", [SUB_D]);
       assert(ev.rowCount === 1, "login_access event logged");
+      assert((await smsIssued()).length === smsBefore, "no SMS is sent on approval (it would cost credit)");
 
       // a second tap (any button): already decided, nothing changes
       const again = await tgWebhook(webhookPath, tapUpdate(`ox:${row.id}:r`, ADMIN_ID, req), webhookSecret);
@@ -953,8 +1084,8 @@ async function main() {
       await ctx.close();
     });
 
-    await t("approved email: LINE fast path; another LINE account verifies by code and the alert shows the request", async () => {
-      await setIdentity({ sub: SUB_D, name: "พยาบาล ใหม่" });
+    await t("approved number: LINE fast path; another LINE account verifies by code and the alert shows the request", async () => {
+      await setIdentity({ sub: SUB_D, name: "มาลี" });
       let ctx = await newContext(browser);
       let page = await ctx.newPage();
       await lineLogin(page);
@@ -962,21 +1093,19 @@ async function main() {
       assert((await boardName(page)) === "มาลี ศรีสุข", "requested name again");
       await ctx.close();
 
-      await setIdentity({ sub: SUB_F, name: "เครื่องใหม่" });
+      await setIdentity({ sub: SUB_F, name: "<b>เครื่องใหม่</b>" });
       ctx = await newContext(browser);
       page = await ctx.newPage();
       const before = (await telegramMessages()).length;
       await lineLogin(page);
-      await page.fill("#email", NURSE);
-      await page.click('button[type="submit"]');
-      await page.waitForSelector('[data-testid="otp-info"]');
-      const mail = await waitForMail(NURSE, seenMail);
-      await page.fill("#code", mail.code);
+      const sms = await requestCode(page, NURSE);
+      await page.fill("#code", sms.pin);
       await page.waitForURL(`${APP}/`);
       await page.waitForSelector('[data-testid="user-menu"]');
-      const alert = await waitUntil(async () => (await telegramMessages()).slice(before).find((m) => m.text.startsWith("🆕")), "verified alert");
+      const alert = await waitUntil(async () => (await telegramMessages()).slice(before).find((m) => m.text.startsWith("⚠️") || m.text.startsWith("🆕")), "verified alert");
       assert(alert.text.includes("\n🩺 พยาบาล: มาลี ศรีสุข (อนุมัติจากคำขอ)\n"), `alert: ${alert.text}`);
-      assert(alert.text.includes(`📧 อีเมล: ${NURSE}`), "alert names the email");
+      assert(alert.text.includes(`📱 เบอร์: ${fmt(NURSE)}`), "alert names the number");
+      assert(alert.text.includes("&lt;b&gt;เครื่องใหม่&lt;/b&gt;") && !alert.text.includes("<b>เครื่องใหม่"), "LINE name escaped in the alert");
       await ctx.close();
     });
 
@@ -988,7 +1117,7 @@ async function main() {
       await fillRequest(page, "Walk-In", "O'Neil", "doctor");
       await page.waitForSelector('[data-testid="request-pending"]');
       const row = await requestRow(WALK_IN);
-      const req = await waitUntil(async () => (await telegramMessages()).find((m) => m.text.includes(WALK_IN)), "request message");
+      const req = await waitUntil(async () => (await telegramMessages()).find((m) => m.text.includes(fmt(WALK_IN))), "request message");
       assert(req.text.includes("💼 ตำแหน่ง: แพทย์") && req.text.includes("👤 ชื่อ-นามสกุล: Walk-In O'Neil"), "doctor request");
       // one polling loop, however often the tab is hidden and shown while a (slow) status check is in flight
       let statusCalls = 0;
@@ -1020,7 +1149,7 @@ async function main() {
       assert(statusCalls === 1, `one status check for four hide/show switches during a slow check: ${statusCalls}`);
       await page.unroute("**/api/auth/access/status");
 
-      const before = outboxFiles().length;
+      const smsBefore = (await smsIssued()).length;
       const edits = (await telegramCalls("editMessageText")).length;
       const r = await tgWebhook(webhookPath, tapUpdate(`ox:${row.id}:r`, ADMIN_ID, req), webhookSecret);
       assert(r.status === 200, `reject -> ${r.status}`);
@@ -1042,7 +1171,7 @@ async function main() {
       assert((await requestRow(WALK_IN)).status === "rejected", "row rejected");
       assert(!(await cookie(ctx, "session")), "no session");
       await sleep(1000);
-      assert(outboxFiles().length === before, "no email on rejection");
+      assert((await smsIssued()).length === smsBefore, "no SMS on rejection");
       const headers = { origin: APP, "content-type": "application/json" };
       const again = await page.request.post(`${APP}/api/auth/access/request`, { headers, data: { firstName: "Walk", lastName: "In", position: "doctor" } });
       assert(again.status() === 409 && (await again.json()).status === "rejected", `re-request -> ${again.status()}`);
@@ -1050,28 +1179,112 @@ async function main() {
       assert(complete.status() === 403, `complete without approval -> ${complete.status()}`);
       const status = await page.request.get(`${APP}/api/auth/access/status`);
       assert((await status.json()).status === "rejected", "status endpoint");
-      assert((await db.query("SELECT count(*)::int AS n FROM access_requests WHERE email = $1", [WALK_IN])).rows[0].n === 1, "one row");
+      assert((await db.query("SELECT count(*)::int AS n FROM access_requests WHERE phone = $1", [WALK_IN])).rows[0].n === 1, "one row");
       await ctx.close();
     });
 
-    await t("break-glass ALLOWED_EMAILS: signs in without a table row and shows the LINE name", async () => {
-      await setIdentity({ sub: SUB_H, name: "ผู้ดูแล ฉุกเฉิน" });
+    await t("break-glass ALLOWED_PHONES: signs in without a table row and shows the LINE name (as text)", async () => {
+      await setIdentity({ sub: SUB_H, name: "ผู้ดูแล <b>ฉุกเฉิน</b>" });
       const ctx = await newContext(browser);
       const page = await ctx.newPage();
       await lineLogin(page);
-      await page.fill("#email", BREAK_GLASS);
+      // written the international way: the same number
+      const sms = await requestCode(page, BREAK_GLASS, `+66 ${BREAK_GLASS.slice(1, 3)} ${BREAK_GLASS.slice(3, 6)} ${BREAK_GLASS.slice(6)}`);
+      await page.fill("#code", sms.pin);
+      await page.waitForURL(`${APP}/`);
+      assert((await boardName(page)) === "ผู้ดูแล <b>ฉุกเฉิน</b>", `LINE name for a number without a row: ${await boardName(page)}`);
+      assert((await page.innerHTML('[data-testid="account-name"]')).includes("&lt;b&gt;"), "the LINE name is text, not markup");
+      assert((await page.textContent('[data-testid="account-phone"]')).trim() === fmt(BREAK_GLASS), "formatted number");
+      assert((await db.query("SELECT 1 FROM physicians WHERE phone = $1", [BREAK_GLASS])).rowCount === 0, "not in the table");
+      await ctx.close();
+    });
+
+    await t("deeSMSX failures: no quota used, a clear Thai message, Telegram alerts; an outage at verify keeps the code", async () => {
+      await setIdentity({ sub: SUB_I, name: "หมอสอง" });
+      const ctx = await newContext(browser);
+      const page = await ctx.newPage();
+      const tgBefore = (await telegramMessages()).length;
+      await lineLogin(page);
+      const sendAndExpect = async (mode, message) => {
+        await smsControl("fail", { mode });
+        await page.fill("#phone", DOC2);
+        await page.click('button[type="submit"]');
+        await page.waitForFunction(
+          (m) => document.querySelector("#phone-error")?.textContent?.replace(/ /g, " ").includes(m),
+          message.replace(/ /g, " "),
+          { timeout: 15_000 },
+        );
+        assert(await page.isVisible("#phone"), `still on the number step after ${mode}`);
+      };
+      const invalidMark = () => page.getAttribute("#phone", "aria-invalid");
+      await sendAndExpect("102", "ขณะนี้ระบบส่ง SMS ไม่ได้ กรุณาลองใหม่ภายหลัง หรือติดต่อผู้ดูแล");
+      assert((await invalidMark()) === null, "no credit: the number is not marked invalid");
+      await sendAndExpect("9", "ระบบยังไม่พร้อม กรุณาติดต่อผู้ดูแล");
+      assert((await invalidMark()) === null, "settings: the number is not marked invalid");
+      await sendAndExpect("99", "ส่ง SMS ไปที่เบอร์นี้ไม่ได้ กรุณาตรวจสอบเบอร์มือถือ");
+      assert((await invalidMark()) === "true", "deeSMSX refused the number: marked invalid");
+      const rows = await db.query("SELECT count(*)::int AS n FROM otp_codes WHERE line_sub = $1", [SUB_I]);
+      assert(rows.rows[0].n === 0, `refused sends leave no row (no quota, no cooldown): ${rows.rows[0].n}`);
+      const failedEv = await db.query("SELECT count(*)::int AS n FROM login_events WHERE line_sub = $1 AND event = 'otp_send_failed'", [SUB_I]);
+      assert(failedEv.rows[0].n === 3, `otp_send_failed logged: ${failedEv.rows[0].n}`);
+      // A gateway's HTML page: deeSMSX may have sent the SMS. The send counts (the row stays, unusable), the user
+      // waits out the cooldown on the number step.
+      await sendAndExpect("html", "ส่งรหัสไม่สำเร็จ หากได้รับ SMS ภายหลัง รหัสนั้นใช้ไม่ได้");
+      assert((await invalidMark()) === null, "maybe sent: the number is not marked invalid");
+      const kept = await db.query("SELECT code_hash, provider_token, expires_at <= created_at AS dead FROM otp_codes WHERE line_sub = $1", [SUB_I]);
+      assert(kept.rows.length === 1 && kept.rows[0].dead && !kept.rows[0].code_hash && !kept.rows[0].provider_token, `maybe-sent row kept, unusable: ${JSON.stringify(kept.rows)}`);
+      const uncertainEv = await db.query("SELECT count(*)::int AS n FROM login_events WHERE line_sub = $1 AND event = 'otp_send_uncertain'", [SUB_I]);
+      assert(uncertainEv.rows[0].n === 1, `otp_send_uncertain logged: ${uncertainEv.rows[0].n}`);
+      assert(await page.isDisabled('button[type="submit"]'), "the send button waits out the cooldown");
+      assert((await page.textContent('button[type="submit"]')).includes("ส่งรหัสได้ใน"), `countdown on the button: ${await page.textContent('button[type="submit"]')}`);
+      // Another number is not held back by that countdown.
+      await page.fill("#phone", "0900000009");
+      assert(!(await page.isDisabled('button[type="submit"]')), "another number may be tried");
+      // Reloaded (no countdown in the page): the server's cooldown refuses it, and as no usable code exists for this
+      // number the page stays on the number step instead of asking for a code that was never sent.
+      const issuedBefore = (await smsIssued()).length;
+      await page.reload();
+      await page.fill("#phone", DOC2);
+      await page.click('button[type="submit"]');
+      await page.waitForSelector("#phone-error");
+      assert((await page.textContent("#phone-error")).includes("ขอรหัสบ่อยเกินไป"), "cooldown message");
+      assert(await page.isVisible("#phone"), "still on the number step: no code is pending");
+      assert((await smsIssued()).length === issuedBefore, "deeSMSX is not asked during the cooldown");
+      await db.query("DELETE FROM otp_codes WHERE line_sub = $1", [SUB_I]); // as if the minute had passed
+      await page.reload();
+      const alerts = await waitUntil(async () => {
+        const m = (await telegramMessages()).slice(tgBefore).map((x) => x.text);
+        return m.length >= 2 ? m : null;
+      }, "SMS problem alerts");
+      assert(alerts.some((x) => x.startsWith("💳 <b>เครดิต SMS หมด ส่งรหัสไม่ได้</b>") && x.includes("(รหัส 102)")), `no-credit alert: ${alerts.join(" | ")}`);
+      assert(alerts.some((x) => x.startsWith("🛠 <b>ตั้งค่า SMS ไม่ถูกต้อง ส่งรหัสไม่ได้</b>") && x.includes("(รหัส 9)")), `settings alert: ${alerts.join(" | ")}`);
+
+      // low credit: the send works and the administrators are told once
+      await smsControl("credit", { balance: 50 });
+      await page.fill("#phone", DOC2);
       await page.click('button[type="submit"]');
       await page.waitForSelector('[data-testid="otp-info"]');
-      const mail = await waitForMail(BREAK_GLASS, seenMail);
-      await page.fill("#code", mail.code);
+      const sms = await waitForSms(DOC2, seenSms);
+      await smsControl("credit", { balance: 5000 });
+      const low = await waitUntil(async () => (await telegramMessages()).slice(tgBefore).find((m) => m.text.startsWith("💳 <b>เครดิต SMS ใกล้หมด</b>")), "low credit alert");
+      assert(low.text.includes("เหลือ 49 เครดิต"), `low credit: ${low.text}`);
+
+      // deeSMSX down while checking: "try again", the typed code stays, the attempt is not counted
+      await smsControl("fail", { mode: "101" });
+      await page.fill("#code", sms.pin);
+      await page.waitForSelector('[data-testid="otp-error"]');
+      assert((await page.textContent('[data-testid="otp-error"]')).includes("เกิดข้อผิดพลาด"), "outage message");
+      assert((await page.inputValue("#code")) === sms.pin, "the code is kept for another try");
+      const att = await db.query("SELECT attempts FROM otp_codes WHERE line_sub = $1", [SUB_I]);
+      assert(att.rows[0].attempts === 0, `attempt refunded: ${att.rows[0].attempts}`);
+      await page.click('form button[type="submit"]');
       await page.waitForURL(`${APP}/`);
-      assert((await boardName(page)) === "ผู้ดูแล ฉุกเฉิน", `LINE name for an address without a row: ${await boardName(page)}`);
-      assert((await db.query("SELECT 1 FROM physicians WHERE email = $1", [BREAK_GLASS])).rowCount === 0, "not in the table");
+      assert((await boardName(page)) === DOC2_NAME, "signed in on the second try");
       await ctx.close();
     });
 
     await t("tampered state -> friendly error page, no session; cancelled login -> error page", async () => {
-      await setIdentity({ sub: SUB_A, name: "หมอ A" });
+      await setIdentity({ sub: SUB_A, name: LINE_NAME_A });
       const ctx = await newContext(browser);
       const page = await ctx.newPage();
       const start = await page.request.get(`${APP}/api/auth/line/start`, { maxRedirects: 0 });
@@ -1097,7 +1310,7 @@ async function main() {
       await setIdentity({ sub: SUB_A, error: "access_denied" });
       await lineLogin(page);
       assert(page.url().includes("/login/error?code=cancelled"), `cancel -> ${page.url()}`);
-      await setIdentity({ sub: SUB_A, name: "หมอ A" });
+      await setIdentity({ sub: SUB_A, name: LINE_NAME_A });
       await ctx.close();
     });
 
@@ -1112,16 +1325,16 @@ async function main() {
       assert(!(await cookie(ctxA, "session"))?.value, "session cookie cleared");
       await page.goto(`${APP}/`);
       assert(new URL(page.url()).pathname === "/login", "redirected after logout");
-      const ev = await db.query("SELECT 1 FROM login_events WHERE line_sub = $1 AND event = 'logout'", [SUB_A]);
+      const ev = await db.query("SELECT 1 FROM login_events WHERE line_sub = $1 AND phone = $2 AND event = 'logout'", [SUB_A, DOC1]);
       assert(ev.rowCount === 1, "logout event logged");
       await ctxA.close();
     });
 
     await t("CSRF: POST without/with foreign Origin is rejected; non-JSON rejected", async () => {
       for (const path of ["/api/auth/otp/send", "/api/auth/otp/verify", "/api/auth/logout", "/api/auth/access/request", "/api/auth/access/complete", "/"]) {
-        const none = await postJson(path, { email: DOC1 });
+        const none = await postJson(path, { phone: DOC1 });
         assert(none.status === 403, `${path} without Origin -> ${none.status}`);
-        const evil = await postJson(path, { email: DOC1 }, { origin: "https://evil.test" });
+        const evil = await postJson(path, { phone: DOC1 }, { origin: "https://evil.test" });
         assert(evil.status === 403, `${path} foreign Origin -> ${evil.status}`);
       }
       const ref = await postJson("/api/auth/logout", {}, { referer: "https://evil.test/x" });
@@ -1129,10 +1342,10 @@ async function main() {
       const text = await fetch(`${APP}/api/auth/otp/send`, {
         method: "POST",
         headers: { origin: APP, "content-type": "text/plain" },
-        body: JSON.stringify({ email: DOC1 }),
+        body: JSON.stringify({ phone: DOC1 }),
       });
       assert(text.status === 415, `text/plain -> ${text.status}`);
-      const noPending = await postJson("/api/auth/otp/send", { email: DOC1 }, { origin: APP });
+      const noPending = await postJson("/api/auth/otp/send", { phone: DOC1 }, { origin: APP });
       assert(noPending.status === 401, `no pending cookie -> ${noPending.status}`);
       for (const path of ["/api/auth/access/request", "/api/auth/access/complete"]) {
         const noAccess = await postJson(path, {}, { origin: APP });
@@ -1143,12 +1356,25 @@ async function main() {
       assert(hook.status === 401, `webhook without Origin and secret -> ${hook.status}`);
     });
 
-    await t("forged or unlisted session tokens are rejected; the break-glass ALLOWED_EMAILS still works", async () => {
-      for (const email of [DOC1, BREAK_GLASS]) {
-        const ok = await rawRequest("/", { host: `localhost:${APP_PORT}`, cookie: `session=${await sessionToken(email)}` });
-        assert(ok.status === 200, `valid token for ${email} -> ${ok.status}`);
+    await t("forged, unlisted or pre-SMS session tokens are rejected; the break-glass ALLOWED_PHONES still works", async () => {
+      for (const phone of [DOC1, BREAK_GLASS]) {
+        const ok = await rawRequest("/", { host: `localhost:${APP_PORT}`, cookie: `session=${await sessionToken(phone)}` });
+        assert(ok.status === 200, `valid token for ${fmt(phone)} -> ${ok.status}`);
       }
-      for (const token of [await sessionToken("intruder@example.org"), await sessionToken(DOC1, "wrong-secret-wrong-secret-wrong-secret")]) {
+      const legacy = await new SignJWT({ email: "someone@example.com", name: "x", picture: null })
+        .setProtectedHeader({ alg: "HS256" })
+        .setSubject("Ux")
+        .setIssuer("orskh")
+        .setAudience("session")
+        .setIssuedAt()
+        .setExpirationTime("1h")
+        .sign(new TextEncoder().encode(SESSION_SECRET));
+      for (const token of [
+        await sessionToken("0899999999"),
+        await sessionToken(fmt(DOC1)), // not the canonical form the app signs
+        await sessionToken(DOC1, "wrong-secret-wrong-secret-wrong-secret"),
+        legacy,
+      ]) {
         const r = await rawRequest("/", { host: `localhost:${APP_PORT}`, cookie: `session=${token}` });
         assert(r.status === 307 && r.location?.startsWith("/login"), `rejected -> ${r.status}`);
       }
@@ -1158,16 +1384,16 @@ async function main() {
       const headers = (token) => ({ host: `localhost:${APP_PORT}`, cookie: `session=${token}` });
       const anon = await rawRequest("/admin", { host: `localhost:${APP_PORT}` });
       assert(anon.status === 307 && anon.location === "/login?next=%2Fadmin", `signed out: ${anon.status} ${anon.location}`);
-      // signed in with an authorized email but a sub that is not an admin: same page as a mistyped address
+      // signed in with an authorized number but a sub that is not an admin: same page as a mistyped address
       for (const token of [await sessionToken(DOC1), await sessionToken(DOC1, SESSION_SECRET, SUB_A)]) {
         const r = await rawRequest("/admin", headers(token));
         assert(r.status === 404, `non-admin /admin -> ${r.status}`);
         const html = await (await fetch(`${APP}/`, { headers: { cookie: `session=${token}` } })).text();
         assert(!html.includes('href="/admin"'), "no admin link on a non-admin's board");
       }
-      // an admin sub with an email that is not authorized gets no session at all
-      const unlisted = await rawRequest("/admin", headers(await sessionToken("intruder@example.org", SESSION_SECRET, ADMIN_SUB)));
-      assert(unlisted.status === 307 && unlisted.location?.startsWith("/login"), `admin sub, unlisted email -> ${unlisted.status}`);
+      // an admin sub with a number that is not authorized gets no session at all
+      const unlisted = await rawRequest("/admin", headers(await sessionToken("0899999999", SESSION_SECRET, ADMIN_SUB)));
+      assert(unlisted.status === 307 && unlisted.location?.startsWith("/login"), `admin sub, unlisted number -> ${unlisted.status}`);
 
       const ctx = await newContext(browser);
       await ctx.addCookies([{ name: "session", value: await sessionToken(DOC2, SESSION_SECRET, ADMIN_SUB), url: APP, httpOnly: true, sameSite: "Lax" }]);
@@ -1205,11 +1431,85 @@ async function main() {
       assert(status.status === 401, `status without access cookie -> ${status.status}`);
     });
 
-    await t("no OTP code appears in server logs", async () => {
-      const log = app.log();
-      for (const code of issuedCodes) assert(!log.includes(code), "code found in server log");
-      assert(!log.includes(SESSION_SECRET) && !log.includes(OTP_PEPPER) && !log.includes(TG_TOKEN), "secret in log");
-      assert(webhookSecret && !log.includes(webhookSecret), "webhook secret in log");
+    await t("local file mode (SMS_PROVIDER=file): the app makes the code, writes the SMS to a file; SMS_DAILY_CAP stops sending", async () => {
+      // the same build, a second server: local mode, and a daily cap two sends above what was sent so far
+      const sent = (await db.query("SELECT count(*)::int AS n FROM otp_codes WHERE created_at > now() - interval '24 hours'")).rows[0].n;
+      const cap = sent + 2;
+      const fileEnv = { ...appEnv, APP_URL: FILE_APP, SMS_PROVIDER: "file", SMS_OUTBOX_DIR: OUTBOX, SMS_DAILY_CAP: String(cap) };
+      for (const k of ["DEESMSX_API_KEY", "DEESMSX_SECRET_KEY", "DEESMSX_API_URL"]) delete fileEnv[k];
+      fileApp = startProcess("app-file", ["node_modules/next/dist/bin/next", "start", "-p", String(FILE_APP_PORT)], fileEnv);
+      await waitFor(`${FILE_APP}/login`, fileApp);
+      const smsBefore = (await smsIssued()).length;
+      const tgBefore = (await telegramMessages()).length;
+
+      // 1: a full sign-in with the code from the file
+      await setIdentity({ sub: SUB_J, name: "หมอสาม" });
+      let ctx = await newContext(browser);
+      let page = await ctx.newPage();
+      await lineLogin(page, undefined, FILE_APP);
+      assert(new URL(page.url()).pathname === "/login/verify", `at ${page.url()}`);
+      await page.fill("#phone", fmt(DOC1));
+      await page.click('button[type="submit"]');
+      await page.waitForSelector('[data-testid="otp-info"]');
+      const file = await waitForSmsFile(DOC1, seenFiles);
+      assert(/^\d{6}$/.test(file.code) && /^[A-Z2-9]{4}$/.test(file.ref) && !Number.isNaN(Date.parse(file.at)), `file: ${JSON.stringify({ ref: file.ref, at: file.at })}`);
+      assert(file.text === `รหัส ORSKH ของคุณคือ ${file.code} ใช้ได้ 5 นาที ห้ามบอกผู้อื่น`, `SMS text: ${file.text}`);
+      assert(!/https?:|www\.|\.com|\.app/i.test(file.text) && file.text.length <= 70, "one SMS, no link");
+      assert((await page.textContent('[data-testid="otp-ref"]')) === file.ref, "the file's reference is on screen");
+      const row = await db.query("SELECT code_hash, provider_token FROM otp_codes WHERE line_sub = $1", [SUB_J]);
+      assert(row.rows[0].code_hash && !row.rows[0].code_hash.includes(file.code) && row.rows[0].provider_token === null, "local mode stores an HMAC only");
+      await page.fill("#code", file.code);
+      await page.waitForURL(`${FILE_APP}/`);
+      assert((await boardName(page)) === DOC1_NAME, `signed in by file mode: ${await boardName(page)}`);
+      await ctx.close();
+
+      // 2: the second send reaches the cap exactly
+      await setIdentity({ sub: SUB_K, name: "คนที่สอง" });
+      ctx = await newContext(browser);
+      page = await ctx.newPage();
+      await lineLogin(page, undefined, FILE_APP);
+      await page.fill("#phone", UNLISTED);
+      await page.click('button[type="submit"]');
+      await page.waitForSelector('[data-testid="otp-info"]');
+      await waitForSmsFile(UNLISTED, seenFiles);
+      await ctx.close();
+
+      // 3: over the cap: nobody gets a code, a Thai message, the administrators are told
+      await setIdentity({ sub: SUB_L, name: "คนที่สาม" });
+      ctx = await newContext(browser);
+      page = await ctx.newPage();
+      await lineLogin(page, undefined, FILE_APP);
+      const files = outboxFiles().length;
+      await page.fill("#phone", CAPPED);
+      await page.click('button[type="submit"]');
+      await page.waitForSelector("#phone-error");
+      const err = (await page.textContent("#phone-error")).trim();
+      assert(err === "ระบบส่ง SMS ครบจำนวนของวันนี้แล้ว กรุณาลองใหม่ภายหลัง หรือติดต่อผู้ดูแล", `cap message: ${err}`);
+      assert((await page.getAttribute("#phone", "aria-invalid")) === null, "the cap does not mark a valid number invalid");
+      await sleep(500);
+      assert(outboxFiles().length === files, "nothing sent over the cap");
+      const capAlert = await waitUntil(
+        async () => (await telegramMessages()).slice(tgBefore).find((m) => m.text.startsWith("🛑 <b>ส่ง SMS ครบเพดานของวันแล้ว หยุดส่งรหัส</b>")),
+        "cap alert",
+      );
+      assert(capAlert.text.includes(`ส่งครบ ${cap.toLocaleString("en-US")} ครั้ง`), `cap alert: ${capAlert.text}`);
+      const capEv = await db.query("SELECT 1 FROM login_events WHERE line_sub = $1 AND phone = $2 AND event = 'otp_daily_cap'", [SUB_L, CAPPED]);
+      assert(capEv.rowCount === 1, "otp_daily_cap logged");
+      assert((await db.query("SELECT 1 FROM otp_codes WHERE line_sub = $1", [SUB_L])).rowCount === 0, "no row over the cap");
+      assert((await smsIssued()).length === smsBefore, "file mode never calls deeSMSX");
+      await ctx.close();
+    });
+
+    await t("no OTP code, deeSMSX token or key appears in server logs", async () => {
+      assert(issuedCodes.length >= 20, `codes and tokens collected: ${issuedCodes.length}`);
+      for (const proc of [app, fileApp].filter(Boolean)) {
+        const log = proc.log();
+        for (const code of issuedCodes) assert(!log.includes(code), `code or token found in the ${proc.name} log`);
+        assert(!log.includes(SESSION_SECRET) && !log.includes(OTP_PEPPER) && !log.includes(TG_TOKEN), `secret in the ${proc.name} log`);
+        assert(!log.includes(SMS_API_KEY) && !log.includes(SMS_SECRET_KEY), `deeSMSX key in the ${proc.name} log`);
+        assert(webhookSecret && !log.includes(webhookSecret), `webhook secret in the ${proc.name} log`);
+      }
+      assert(/\[sms\] deeSMSX OTP request failed: code 102/.test(app.log()), "provider failures are logged by reference code");
     });
   } finally {
     await browser.close();

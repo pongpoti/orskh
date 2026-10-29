@@ -13,7 +13,7 @@ const FAILED: AdminResult = { ok: false, error: "บันทึกไม่ส�
 
 /** Server actions can be called by anyone who can reach the site, so each one checks the admin again. */
 async function signedInAdmin(): Promise<boolean> {
-  // getUser() re-checks the signed session and that the email is still authorized; admins are listed by LINE user id.
+  // getUser() re-checks the signed session and that the phone number is still authorized; admins are listed by LINE user id.
   const user = await getUser();
   return isAdmin(user?.sub);
 }

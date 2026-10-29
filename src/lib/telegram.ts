@@ -3,6 +3,7 @@ import { createHash, createHmac } from "node:crypto";
 import { POSITIONS, type AccessRequest, type Position, type TelegramRef } from "./access";
 import { appUrl, ConfigError, onVercel, sessionSecret, telegramConfig, type TelegramConfig } from "./env";
 import type { OtpHistory } from "./otp";
+import { formatPhone } from "./phone";
 import type { Physician } from "./physician-list";
 import { deriveKey } from "./tokens";
 
@@ -10,18 +11,19 @@ import { deriveKey } from "./tokens";
 export const TELEGRAM_WEBHOOK_PATH = "/api/telegram/webhook";
 
 export interface VerifiedAlert {
-  /** Name and department from the physicians table (active or not); null if the email has no row. */
+  /** Name and department from the physicians table (active or not); null if the number has no row. */
   physician: Physician | null;
-  /** Name and position from the approved access request, for emails without a physicians row. */
+  /** Name and position from the approved access request, for numbers without a physicians row. */
   requester?: { firstName: string; lastName: string; position: Position } | null;
   /** LINE display name: attacker-controlled, so it is flattened and escaped. */
   lineName: string;
-  email: string;
+  /** Canonical mobile number (0812345678), shown in full as 081-234-5678. */
+  phone: string;
   at: Date;
-  /** Earlier code verifications of this email (any LINE account) and of this email by this LINE account. */
+  /** Earlier code verifications of this number (any LINE account) and of this number by this LINE account. */
   history: OtpHistory;
-  /** Distinct emails that have ever verified with a code, including this one. */
-  verifiedEmails: number;
+  /** Distinct numbers that have ever verified with a code, including this one. */
+  verifiedPhones: number;
 }
 
 const TZ = "Asia/Bangkok";
@@ -47,9 +49,8 @@ function text(s: string): string {
 }
 
 /**
- * A value validated before it was stored (normalized email: ASCII, at most 254 characters; names: letters,
- * spaces and . - ', at most 60 each), escaped and never shortened: whoever approves must see the whole
- * address, above all its domain.
+ * A value validated before it was stored (canonical phone number; names: letters, spaces and . - ', at most 60 each),
+ * escaped and never shortened: whoever approves must see the whole number.
  */
 function whole(s: string): string {
   return escapeHtml(flat(s));
@@ -68,14 +69,14 @@ export function thaiDateTime(d: Date): string {
   return `${thaiDate(d)} ${thaiTime(d)} น.`;
 }
 
-/** Telegram HTML message for a successful email-code verification. */
+/** Telegram HTML message for a successful SMS-code verification. */
 export function buildVerifiedAlert(a: VerifiedAlert): string {
-  // A known email on a LINE account that never verified it before is flagged: it may not be the physician.
+  // A known number on a LINE account that never verified it before is flagged: it may not be the physician.
   const header =
-    a.history.email === null
+    a.history.phone === null
       ? "🆕 <b>ผู้ใช้ใหม่ยืนยันตัวตนสำเร็จ</b>"
       : a.history.account === null
-        ? "⚠️ <b>บัญชี LINE ใหม่ของอีเมลที่เคยยืนยันแล้ว</b>"
+        ? "⚠️ <b>บัญชี LINE ใหม่ของเบอร์ที่เคยยืนยันแล้ว</b>"
         : "🔁 <b>ยืนยันตัวตนอีกครั้ง</b>";
   const who = a.physician
     ? `แพทย์: ${text(a.physician.name)}${a.physician.dept ? ` (${text(a.physician.dept)})` : ""}`
@@ -88,22 +89,73 @@ export function buildVerifiedAlert(a: VerifiedAlert): string {
     "",
     `🩺 ${who}`,
     `👤 ชื่อ LINE: ${text(a.lineName) || "ไม่ระบุ"}`,
-    `📧 อีเมล: ${whole(a.email)}`,
+    `📱 เบอร์: ${whole(formatPhone(a.phone))}`,
     `🕒 เวลา: ${thaiDateTime(a.at)}`,
   ];
-  if (a.history.email) lines.push(`🗓 อีเมลนี้ยืนยันครั้งก่อน: ${thaiDate(a.history.email)}`);
-  lines.push(`👥 ยืนยันแล้วทั้งหมด: ${a.verifiedEmails.toLocaleString("th-TH")} อีเมล`);
+  if (a.history.phone) lines.push(`🗓 เบอร์นี้ยืนยันครั้งก่อน: ${thaiDate(a.history.phone)}`);
+  lines.push(`👥 ยืนยันแล้วทั้งหมด: ${a.verifiedPhones.toLocaleString("th-TH")} เบอร์`);
   return lines.join("\n");
 }
 
-/** Telegram HTML message when unusually many sign-in codes were mailed (see VOLUME_ALERT_PER_DAY in lib/otp.ts). */
-export function buildVolumeAlert(sentToday: number, at: Date): string {
+const HEAD = "ORSKH.APP ตารางห้องผ่าตัด";
+
+/** Half of SMS_DAILY_CAP used in 24 h (lib/sms/alerts.ts). */
+export function buildVolumeAlert(sentToday: number, cap: number, at: Date): string {
   return [
-    "⚠️ <b>มีการขอรหัสทางอีเมลมากผิดปกติ</b>",
-    "ORSKH.APP ตารางห้องผ่าตัด",
+    "⚠️ <b>มีการขอรหัสทาง SMS มากผิดปกติ</b>",
+    HEAD,
     "",
-    `📨 ส่งรหัสไปแล้ว ${sentToday.toLocaleString("th-TH")} ครั้งใน 24 ชั่วโมงที่ผ่านมา`,
-    "อีเมลที่ใช้ส่งรหัสมีโควตาต่อวัน ถ้าเกินโควตา ผู้ใช้ใหม่จะไม่ได้รับรหัส ตรวจสอบตาราง otp_codes",
+    `📨 ส่ง SMS ไปแล้ว ${sentToday.toLocaleString("th-TH")} ครั้งใน 24 ชั่วโมงที่ผ่านมา (เพดาน ${cap.toLocaleString("th-TH")} ครั้ง)`,
+    "เมื่อถึงเพดาน ระบบจะหยุดส่งรหัสให้ทุกคน ตรวจสอบตาราง otp_codes",
+    `🕒 เวลา: ${thaiDateTime(at)}`,
+  ].join("\n");
+}
+
+/** SMS_DAILY_CAP reached: nobody gets a code until older ones leave the 24 h window. */
+export function buildCapAlert(cap: number, at: Date): string {
+  return [
+    "🛑 <b>ส่ง SMS ครบเพดานของวันแล้ว หยุดส่งรหัส</b>",
+    HEAD,
+    "",
+    `📨 ส่งครบ ${cap.toLocaleString("th-TH")} ครั้งใน 24 ชั่วโมงที่ผ่านมา ผู้ใช้ใหม่จะยังเข้าสู่ระบบไม่ได้`,
+    "ตรวจสอบตาราง otp_codes ถ้าเป็นการใช้งานจริง เพิ่ม SMS_DAILY_CAP แล้ว redeploy",
+    `🕒 เวลา: ${thaiDateTime(at)}`,
+  ].join("\n");
+}
+
+/**
+ * deeSMSX refused our settings (reference code 9, 100 or 204), has no credit left (102), or repeatedly left it unclear
+ * whether a code was sent (`count` such sends in the last 15 minutes).
+ */
+export function buildSmsProblemAlert(
+  kind: "misconfigured" | "no_credit" | "uncertain",
+  code: number | null,
+  at: Date,
+  count = 0,
+): string {
+  const ref = code === null ? "" : ` (รหัส ${code})`;
+  const what =
+    kind === "no_credit"
+      ? ["💳 <b>เครดิต SMS หมด ส่งรหัสไม่ได้</b>", `deeSMSX แจ้งว่าเครดิตไม่พอ${ref} เติมเครดิตที่ deesmsx.com`]
+      : kind === "uncertain"
+        ? [
+            "⚠️ <b>ส่งรหัสทาง SMS ไม่สำเร็จซ้ำหลายครั้ง</b>",
+            `deeSMSX ไม่ตอบหรือตอบผิดรูปแบบ${ref} ${count} ครั้งใน 15 นาที SMS อาจถูกส่งและตัดเครดิตไปแล้ว ผู้ใช้ต้องขอรหัสใหม่ ตรวจสอบสถานะและเครดิตที่ my.deesmsx.com`,
+          ]
+        : [
+            "🛠 <b>ตั้งค่า SMS ไม่ถูกต้อง ส่งรหัสไม่ได้</b>",
+            `deeSMSX ปฏิเสธคำขอ${ref} ตรวจสอบ DEESMSX_API_KEY, DEESMSX_SECRET_KEY, DEESMSX_SENDER และ OTP Template ที่ my.deesmsx.com`,
+          ];
+  return [what[0], HEAD, "", what[1], `🕒 เวลา: ${thaiDateTime(at)}`].join("\n");
+}
+
+/** The balance deeSMSX reports is low (lib/sms/alerts.ts LOW_CREDIT_BELOW). */
+export function buildLowCreditAlert(balance: number, at: Date): string {
+  return [
+    "💳 <b>เครดิต SMS ใกล้หมด</b>",
+    HEAD,
+    "",
+    `เหลือ ${balance.toLocaleString("th-TH")} เครดิต เติมเครดิตที่ deesmsx.com ก่อนหมด`,
     `🕒 เวลา: ${thaiDateTime(at)}`,
   ].join("\n");
 }
@@ -111,12 +163,12 @@ export function buildVolumeAlert(sentToday: number, at: Date): string {
 /** Telegram HTML message asking an administrator to approve an access request. */
 export function buildRequestMessage(r: AccessRequest): string {
   return [
-    "📝 <b>คำขอเข้าใช้งาน (อีเมลไม่อยู่ในรายชื่อ)</b>",
+    "📝 <b>คำขอเข้าใช้งาน (เบอร์ไม่อยู่ในรายชื่อ)</b>",
     "ORSKH.APP ตารางห้องผ่าตัด",
     "",
     `👤 ชื่อ-นามสกุล: ${whole(r.firstName)} ${whole(r.lastName)}`,
     `💼 ตำแหน่ง: ${POSITIONS[r.position]}`,
-    `📧 อีเมล: ${whole(r.email)} (ยืนยันรหัสแล้ว)`,
+    `📱 เบอร์: ${whole(formatPhone(r.phone))} (ยืนยันรหัสแล้ว)`,
     `💬 ชื่อ LINE: ${text(r.lineName ?? "") || "ไม่ระบุ"}`,
     `🕒 เวลา: ${thaiDateTime(r.createdAt)}`,
   ].join("\n");
@@ -198,12 +250,8 @@ export async function notifyVerified(a: VerifiedAlert): Promise<void> {
   await notify(buildVerifiedAlert(a));
 }
 
-/** Fire-and-forget alert about the number of codes mailed; never throws. */
-export async function notifyVolume(sentToday: number): Promise<void> {
-  await notify(buildVolumeAlert(sentToday, new Date()));
-}
-
-async function notify(html: string): Promise<void> {
+/** Fire-and-forget alert (an HTML message built here); never throws. */
+export async function notify(html: string): Promise<void> {
   try {
     await sendTelegram(html);
   } catch (e) {

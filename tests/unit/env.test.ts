@@ -2,7 +2,7 @@ import "./_setup";
 import assert from "node:assert/strict";
 import { afterEach, describe, test } from "node:test";
 import { cookieName, cookieOptions } from "@/lib/cookies";
-import { allowedEmailsRaw, appUrl, assertOtpReady, ConfigError, lineConfig, mailConfig } from "@/lib/env";
+import { allowedPhonesRaw, appUrl, assertOtpReady, ConfigError, lineConfig, smsConfig } from "@/lib/env";
 import { setTestEnv } from "./_setup";
 
 afterEach(() => setTestEnv());
@@ -12,26 +12,26 @@ describe("env validation", () => {
     delete process.env.OTP_PEPPER;
     delete process.env.DATABASE_URL;
     process.env.SESSION_SECRET = "short-secret-value";
-    process.env.EMAIL_TRANSPORT = "smtp";
-    delete process.env.SMTP_USER;
-    delete process.env.SMTP_PASS;
+    process.env.SMS_PROVIDER = "deesmsx";
+    delete process.env.DEESMSX_API_KEY;
+    delete process.env.DEESMSX_SECRET_KEY;
     try {
       assertOtpReady();
       assert.fail("expected ConfigError");
     } catch (e) {
       assert.ok(e instanceof ConfigError);
-      assert.deepEqual(e.names.sort(), ["DATABASE_URL", "OTP_PEPPER", "SESSION_SECRET", "SMTP_PASS", "SMTP_USER"]);
+      assert.deepEqual(e.names.sort(), ["DATABASE_URL", "DEESMSX_API_KEY", "DEESMSX_SECRET_KEY", "OTP_PEPPER", "SESSION_SECRET"]);
       assert.ok(!e.message.includes("short-secret-value"));
     }
   });
 
-  test("ALLOWED_EMAILS (break-glass list) is optional", () => {
-    delete process.env.ALLOWED_EMAILS;
+  test("ALLOWED_PHONES (break-glass list) is optional", () => {
+    delete process.env.ALLOWED_PHONES;
     assertOtpReady();
-    assert.equal(allowedEmailsRaw(), "");
-    process.env.ALLOWED_EMAILS = "  ";
+    assert.equal(allowedPhonesRaw(), "");
+    process.env.ALLOWED_PHONES = "  ";
     assertOtpReady();
-    assert.equal(allowedEmailsRaw(), "");
+    assert.equal(allowedPhonesRaw(), "");
   });
 
   test("APP_URL is reduced to its origin", () => {
@@ -62,21 +62,27 @@ describe("env validation", () => {
     assert.equal(c.verifyUrl, "https://api.line.me/oauth2/v2.1/verify");
   });
 
-  test("mail transport: dev transports locally, SMTP only on Vercel", () => {
-    process.env.EMAIL_TRANSPORT = "file";
-    process.env.EMAIL_OUTBOX_DIR = "/tmp/outbox";
-    assert.equal(mailConfig().kind, "file");
+  test("SMS: local modes for development, only deeSMSX on Vercel", () => {
+    process.env.SMS_PROVIDER = "file";
+    process.env.SMS_OUTBOX_DIR = "/tmp/outbox";
+    assert.equal(smsConfig().kind, "file");
+    process.env.SMS_PROVIDER = "console";
+    assert.equal(smsConfig().kind, "console");
+    delete process.env.SMS_PROVIDER;
+    assert.throws(() => smsConfig(), (e: unknown) => e instanceof ConfigError && e.names.includes("DEESMSX_API_KEY"), "deesmsx by default");
+    process.env.SMS_PROVIDER = "file";
     process.env.VERCEL = "1";
-    assert.throws(() => mailConfig(), (e: unknown) => e instanceof ConfigError && e.names.includes("SMTP_USER"));
-    process.env.SMTP_USER = "sender@example.com";
-    process.env.SMTP_PASS = "app-password";
-    const m = mailConfig();
-    assert.equal(m.kind, "smtp");
-    assert.equal(m.host, "smtp.gmail.com");
-    assert.equal(m.port, 465);
-    assert.match(m.from, /^"ORSKH\.APP ตารางห้องผ่าตัด" <sender@example\.com>$/);
-    delete process.env.SMTP_USER;
-    delete process.env.SMTP_PASS;
+    assert.throws(() => smsConfig(), (e: unknown) => e instanceof ConfigError && e.names.includes("DEESMSX_SECRET_KEY"));
+    process.env.DEESMSX_API_KEY = "api-key";
+    process.env.DEESMSX_SECRET_KEY = "secret-key";
+    process.env.DEESMSX_SENDER = "ORSKH";
+    const m = smsConfig();
+    assert.equal(m.kind, "deesmsx");
+    assert.equal(m.sender, "ORSKH");
+    assert.equal(m.dailyCap, 300);
+    delete process.env.DEESMSX_API_KEY;
+    delete process.env.DEESMSX_SECRET_KEY;
+    delete process.env.DEESMSX_SENDER;
   });
 
   test("cookie names: __Host- prefix + Secure on https, plain on http", () => {

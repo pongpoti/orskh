@@ -1,8 +1,8 @@
 // Roster CSV -> rows of the table physicians, and what applying it would change. Pure (no files, no database), so
 // tests/unit/sync-physicians.test.ts imports it; scripts/sync-physicians.mjs does the reading and writing.
 
-/** @typedef {{ line: number, email: string, name: string, dept: string | null }} RosterEntry */
-/** @typedef {{ email: string, name: string, dept: string | null, active: boolean }} PhysicianRow */
+/** @typedef {{ line: number, phone: string, name: string, dept: string | null }} RosterEntry */
+/** @typedef {{ phone: string, name: string, dept: string | null, active: boolean }} PhysicianRow */
 /**
  * @typedef {{
  *   added: RosterEntry[],
@@ -13,9 +13,8 @@
  * }} RosterDiff
  */
 
-// Same pattern as EMAIL_RE in lib/email.ts (a unit test keeps the two identical).
-export const EMAIL_RE =
-  /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/;
+// Same pattern as PHONE_RE in lib/phone.ts (a unit test keeps the two identical): Thai mobile numbers, canonical form.
+export const PHONE_RE = /^0[689]\d{8}$/;
 
 /** Longest name or department accepted (a longer cell is a shifted column, not a name). */
 export const TEXT_MAX = 200;
@@ -32,15 +31,23 @@ export const MASS_MIN = 5;
 export const MASS_SHARE = 0.1;
 
 /**
- * NFKC + trim + lowercase, as normalizeEmail() in lib/email.ts. Returns null when not a plausible address.
- * @param {string} input
+ * As normalizePhone() in lib/phone.ts: NFKC, Thai digits to ASCII, spaces, dashes, dots and parentheses removed;
+ * 0XXXXXXXXX, 66XXXXXXXXX and +66XXXXXXXXX (also with the 0 kept: +660XXXXXXXXX) accepted. Returns the canonical
+ * "0812345678", or null.
+ * @param {unknown} input
  * @returns {string | null}
  */
-export function normalizeEmail(input) {
-  if (typeof input !== "string" || input.length > 320) return null;
-  const v = input.normalize("NFKC").trim().toLowerCase();
-  if (v.length < 3 || v.length > 254 || !EMAIL_RE.test(v)) return null;
-  return v;
+export function normalizePhone(input) {
+  if (typeof input !== "string" || input.length > 40) return null;
+  let v = input
+    .normalize("NFKC")
+    .replace(/[\u0E50-\u0E59]/g, (d) => String(d.charCodeAt(0) - 0x0e50))
+    .replace(/[\s\-.()\u2010-\u2015]/g, "");
+  if (/^\+66\d{9}$/.test(v)) v = `0${v.slice(3)}`;
+  else if (/^66\d{9}$/.test(v)) v = `0${v.slice(2)}`;
+  // "+66 (0) 81 234 5678", "+66 081-234-5678": the country code written before the national number with its 0.
+  else if (/^\+?660\d{9}$/.test(v)) v = v.replace(/^\+?66/, "");
+  return PHONE_RE.test(v) ? v : null;
 }
 
 /**
@@ -101,8 +108,8 @@ export function parseCsv(text) {
 }
 
 /**
- * Roster CSV (header email,name,dept; one row per email, alternate addresses as extra rows with the same name)
- * -> entries, or every problem found, each with its line number. Blank lines are skipped; an empty dept is null.
+ * Roster CSV (header phone,name,dept; one row per mobile number, a second number as another row with the same
+ * name) -> entries, or every problem found, each with its line number. Blank lines are skipped; an empty dept is null.
  * @param {string} text
  * @returns {{ entries: RosterEntry[], errors: string[] }}
  */
@@ -115,69 +122,69 @@ export function parseRoster(text) {
   }
   const rows = records.filter((r) => r.fields.some((f) => f.trim() !== ""));
   const header = rows.shift();
-  if (!header || header.fields.map((f) => f.trim().toLowerCase()).join(",") !== "email,name,dept") {
-    return { entries: [], errors: [`line ${header?.line ?? 1}: the header must be email,name,dept`] };
+  if (!header || header.fields.map((f) => f.trim().toLowerCase()).join(",") !== "phone,name,dept") {
+    return { entries: [], errors: [`line ${header?.line ?? 1}: the header must be phone,name,dept`] };
   }
   const errors = [];
   const entries = [];
   const seen = new Map();
   for (const { line, fields } of rows) {
     if (fields.length !== 3) {
-      errors.push(`line ${line}: expected 3 columns (email,name,dept), found ${fields.length}`);
+      errors.push(`line ${line}: expected 3 columns (phone,name,dept), found ${fields.length}`);
       continue;
     }
-    const email = normalizeEmail(fields[0]);
+    const phone = normalizePhone(fields[0]);
     const name = cleanText(fields[1]);
     const dept = cleanText(fields[2]) || null;
     const before = errors.length;
-    if (!email) errors.push(`line ${line}: invalid email ${JSON.stringify(fields[0].trim())}`);
+    if (!phone) errors.push(`line ${line}: invalid Thai mobile number ${JSON.stringify(fields[0].trim())}`);
     if (!name) errors.push(`line ${line}: name is empty`);
     for (const [label, v] of [["name", name], ["dept", dept ?? ""]]) {
       if (v.length > TEXT_MAX) errors.push(`line ${line}: ${label} is longer than ${TEXT_MAX} characters`);
       if (CONTROL_RE.test(v)) errors.push(`line ${line}: ${label} contains control characters`);
     }
-    if (errors.length > before || !email) continue;
-    if (seen.has(email)) {
-      errors.push(`line ${line}: duplicate email ${email} (first on line ${seen.get(email)})`);
+    if (errors.length > before || !phone) continue;
+    if (seen.has(phone)) {
+      errors.push(`line ${line}: duplicate phone ${phone} (first on line ${seen.get(phone)})`);
       continue;
     }
-    seen.set(email, line);
-    entries.push({ line, email, name, dept });
+    seen.set(phone, line);
+    entries.push({ line, phone, name, dept });
   }
   if (!errors.length && !entries.length) errors.push("no physicians in the CSV (it would deactivate everyone)");
   return { entries, errors };
 }
 
 /**
- * What applying the roster changes in the table: added (new emails), changed (active rows with another name or
+ * What applying the roster changes in the table: added (new numbers), changed (active rows with another name or
  * dept), reactivated (inactive rows that are in the CSV again, with its name and dept) and deactivated (active rows
- * missing from the CSV). Rows are never deleted. Lists are sorted by email.
+ * missing from the CSV). Rows are never deleted. Lists are sorted by phone.
  * @param {PhysicianRow[]} current
  * @param {RosterEntry[]} entries
  * @returns {RosterDiff}
  */
 export function diffRoster(current, entries) {
-  const byEmail = new Map(current.map((r) => [r.email, r]));
-  const inCsv = new Set(entries.map((e) => e.email));
+  const byPhone = new Map(current.map((r) => [r.phone, r]));
+  const inCsv = new Set(entries.map((e) => e.phone));
   const added = [];
   const changed = [];
   const reactivated = [];
   let unchanged = 0;
   for (const e of entries) {
-    const row = byEmail.get(e.email);
+    const row = byPhone.get(e.phone);
     if (!row) added.push(e);
     else if (!row.active) reactivated.push({ ...e, before: row });
     else if (row.name !== e.name || (row.dept ?? null) !== e.dept) changed.push({ ...e, before: row });
     else unchanged++;
   }
-  const deactivated = current.filter((r) => r.active && !inCsv.has(r.email));
-  /** @param {{ email: string }} a @param {{ email: string }} b */
-  const byMail = (a, b) => (a.email < b.email ? -1 : a.email > b.email ? 1 : 0);
+  const deactivated = current.filter((r) => r.active && !inCsv.has(r.phone));
+  /** @param {{ phone: string }} a @param {{ phone: string }} b */
+  const order = (a, b) => (a.phone < b.phone ? -1 : a.phone > b.phone ? 1 : 0);
   return {
-    added: added.sort(byMail),
-    changed: changed.sort(byMail),
-    reactivated: reactivated.sort(byMail),
-    deactivated: deactivated.sort(byMail),
+    added: added.sort(order),
+    changed: changed.sort(order),
+    reactivated: reactivated.sort(order),
+    deactivated: deactivated.sort(order),
     unchanged,
   };
 }
@@ -199,15 +206,15 @@ export function formatDiff(d) {
     out.push(`${title} (${list.length}):`);
     for (const x of list) out.push(`  ${mark} ${fn(x)}`);
   };
-  section("added", "+", d.added, (e) => `${e.email}  ${who(e)}`);
+  section("added", "+", d.added, (e) => `${e.phone}  ${who(e)}`);
   section("changed", "~", d.changed, (e) => {
     const parts = [];
     if (e.before.name !== e.name) parts.push(`name ${show(e.before.name)} -> ${show(e.name)}`);
     if ((e.before.dept ?? null) !== e.dept) parts.push(`dept ${show(e.before.dept ?? null)} -> ${show(e.dept)}`);
-    return `${e.email}  ${parts.join(", ")}`;
+    return `${e.phone}  ${parts.join(", ")}`;
   });
-  section("reactivated", "^", d.reactivated, (e) => `${e.email}  ${who(e)}`);
-  section("deactivated", "-", d.deactivated, (r) => `${r.email}  ${who(r)}`);
+  section("reactivated", "^", d.reactivated, (e) => `${e.phone}  ${who(e)}`);
+  section("deactivated", "-", d.deactivated, (r) => `${r.phone}  ${who(r)}`);
   out.push(`unchanged: ${d.unchanged}`);
   return out;
 }
@@ -228,33 +235,33 @@ export function isMassDeactivation(d, current) {
 }
 
 /**
- * Emails with a row that is inactive once the roster is applied: every row whose email is not in the CSV.
+ * Numbers with a row that is inactive once the roster is applied: every row whose number is not in the CSV.
  * @param {PhysicianRow[]} current
  * @param {RosterEntry[]} entries
  * @returns {string[]}
  */
 export function offRoster(current, entries) {
-  const inCsv = new Set(entries.map((e) => e.email));
+  const inCsv = new Set(entries.map((e) => e.phone));
   return current
-    .filter((r) => !inCsv.has(r.email))
-    .map((r) => r.email)
+    .filter((r) => !inCsv.has(r.phone))
+    .map((r) => r.phone)
     .sort();
 }
 
 /**
- * Warning for emails that are off the roster but still have an approved access request: lib/authz.ts keeps
+ * Warning for numbers that are off the roster but still have an approved access request: lib/authz.ts keeps
  * authorizing them until the request is revoked, which the script leaves to the operator (README, "Adding or
- * removing physicians"). The last line is the revoking UPDATE (emails as SQL literals).
- * @param {string[]} emails
+ * removing physicians"). The last line is the revoking UPDATE (numbers as SQL literals).
+ * @param {string[]} phones
  * @returns {string[]}
  */
-export function formatStillApproved(emails) {
-  if (!emails.length) return [];
-  const list = emails.map((e) => `'${e.replaceAll("'", "''")}'`).join(", ");
+export function formatStillApproved(phones) {
+  if (!phones.length) return [];
+  const list = phones.map((p) => `'${p.replaceAll("'", "''")}'`).join(", ");
   return [
-    `off the roster but still authorized by an approved access request (${emails.length}), so they keep signing in:`,
-    ...emails.map((e) => `  ! ${e}`),
+    `off the roster but still authorized by an approved access request (${phones.length}), so they keep signing in:`,
+    ...phones.map((p) => `  ! ${p}`),
     "  revoke in SQL if they should lose access (takes effect within 60 s):",
-    `  UPDATE access_requests SET status = 'rejected', decided_at = now() WHERE status = 'approved' AND email IN (${list});`,
+    `  UPDATE access_requests SET status = 'rejected', decided_at = now() WHERE status = 'approved' AND phone IN (${list});`,
   ];
 }

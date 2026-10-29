@@ -15,7 +15,7 @@ import {
 } from "@/lib/tokens";
 import { TEST_SESSION_SECRET as SECRET } from "./_setup";
 
-const user = { sub: "U123", email: "doc2@example.com", name: "หมอ <b>ทดสอบ</b>", picture: null };
+const user = { sub: "U123", phone: "0900000002", name: "หมอ <b>ทดสอบ</b>", picture: null };
 const enc = new TextEncoder();
 
 function b64json(part: string) {
@@ -39,10 +39,10 @@ describe("session JWT", () => {
     assert.equal(await verifySession(token, `${SECRET}x`), null);
 
     const [h, p, s] = token.split(".");
-    const forged = Buffer.from(JSON.stringify({ ...b64json(p), email: "boss@example.com" })).toString("base64url");
+    const forged = Buffer.from(JSON.stringify({ ...b64json(p), phone: "0812345678" })).toString("base64url");
     assert.equal(await verifySession(`${h}.${forged}.${s}`, SECRET), null);
 
-    const expired = await new SignJWT({ email: user.email })
+    const expired = await new SignJWT({ phone: user.phone })
       .setProtectedHeader({ alg: "HS256" })
       .setSubject("U123")
       .setIssuer("orskh")
@@ -60,8 +60,31 @@ describe("session JWT", () => {
     assert.equal(await verifySession("x".repeat(5000), SECRET), null);
   });
 
+  test("a session from before the switch to SMS (email claim) or with a non-canonical number is refused", async () => {
+    const signed = (claims: Record<string, unknown>) =>
+      new SignJWT(claims)
+        .setProtectedHeader({ alg: "HS256" })
+        .setSubject("U123")
+        .setIssuer("orskh")
+        .setAudience("session")
+        .setIssuedAt()
+        .setExpirationTime("1h")
+        .sign(enc.encode(SECRET));
+    for (const claims of [
+      { email: "someone@example.com" },
+      { phone: "081-234-5678" },
+      { phone: "66812345678" },
+      { phone: "0212345678" },
+      { phone: 812345678 },
+      {},
+    ]) {
+      assert.equal(await verifySession(await signed(claims), SECRET), null, JSON.stringify(claims));
+    }
+    assert.equal((await verifySession(await signed({ phone: "0812345678" }), SECRET))?.phone, "0812345678");
+  });
+
   test("a token for another audience is not a session", async () => {
-    const other = await new SignJWT({ email: user.email })
+    const other = await new SignJWT({ phone: user.phone })
       .setProtectedHeader({ alg: "HS256" })
       .setSubject("U123")
       .setIssuer("orskh")
@@ -89,8 +112,8 @@ describe("pending login token", () => {
   });
 });
 
-describe("access token (verified email, not authorized)", () => {
-  const grant = { sub: "U9", name: "พยาบาล <i>x</i>", picture: null, email: "newcomer@example.com" };
+describe("access token (verified number, not authorized)", () => {
+  const grant = { sub: "U9", name: "พยาบาล <i>x</i>", picture: null, phone: "0910000003" };
 
   test("round trip with its own audience and a 12 hour expiry", async () => {
     const t = await signAccess(grant, SECRET);
@@ -108,7 +131,7 @@ describe("access token (verified email, not authorized)", () => {
     assert.equal(await verifyAccess(await signSession(user, SECRET), SECRET), null);
     assert.equal(await verifyAccess(await signPending({ sub: "U1", name: "n", picture: null, next: "/" }, SECRET), SECRET), null);
     // signed with the session key but claiming the access audience
-    const forged = await new SignJWT({ email: grant.email })
+    const forged = await new SignJWT({ phone: grant.phone })
       .setProtectedHeader({ alg: "HS256" })
       .setSubject("U9")
       .setIssuer("orskh")
@@ -144,18 +167,18 @@ describe("LINE transaction cookie (JWE)", () => {
 
 describe("scripts/dev-session.mjs", () => {
   test("prints a cookie the app accepts", async () => {
-    const out = execFileSync(process.execPath, ["scripts/dev-session.mjs", "Doc2@Example.com", "ผู้ทดสอบ"], {
+    const out = execFileSync(process.execPath, ["scripts/dev-session.mjs", "+66 90-000-0002", "ผู้ทดสอบ"], {
       env: { ...process.env, APP_URL: "http://localhost:3999", SESSION_SECRET: SECRET },
       encoding: "utf8",
     }).trim();
     assert.match(out, /^session=[\w-]+\.[\w-]+\.[\w-]+$/);
     const u = await verifySession(out.slice("session=".length), SECRET);
-    assert.equal(u?.email, "doc2@example.com");
+    assert.equal(u?.phone, "0900000002");
     assert.equal(u?.name, "ผู้ทดสอบ");
   });
 
   test("refuses when APP_URL is https", () => {
-    const r = spawnSync(process.execPath, ["scripts/dev-session.mjs", "doc2@example.com"], {
+    const r = spawnSync(process.execPath, ["scripts/dev-session.mjs", "0900000002"], {
       env: { ...process.env, APP_URL: "https://orskh.vercel.app", SESSION_SECRET: SECRET },
       encoding: "utf8",
     });

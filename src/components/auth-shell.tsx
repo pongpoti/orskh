@@ -61,7 +61,7 @@ export function Notice({
   );
 }
 
-/** Shared frame for the sign-in, email-code, access-request and error pages. */
+/** Shared frame for the sign-in, SMS-code, access-request and error pages. */
 export function AuthShell({
   title,
   description,

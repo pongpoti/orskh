@@ -1,15 +1,11 @@
 import "./_setup";
 import assert from "node:assert/strict";
-import { mkdtempSync, readdirSync, readFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { after, before, beforeEach, describe, test } from "node:test";
 import { createRequest, getRequest, saveTelegramRefs, type AccessRequest } from "@/lib/access";
-import { isAuthorizedEmail, resetAuthzCache } from "@/lib/authz";
+import { isAuthorizedPhone, resetAuthzCache } from "@/lib/authz";
 import { db } from "@/lib/db";
-import { normalizeEmail } from "@/lib/email";
 import {
   buildDecidedMessage,
   buildRequestMessage,
@@ -33,7 +29,7 @@ const GROUP = "-1001234567890";
 
 const REQUEST: AccessRequest = {
   id: "42",
-  email: "newcomer@example.com",
+  phone: "0910000003",
   lineSub: "U1",
   lineName: "Som",
   firstName: "สมชาย",
@@ -51,12 +47,12 @@ describe("Telegram request message", () => {
     assert.equal(
       buildRequestMessage(REQUEST),
       [
-        "📝 <b>คำขอเข้าใช้งาน (อีเมลไม่อยู่ในรายชื่อ)</b>",
+        "📝 <b>คำขอเข้าใช้งาน (เบอร์ไม่อยู่ในรายชื่อ)</b>",
         "ORSKH.APP ตารางห้องผ่าตัด",
         "",
         "👤 ชื่อ-นามสกุล: สมชาย ใจดี",
         "💼 ตำแหน่ง: พยาบาล",
-        "📧 อีเมล: newcomer@example.com (ยืนยันรหัสแล้ว)",
+        "📱 เบอร์: 091-000-0003 (ยืนยันรหัสแล้ว)",
         "💬 ชื่อ LINE: Som",
         "🕒 เวลา: 25 ต.ค. 2569 16:30 น.",
       ].join("\n"),
@@ -69,36 +65,29 @@ describe("Telegram request message", () => {
   test("every value is escaped and flattened to one line", () => {
     const html = buildRequestMessage({
       ...REQUEST,
-      lineName: '<a href="https://evil.test">x</a>\n📧 อีเมล: boss@example.com‮',
-      email: "a&b@example.com",
+      lineName: '<a href="https://evil.test">x</a>\n📱 เบอร์: 081-234-5678‮',
     });
     const lines = html.split("\n");
     assert.equal(lines.length, 8);
-    assert.equal(lines.filter((l) => l.startsWith("📧")).length, 1, "no injected line");
+    assert.equal(lines.filter((l) => l.startsWith("📱")).length, 1, "no injected line");
     assert.ok(lines[6].includes("&lt;a href=") && !lines[6].includes("<a"), lines[6]);
     assert.ok(!html.includes("‮"));
-    assert.ok(lines[5].includes("a&amp;b@example.com"));
+    assert.equal(lines[5], "📱 เบอร์: 091-000-0003 (ยืนยันรหัสแล้ว)");
   });
 
-  test("long addresses and names are shown in full: the domain the approver sees is the one that gets the mail", () => {
-    // A long local part (over 200 characters) and a long domain made to look like the hospital's at its start.
-    const longLocal = `${"somchai.jaidee.".repeat(13)}x@example.com`;
-    const lookalike = ["samutsakhon-hospital", "moph", "go", "th", "x".repeat(60), "attacker", "example", "com"].join(".");
-    const longDomain = `somchai.jaidee@${lookalike}`;
+  test("long names are shown in full and the number is always formatted the same way", () => {
     const first = "ก".repeat(60);
     const last = "ข".repeat(60);
     const at = new Date("2026-10-25T10:05:00Z");
-    for (const email of [longLocal, longDomain]) {
-      assert.equal(normalizeEmail(email), email, "a valid address");
-      assert.ok(email.length > 100);
-      const r = { ...REQUEST, email, firstName: first, lastName: last };
+    for (const phone of ["0812345678", "0611111111"]) {
+      const r = { ...REQUEST, phone, firstName: first, lastName: last };
+      const shown = `${phone.slice(0, 3)}-${phone.slice(3, 6)}-${phone.slice(6)}`;
       for (const html of [buildRequestMessage(r), buildDecidedMessage(r, "approved", at), buildDecidedMessage(r, "rejected", at)]) {
-        assert.ok(html.includes(`\n📧 อีเมล: ${email} (ยืนยันรหัสแล้ว)\n`), html);
+        assert.ok(html.includes(`\n📱 เบอร์: ${shown} (ยืนยันรหัสแล้ว)\n`), html);
         assert.ok(html.includes(`\n👤 ชื่อ-นามสกุล: ${first} ${last}\n`), "the whole name");
         assert.ok(!html.includes("…"), "nothing shortened");
       }
     }
-    assert.ok(buildRequestMessage({ ...REQUEST, email: longDomain }).includes(".attacker.example.com (ยืนยันรหัสแล้ว)"));
   });
 
   test("two buttons in one row; callback_data names the request and the action in <= 64 bytes", () => {
@@ -151,7 +140,6 @@ describe("webhook secret", () => {
 describe("Telegram webhook and Bot API (mock)", () => {
   let server: Server;
   let base = "";
-  let outbox = "";
   const calls: { method: string; token: string; body: Record<string, unknown> }[] = [];
   const failing = new Set<string>();
   let webhook = { url: "", allowed_updates: [] as string[] };
@@ -202,9 +190,6 @@ describe("Telegram webhook and Bot API (mock)", () => {
     process.env.TELEGRAM_BOT_TOKEN = TOKEN;
     process.env.TELEGRAM_CHAT_ID = `${ADMIN}, ${ADMIN_2}, ${GROUP}`;
     process.env.TELEGRAM_API_URL = base;
-    outbox ||= mkdtempSync(join(tmpdir(), "orskh-webhook-outbox-"));
-    process.env.EMAIL_TRANSPORT = "file";
-    process.env.EMAIL_OUTBOX_DIR = outbox;
   }
 
   const secret = () => webhookSecret(TOKEN, TEST_SESSION_SECRET);
@@ -240,9 +225,9 @@ describe("Telegram webhook and Bot API (mock)", () => {
     return { ...reply, read };
   }
 
-  async function newRequest(email: string, sub = "U1"): Promise<AccessRequest> {
+  async function newRequest(phone: string, sub = "U1"): Promise<AccessRequest> {
     const r = await createRequest(await db(), {
-      email,
+      phone,
       sub,
       lineName: "Som",
       firstName: "สมชาย",
@@ -257,7 +242,7 @@ describe("Telegram webhook and Bot API (mock)", () => {
   const answers = () => calls.filter((c) => c.method === "answerCallbackQuery").map((c) => c.body.text);
 
   test("wrong or missing secret: 401, body not read, nothing changes (the webhook is registered again once)", async () => {
-    const r = await newRequest("secret@example.com");
+    const r = await newRequest("0900000011");
     webhook = { url: "", allowed_updates: [] };
     for (const header of [null, "", "wrong", `${secret()}x`, secret().slice(1)]) {
       const res = await post(tap(callbackData(r.id, "approve")), header);
@@ -303,7 +288,7 @@ describe("Telegram webhook and Bot API (mock)", () => {
   });
 
   test("a tap on skh-or-schedule's buttons (same bot, same numbering) is refused and the same-numbered request stays pending", async () => {
-    const r = await newRequest("same-number@example.com", "U-skh");
+    const r = await newRequest("0900000012", "U-skh");
     const tapped = { message_id: 501, chat: { id: ADMIN, type: "private" }, date: 0, text: "skh request" };
     for (const data of [`ar:${r.id}:a`, `ar:${r.id}:r`]) {
       const res = await post(tap(data, ADMIN, tapped));
@@ -311,30 +296,29 @@ describe("Telegram webhook and Bot API (mock)", () => {
       assert.deepEqual(res.body, { ok: true });
     }
     assert.deepEqual(answers(), [ANSWERS.invalid, ANSWERS.invalid]);
-    assert.equal(calls.filter((c) => c.method !== "answerCallbackQuery").length, 0, "the other app's message is not edited, no email");
+    assert.equal(calls.filter((c) => c.method !== "answerCallbackQuery").length, 0, "the other app's message is not edited");
     assert.equal((await getRequest(await db(), r.id))?.status, "pending");
   });
 
   test("a tapper whose id is not in TELEGRAM_CHAT_ID is refused and nothing changes", async () => {
-    const r = await newRequest("outsider@example.com");
+    const r = await newRequest("0900000013");
     for (const from of [333, Number(GROUP), "111", null, 1.5]) {
       const res = await post(tap(callbackData(r.id, "approve"), from));
       assert.equal(res.status, 200);
     }
     assert.deepEqual(answers(), Array(5).fill(ANSWERS.notAdmin));
-    assert.equal(calls.filter((c) => c.method !== "answerCallbackQuery").length, 0, "no edit, no email");
+    assert.equal(calls.filter((c) => c.method !== "answerCallbackQuery").length, 0, "no edit");
     assert.equal((await getRequest(await db(), r.id))?.status, "pending");
   });
 
-  test("approve: decided atomically, messages edited without buttons, requester emailed, email authorized", async () => {
-    const r = await newRequest("approve-me@example.com");
+  test("approve: decided atomically, messages edited without buttons, number authorized, nothing sent to the requester", async () => {
+    const r = await newRequest("0900000014");
     await saveTelegramRefs(await db(), r.id, [
       { chat_id: String(ADMIN), message_id: 77 },
       { chat_id: String(ADMIN_2), message_id: 78 },
     ]);
     resetAuthzCache();
-    assert.equal(await isAuthorizedEmail(r.email), false);
-    const before = readdirSync(outbox).length;
+    assert.equal(await isAuthorizedPhone(r.phone), false);
     const tapped = { message_id: 77, chat: { id: ADMIN, type: "private" }, date: 0, text: "…" };
     const res = await post(tap(callbackData(r.id, "approve"), ADMIN, tapped));
     assert.equal(res.status, 200);
@@ -345,8 +329,8 @@ describe("Telegram webhook and Bot API (mock)", () => {
     assert.equal(row?.decidedBy, String(ADMIN));
     assert.ok(row?.decidedAt instanceof Date);
     assert.deepEqual(answers(), [ANSWERS.approved]);
-    // answered before the email goes out: it says the email will be sent, not that it was
-    assert.equal(ANSWERS.approved, "อนุมัติแล้ว ระบบจะส่งอีเมลแจ้งผู้ขอ");
+    // no SMS or other message goes to the requester: the waiting page signs them in by itself
+    assert.equal(ANSWERS.approved, "อนุมัติแล้ว หน้ารออนุมัติของผู้ขอจะเข้าสู่ระบบให้เอง");
     const edits = calls.filter((c) => c.method === "editMessageText");
     assert.deepEqual(
       edits.map((e) => [e.body.chat_id, e.body.message_id]),
@@ -362,13 +346,13 @@ describe("Telegram webhook and Bot API (mock)", () => {
       assert.match(String(e.body.text), /\n\n✅ <b>อนุมัติแล้ว<\/b> · \d{1,2} \S+ \d{4} \d{2}:\d{2} น\.$/);
       assert.ok(String(e.body.text).startsWith(buildRequestMessage(r)));
     }
-    const mails = readdirSync(outbox).sort().slice(before);
-    assert.equal(mails.length, 1);
-    const mail = JSON.parse(readFileSync(join(outbox, mails[0]), "utf8"));
-    assert.equal(mail.to, r.email);
-    assert.equal(mail.subject, "อนุมัติการเข้าใช้งานแล้ว · ORSKH.APP ตารางห้องผ่าตัด");
-    assert.equal(await isAuthorizedEmail(r.email), true, "this instance knows at once");
-    const ev = await (await db()).query("SELECT line_sub FROM login_events WHERE event = 'access_approved' AND email = $1", [r.email]);
+    assert.deepEqual(
+      [...new Set(calls.map((c) => c.method))].sort(),
+      ["answerCallbackQuery", "editMessageText"],
+      "only the answer and the edits",
+    );
+    assert.equal(await isAuthorizedPhone(r.phone), true, "this instance knows at once");
+    const ev = await (await db()).query("SELECT line_sub FROM login_events WHERE event = 'access_approved' AND phone = $1", [r.phone]);
     assert.deepEqual(ev.rows, [{ line_sub: "U1" }]);
 
     // second tap (any button, any admin): already decided, nothing changes
@@ -376,14 +360,12 @@ describe("Telegram webhook and Bot API (mock)", () => {
     const again = await post(tap(callbackData(r.id, "reject"), ADMIN_2));
     assert.equal(again.status, 200);
     assert.deepEqual(answers(), [ANSWERS.alreadyApproved]);
-    assert.equal(calls.length, 1, "no edit and no email");
+    assert.equal(calls.length, 1, "no edit");
     assert.equal((await getRequest(await db(), r.id))?.status, "approved");
-    assert.equal(readdirSync(outbox).length, before + 1);
   });
 
-  test("reject: edited with the verdict, no email; the tapped message is edited even if none was stored", async () => {
-    const r = await newRequest("reject-me@example.com", "U2");
-    const before = readdirSync(outbox).length;
+  test("reject: edited with the verdict; the tapped message is edited even if none was stored", async () => {
+    const r = await newRequest("0900000015", "U2");
     const tapped = { message_id: 91, chat: { id: ADMIN_2, type: "private" }, date: 0 };
     await post(tap(callbackData(r.id, "reject"), ADMIN_2, tapped));
     assert.equal((await getRequest(await db(), r.id))?.status, "rejected");
@@ -392,7 +374,6 @@ describe("Telegram webhook and Bot API (mock)", () => {
     assert.equal(edits.length, 1);
     assert.deepEqual([edits[0].body.chat_id, edits[0].body.message_id], [String(ADMIN_2), 91]);
     assert.match(String(edits[0].body.text), /\n\n❌ <b>ไม่อนุมัติ<\/b> · /);
-    assert.equal(readdirSync(outbox).length, before, "no email on rejection");
     calls.length = 0;
     await post(tap(callbackData(r.id, "approve")));
     assert.deepEqual(answers(), [ANSWERS.alreadyRejected]);
@@ -403,7 +384,7 @@ describe("Telegram webhook and Bot API (mock)", () => {
     await post(tap(callbackData("987654", "approve")));
     assert.deepEqual(answers(), [ANSWERS.missing]);
 
-    const r = await newRequest("flaky@example.com", "U3");
+    const r = await newRequest("0900000016", "U3");
     await saveTelegramRefs(await db(), r.id, [{ chat_id: String(ADMIN), message_id: 5 }]);
     failing.add("editMessageText");
     failing.add("answerCallbackQuery");
@@ -451,7 +432,7 @@ describe("Telegram webhook and Bot API (mock)", () => {
     webhook = { url: "", allowed_updates: [] };
     await ensureWebhook(); // registered before the rotation
     const old = secret();
-    const r = await newRequest("rotated@example.com", "U4");
+    const r = await newRequest("0900000017", "U4");
     process.env.SESSION_SECRET = `${TEST_SESSION_SECRET}-rotated`; // redeployed with a new SESSION_SECRET
     const current = webhookSecret(TOKEN, process.env.SESSION_SECRET);
     calls.length = 0;

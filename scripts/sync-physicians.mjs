@@ -2,13 +2,13 @@
 // Usage: node scripts/sync-physicians.mjs [--apply] [--allow-mass-deactivate] <roster.csv|->
 //        (or: npm run sync-physicians -- ...)
 // Makes the database table physicians (who may sign in, and their names for the sign-in alert) match a roster CSV:
-// UTF-8, header email,name,dept, one row per email (alternate addresses are extra rows with the same name).
+// UTF-8, header phone,name,dept, one row per Thai mobile number (a second number is another row with the same name).
 // Prints what changes: added, changed (name or dept), reactivated, deactivated (active rows missing from the CSV),
-// and which emails off the roster still sign in through an approved access request (revoking those stays manual).
+// and which numbers off the roster still sign in through an approved access request (revoking those stays manual).
 // Writes only with --apply, in one transaction, and never deletes a row: a removed physician is deactivated, so the
 // alert still names them. --apply refuses to deactivate more than 5 rows and more than 10% of the active ones at
 // once (a partial CSV?) unless --allow-mass-deactivate. The app sees the change within 60 s, no redeploy.
-// The CSV holds physician emails: it must live OUTSIDE the repository ("-" reads stdin). DATABASE_URL comes from
+// The CSV holds physician phone numbers: it must live OUTSIDE the repository ("-" reads stdin). DATABASE_URL comes from
 // env or .env.local. A missing table is created from db/schema.sql (as lib/db.ts does) before the sync.
 import { readFileSync, realpathSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
@@ -54,7 +54,7 @@ function readRoster() {
     }
     const rel = relative(realpathSync(repoRoot), file);
     if (rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel))) {
-      fail("the CSV must live outside the repository (it holds physician emails)");
+      fail("the CSV must live outside the repository (it holds physician phone numbers)");
     }
     try {
       bytes = readFileSync(file);
@@ -99,17 +99,17 @@ async function hasTable(c, name) {
 /** Every row of the table, or null when it does not exist yet. */
 async function currentRows(c) {
   if (!(await hasTable(c, "physicians"))) return null;
-  return (await c.query("SELECT email, name, dept, active FROM physicians ORDER BY email")).rows;
+  return (await c.query("SELECT phone, name, dept, active FROM physicians ORDER BY phone")).rows;
 }
 
-/** Those of `emails` with an approved access request (lib/authz.ts authorizes them without an active row). */
-async function stillApproved(c, emails) {
-  if (!emails.length || !(await hasTable(c, "access_requests"))) return [];
+/** Those of `phones` with an approved access request (lib/authz.ts authorizes them without an active row). */
+async function stillApproved(c, phones) {
+  if (!phones.length || !(await hasTable(c, "access_requests"))) return [];
   const { rows } = await c.query(
-    "SELECT DISTINCT email FROM access_requests WHERE status = 'approved' AND email = ANY($1) ORDER BY email",
-    [emails],
+    "SELECT DISTINCT phone FROM access_requests WHERE status = 'approved' AND phone = ANY($1) ORDER BY phone",
+    [phones],
   );
-  return rows.map((r) => r.email);
+  return rows.map((r) => r.phone);
 }
 
 const { entries, errors } = parseRoster(readRoster());
@@ -124,7 +124,7 @@ const { c, target } = client(url);
 
 try {
   await c.connect();
-  console.log(`database ${target}; CSV: ${entries.length} emails, ${new Set(entries.map((e) => e.name)).size} names`);
+  console.log(`database ${target}; CSV: ${entries.length} numbers, ${new Set(entries.map((e) => e.name)).size} names`);
   const massNote = (diff, current) =>
     `deactivates ${diff.deactivated.length} of ${current.filter((r) => r.active).length} active physicians at once ` +
     "(a partial CSV?): check the list above, then add --allow-mass-deactivate if it is right";
@@ -156,17 +156,17 @@ try {
       process.exitCode = 1;
     } else {
       for (const e of diff.added) {
-        await c.query("INSERT INTO physicians (email, name, dept) VALUES ($1, $2, $3)", [e.email, e.name, e.dept]);
+        await c.query("INSERT INTO physicians (phone, name, dept) VALUES ($1, $2, $3)", [e.phone, e.name, e.dept]);
       }
       for (const e of [...diff.changed, ...diff.reactivated]) {
-        await c.query("UPDATE physicians SET name = $2, dept = $3, active = true, updated_at = now() WHERE email = $1", [
-          e.email,
+        await c.query("UPDATE physicians SET name = $2, dept = $3, active = true, updated_at = now() WHERE phone = $1", [
+          e.phone,
           e.name,
           e.dept,
         ]);
       }
       for (const r of diff.deactivated) {
-        await c.query("UPDATE physicians SET active = false, updated_at = now() WHERE email = $1", [r.email]);
+        await c.query("UPDATE physicians SET active = false, updated_at = now() WHERE phone = $1", [r.phone]);
       }
       const approved = await stillApproved(c, offRoster(current, entries));
       await c.query("COMMIT");

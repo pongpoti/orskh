@@ -6,7 +6,7 @@ import { EncryptJWT, jwtDecrypt, jwtVerify, SignJWT } from "jose";
  * Token formats (all keyed from SESSION_SECRET):
  * - session: HS256 JWT, key = SESSION_SECRET bytes, aud "session", 30 days
  * - pending: HS256 JWT, key = HKDF(SESSION_SECRET, "pending"), aud "pending", 15 min
- * - access: HS256 JWT, key = HKDF(SESSION_SECRET, "access"), aud "access", 12 h (verified email that is not
+ * - access: HS256 JWT, key = HKDF(SESSION_SECRET, "access"), aud "access", 12 h (verified number that is not
  *   authorized yet: lets its owner request access and wait for the decision, never a session)
  * - LINE tx: JWE dir/A256GCM, key = HKDF(SESSION_SECRET, "line-tx"), 10 min (unreadable by the client)
  */
@@ -18,7 +18,8 @@ export const ACCESS_TTL_S = 12 * 3600;
 
 export interface SessionUser {
   sub: string;
-  email: string;
+  /** Canonical Thai mobile number, 0812345678. */
+  phone: string;
   name: string;
   picture: string | null;
 }
@@ -30,12 +31,12 @@ export interface PendingLogin {
   next: string;
 }
 
-/** A LINE account that proved ownership of an email which is not (yet) authorized. */
+/** A LINE account that proved ownership of a mobile number which is not (yet) authorized. */
 export interface AccessGrant {
   sub: string;
   name: string;
   picture: string | null;
-  email: string;
+  phone: string;
 }
 
 export interface LineTx {
@@ -56,8 +57,13 @@ function str(v: unknown, max: number): string | null {
   return typeof v === "string" && v.length > 0 && v.length <= max ? v : null;
 }
 
+/** A canonical phone number claim (sessions from before the switch to SMS carry none and are refused). */
+function phoneClaim(v: unknown): string | null {
+  return typeof v === "string" && /^0[689]\d{8}$/.test(v) ? v : null;
+}
+
 export async function signSession(u: SessionUser, secret: string, ttlS = SESSION_TTL_S): Promise<string> {
-  return new SignJWT({ email: u.email, name: u.name, picture: u.picture })
+  return new SignJWT({ phone: u.phone, name: u.name, picture: u.picture })
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setSubject(u.sub)
     .setIssuer(ISSUER)
@@ -78,9 +84,9 @@ export async function verifySession(token: string | undefined, secret: string): 
       requiredClaims: ["exp", "iat", "sub"],
     });
     const sub = str(payload.sub, 128);
-    const email = str(payload.email, 254);
-    if (!sub || !email) return null;
-    return { sub, email, name: str(payload.name, 200) ?? "", picture: str(payload.picture, 1024) };
+    const phone = phoneClaim(payload.phone);
+    if (!sub || !phone) return null;
+    return { sub, phone, name: str(payload.name, 200) ?? "", picture: str(payload.picture, 1024) };
   } catch {
     return null;
   }
@@ -120,7 +126,7 @@ export async function verifyPending(token: string | undefined, secret: string): 
 }
 
 export async function signAccess(a: AccessGrant, secret: string, ttlS = ACCESS_TTL_S): Promise<string> {
-  return new SignJWT({ name: a.name, picture: a.picture, email: a.email })
+  return new SignJWT({ name: a.name, picture: a.picture, phone: a.phone })
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setSubject(a.sub)
     .setIssuer(ISSUER)
@@ -140,9 +146,9 @@ export async function verifyAccess(token: string | undefined, secret: string): P
       requiredClaims: ["exp", "sub"],
     });
     const sub = str(payload.sub, 128);
-    const email = str(payload.email, 254);
-    if (!sub || !email) return null;
-    return { sub, name: str(payload.name, 200) ?? "", picture: str(payload.picture, 1024), email };
+    const phone = phoneClaim(payload.phone);
+    if (!sub || !phone) return null;
+    return { sub, name: str(payload.name, 200) ?? "", picture: str(payload.picture, 1024), phone };
   } catch {
     return null;
   }

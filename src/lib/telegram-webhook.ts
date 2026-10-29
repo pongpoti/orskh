@@ -4,7 +4,6 @@ import { decideRequest, type DecideResult, type TelegramRef } from "./access";
 import { noteApproved } from "./authz";
 import { db } from "./db";
 import { ConfigError, sessionSecret, telegramConfig, type TelegramConfig } from "./env";
-import { sendApprovalMail } from "./mail";
 import { logEvent } from "./otp";
 import { safeEqual } from "./security";
 import {
@@ -32,8 +31,8 @@ const OK: WebhookReply = { status: 200, body: { ok: true } };
 
 // Shown to the person who tapped (answerCallbackQuery).
 export const ANSWERS = {
-  // Answered before the email goes out (and a failed email is only logged): says it will be sent, not that it was.
-  approved: "อนุมัติแล้ว ระบบจะส่งอีเมลแจ้งผู้ขอ",
+  // Nothing is sent to the requester (no SMS, which would cost credit): their waiting page signs them in by itself.
+  approved: "อนุมัติแล้ว หน้ารออนุมัติของผู้ขอจะเข้าสู่ระบบให้เอง",
   rejected: "บันทึกว่าไม่อนุมัติแล้ว",
   notAdmin: "คุณไม่มีสิทธิ์พิจารณาคำขอนี้",
   alreadyApproved: "คำขอนี้พิจารณาไปแล้ว (อนุมัติ)",
@@ -67,7 +66,8 @@ function tappedMessage(m: unknown): TelegramRef | null {
  * still sends one from before a rotation (healWebhook()). Authentic updates always get 200 quickly (Telegram
  * retries anything else): only callback_query taps on request buttons by an id in TELEGRAM_CHAT_ID change anything,
  * and the decision is a single conditional UPDATE, so a second tap or a redelivered update changes nothing.
- * Telegram calls and the approval email run after the response. Request content is never echoed.
+ * Telegram calls run after the response. Request content is never echoed. The requester is not messaged: the waiting
+ * page signs in by itself, and someone who closed it signs in again with LINE and an SMS code.
  */
 export async function handleTelegramWebhook(
   headers: Headers,
@@ -127,8 +127,8 @@ export async function handleTelegramWebhook(
   }
 
   const approved = r.status === "approved";
-  if (approved) noteApproved(r.email);
-  await logEvent(pool, { event: approved ? "access_approved" : "access_rejected", sub: r.lineSub, email: r.email });
+  if (approved) noteApproved(r.phone);
+  await logEvent(pool, { event: approved ? "access_approved" : "access_rejected", sub: r.lineSub, phone: r.phone });
   const refs = [...r.tgMessages];
   const tapped = tappedMessage(cq.message);
   if (tapped && !refs.some((x) => x.chat_id === tapped.chat_id && x.message_id === tapped.message_id)) refs.push(tapped);
@@ -136,13 +136,6 @@ export async function handleTelegramWebhook(
   defer(async () => {
     await answerCallback(queryId, approved ? ANSWERS.approved : ANSWERS.rejected);
     await markDecided(refs, html);
-    if (approved) {
-      try {
-        await sendApprovalMail(r.email, `${r.firstName} ${r.lastName}`);
-      } catch (e) {
-        console.error("[access] approval email failed:", (e as Error).message);
-      }
-    }
   });
   return OK;
 }

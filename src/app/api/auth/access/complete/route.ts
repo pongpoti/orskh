@@ -11,7 +11,7 @@ import { clientIp, userAgent } from "@/lib/security";
 import { signSession } from "@/lib/tokens";
 
 /**
- * Signs in the waiting page once its request is approved. Re-checks in the database that THIS email has an
+ * Signs in the waiting page once its request is approved. Re-checks in the database that THIS number has an
  * approved request made from THIS LINE account, binds the account (later LINE logins skip the code) and
  * replaces the access cookie with a normal session.
  */
@@ -22,18 +22,18 @@ export async function POST(req: NextRequest) {
   if (grant instanceof NextResponse) return grant;
   try {
     const pool = await db();
-    const approved = await approvedRequest(pool, grant.email, grant.sub);
+    const approved = await approvedRequest(pool, grant.phone, grant.sub);
     if (!approved) return json({ error: MSG.notApproved }, 403);
-    await upsertBinding(pool, grant.sub, grant.email, grant.name);
-    noteApproved(grant.email);
+    await upsertBinding(pool, grant.sub, grant.phone, grant.name);
+    noteApproved(grant.phone);
     await logEvent(pool, {
       event: "login_access",
       sub: grant.sub,
-      email: grant.email,
+      phone: grant.phone,
       ip: clientIp(req.headers),
       userAgent: userAgent(req.headers),
     });
-    const token = await signSession({ sub: grant.sub, email: grant.email, name: grant.name, picture: grant.picture }, sessionSecret());
+    const token = await signSession({ sub: grant.sub, phone: grant.phone, name: grant.name, picture: grant.picture }, sessionSecret());
     const res = NextResponse.json({ ok: true, redirect: "/" }, { headers: { "Cache-Control": "no-store" } });
     clearCookie(res, "access");
     clearCookie(res, "pending");

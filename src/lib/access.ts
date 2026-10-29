@@ -5,8 +5,8 @@ import { withTx } from "./db";
 type Q = Pool | PoolClient;
 
 /**
- * Access requests: a LINE account that verified an email which is not on the physician list asks for access;
- * an administrator approves or rejects it in Telegram (lib/telegram-webhook.ts). An email with an approved
+ * Access requests: a LINE account that verified a mobile number which is not on the physician list asks for access;
+ * an administrator approves or rejects it in Telegram (lib/telegram-webhook.ts). A number with an approved
  * request is authorized like a listed physician (lib/authz.ts).
  */
 
@@ -16,7 +16,7 @@ export type RequestStatus = "pending" | "approved" | "rejected";
 
 export const NAME_MAX = 60;
 export const REQUEST_LIMITS = { perSubDay: 3 } as const;
-/** After a rejection the same email cannot ask again for this long. */
+/** After a rejection the same number cannot ask again for this long. */
 export const REREQUEST_BLOCK_MS = 24 * 3600 * 1000;
 
 // Letters (any script, with their combining marks, e.g. Thai vowels and tone marks), spaces and . - '
@@ -43,7 +43,7 @@ export interface TelegramRef {
 
 export interface AccessRequest {
   id: string;
-  email: string;
+  phone: string;
   lineSub: string;
   lineName: string | null;
   firstName: string;
@@ -58,7 +58,7 @@ export interface AccessRequest {
 
 interface Row {
   id: string;
-  email: string;
+  phone: string;
   line_sub: string;
   line_name: string | null;
   first_name: string;
@@ -72,7 +72,7 @@ interface Row {
 }
 
 const COLUMNS =
-  "id, email, line_sub, line_name, first_name, last_name, position, status, created_at, decided_at, decided_by, tg_messages";
+  "id, phone, line_sub, line_name, first_name, last_name, position, status, created_at, decided_at, decided_by, tg_messages";
 
 function refs(v: unknown): TelegramRef[] {
   if (!Array.isArray(v)) return [];
@@ -85,7 +85,7 @@ function refs(v: unknown): TelegramRef[] {
 function toRequest(r: Row): AccessRequest {
   return {
     id: String(r.id),
-    email: r.email,
+    phone: r.phone,
     lineSub: r.line_sub,
     lineName: r.line_name,
     firstName: r.first_name,
@@ -99,7 +99,7 @@ function toRequest(r: Row): AccessRequest {
   };
 }
 
-/** What /login/request shows for the latest request of an email, seen from one LINE account. */
+/** What /login/request shows for the latest request of a number, seen from one LINE account. */
 export type RequestView = "form" | "pending" | "approved" | "rejected" | "signin";
 
 /**
@@ -117,10 +117,10 @@ export function viewFor(row: AccessRequest | null, sub: string, now = Date.now()
   return now - at < REREQUEST_BLOCK_MS ? "rejected" : "form";
 }
 
-export async function latestRequest(pool: Q, email: string): Promise<AccessRequest | null> {
+export async function latestRequest(pool: Q, phone: string): Promise<AccessRequest | null> {
   const { rows } = await pool.query<Row>(
-    `SELECT ${COLUMNS} FROM access_requests WHERE email = $1 ORDER BY created_at DESC, id DESC LIMIT 1`,
-    [email],
+    `SELECT ${COLUMNS} FROM access_requests WHERE phone = $1 ORDER BY created_at DESC, id DESC LIMIT 1`,
+    [phone],
   );
   return rows.length ? toRequest(rows[0]) : null;
 }
@@ -130,32 +130,32 @@ export async function getRequest(pool: Q, id: string): Promise<AccessRequest | n
   return rows.length ? toRequest(rows[0]) : null;
 }
 
-/** Latest approved request of an email (optionally made from one LINE account), or null. */
-export async function approvedRequest(pool: Q, email: string, sub?: string): Promise<AccessRequest | null> {
+/** Latest approved request of a number (optionally made from one LINE account), or null. */
+export async function approvedRequest(pool: Q, phone: string, sub?: string): Promise<AccessRequest | null> {
   const { rows } = await pool.query<Row>(
     `SELECT ${COLUMNS} FROM access_requests
-     WHERE email = $1 AND status = 'approved' AND ($2::text IS NULL OR line_sub = $2)
+     WHERE phone = $1 AND status = 'approved' AND ($2::text IS NULL OR line_sub = $2)
      ORDER BY decided_at DESC NULLS LAST, id DESC LIMIT 1`,
-    [email, sub ?? null],
+    [phone, sub ?? null],
   );
   return rows.length ? toRequest(rows[0]) : null;
 }
 
-/** True when this one email has an approved request (uses access_requests_approved_idx). */
-export async function isApproved(pool: Q, email: string): Promise<boolean> {
+/** True when this one number has an approved request (uses access_requests_approved_idx). */
+export async function isApproved(pool: Q, phone: string): Promise<boolean> {
   const { rowCount } = await pool.query(
-    "SELECT 1 FROM access_requests WHERE email = $1 AND status = 'approved' LIMIT 1",
-    [email],
+    "SELECT 1 FROM access_requests WHERE phone = $1 AND status = 'approved' LIMIT 1",
+    [phone],
   );
   return rowCount === 1;
 }
 
-/** Every email with an approved request (normalized when stored). */
-export async function approvedEmails(pool: Q): Promise<Set<string>> {
-  const { rows } = await pool.query<{ email: string }>(
-    "SELECT DISTINCT email FROM access_requests WHERE status = 'approved'",
+/** Every number with an approved request (canonical when stored). */
+export async function approvedPhones(pool: Q): Promise<Set<string>> {
+  const { rows } = await pool.query<{ phone: string }>(
+    "SELECT DISTINCT phone FROM access_requests WHERE status = 'approved'",
   );
-  return new Set(rows.map((r) => r.email));
+  return new Set(rows.map((r) => r.phone));
 }
 
 export type CreateResult =
@@ -164,19 +164,19 @@ export type CreateResult =
   | { status: "limited"; retryAfterS: number };
 
 /**
- * Stores a new pending request unless one is pending (one per email, also enforced by a partial unique
- * index), the email was approved, it was rejected less than 24 h ago, or this LINE account already sent
+ * Stores a new pending request unless one is pending (one per number, also enforced by a partial unique
+ * index), the number was approved, it was rejected less than 24 h ago, or this LINE account already sent
  * REQUEST_LIMITS.perSubDay requests in the last 24 h.
  */
 export async function createRequest(
   pool: Pool,
-  r: { email: string; sub: string; lineName: string; firstName: string; lastName: string; position: Position; ip: string },
+  r: { phone: string; sub: string; lineName: string; firstName: string; lastName: string; position: Position; ip: string },
 ): Promise<CreateResult> {
   try {
     return await withTx(pool, async (c) => {
       await c.query("SELECT pg_advisory_xact_lock(hashtext('access-sub:' || $1))", [r.sub]);
-      await c.query("SELECT pg_advisory_xact_lock(hashtext('access-email:' || $1))", [r.email]);
-      const view = viewFor(await latestRequest(c, r.email), r.sub);
+      await c.query("SELECT pg_advisory_xact_lock(hashtext('access-phone:' || $1))", [r.phone]);
+      const view = viewFor(await latestRequest(c, r.phone), r.sub);
       if (view !== "form") return { status: "exists", view };
       const { rows } = await c.query<{ n: number; oldest_s: number | null }>(
         `SELECT count(*)::int AS n, extract(epoch FROM now() - min(created_at))::float8 AS oldest_s
@@ -187,14 +187,14 @@ export async function createRequest(
         return { status: "limited", retryAfterS: Math.max(60, Math.ceil(24 * 3600 - (rows[0].oldest_s ?? 0))) };
       }
       const ins = await c.query<Row>(
-        `INSERT INTO access_requests (email, line_sub, line_name, first_name, last_name, position, ip)
+        `INSERT INTO access_requests (phone, line_sub, line_name, first_name, last_name, position, ip)
          VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING ${COLUMNS}`,
-        [r.email, r.sub, r.lineName.slice(0, 200) || null, r.firstName, r.lastName, r.position, r.ip],
+        [r.phone, r.sub, r.lineName.slice(0, 200) || null, r.firstName, r.lastName, r.position, r.ip],
       );
       return { status: "created", request: toRequest(ins.rows[0]) };
     });
   } catch (e) {
-    // A concurrent request for the same email won the race (partial unique index).
+    // A concurrent request for the same number won the race (partial unique index).
     if ((e as { code?: string }).code === "23505") return { status: "exists", view: "pending" };
     throw e;
   }

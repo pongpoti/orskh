@@ -10,9 +10,9 @@ export async function GET(req: NextRequest) {
   const grant = await accessGrantFor(req);
   if (grant instanceof NextResponse) return grant;
   // Added to the physician list meanwhile: a normal sign-in (LINE + code) now works.
-  if (await isListedPhysician(grant.email)) return json({ status: "signin" });
+  if (await isListedPhysician(grant.phone)) return json({ status: "signin" });
   try {
-    const view = viewFor(await latestRequest(await db(), grant.email), grant.sub);
+    const view = viewFor(await latestRequest(await db(), grant.phone), grant.sub);
     return json({ status: view });
   } catch (e) {
     console.error("[access] status failed:", (e as Error).message);

@@ -6,7 +6,7 @@ import { json, MSG } from "./http";
 import { verifyAccess, type AccessGrant } from "./tokens";
 
 /**
- * Shared by /api/auth/access/*: configuration check, then the access cookie (a verified email that is not
+ * Shared by /api/auth/access/*: configuration check, then the access cookie (a verified number that is not
  * authorized). Returns the grant, or the error response to send.
  */
 export async function accessGrantFor(req: NextRequest): Promise<AccessGrant | NextResponse> {

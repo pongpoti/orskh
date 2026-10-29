@@ -12,11 +12,12 @@ export function setTestEnv(): void {
     APP_URL: "http://localhost:3999",
     SESSION_SECRET: TEST_SESSION_SECRET,
     OTP_PEPPER: TEST_PEPPER,
-    ALLOWED_EMAILS: " Doc.One@Example.com,doc2@example.com ;\n third@example.com ",
+    // break-glass list in three spellings: dashes, +66, spaces
+    ALLOWED_PHONES: " 081-234-5678,+66900000002 ;\n 061 111 1111 ",
     LINE_CHANNEL_ID: "1234567890",
     LINE_CHANNEL_SECRET: "test-line-secret",
     DATABASE_URL: TEST_DB,
-    EMAIL_TRANSPORT: "console",
+    SMS_PROVIDER: "console",
   });
 }
 

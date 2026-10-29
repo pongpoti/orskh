@@ -8,7 +8,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const sp = await searchParams;
   const next = safeNextPath(typeof sp.next === "string" ? sp.next : undefined);
   if (await getUser()) redirect(next);
-  // A verified email that is not authorized yet (access request in progress on this browser).
+  // A verified number that is not authorized yet (access request in progress on this browser).
   const requesting = (await getAccessGrant()) !== null;
 
   return (
@@ -17,7 +17,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <p className="mt-4 text-center text-sm leading-6 text-muted">
         สำหรับแพทย์และพยาบาลที่ได้รับอนุญาตเท่านั้น
         <br />
-        ครั้งแรกต้องยืนยันอีเมลด้วยรหัส 6&nbsp;หลัก
+        ครั้งแรกต้องยืนยันเบอร์มือถือด้วยรหัสทาง SMS
       </p>
       {requesting ? (
         <a className="btn btn-secondary mt-4 w-full" href="/login/request" data-testid="request-status-link">

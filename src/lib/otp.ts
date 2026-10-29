@@ -5,50 +5,71 @@ import { withTx } from "./db";
 
 type Q = Pool | PoolClient;
 
-export const CODE_TTL_MIN = 10;
+export const CODE_TTL_MIN = 5;
 export const MAX_ATTEMPTS = 5;
 export const LIMITS = {
-  perEmail15m: 3,
+  perPhone15m: 3,
   /**
-   * Codes to one address for one LINE account per 24 h (no mail-bombing an inbox). Counted per pair, so
-   * someone else's requests can never block a physician's own sign-in for a day.
+   * Codes to one number for one LINE account per 24 h (no SMS-bombing a phone). Counted per pair, so someone else's
+   * requests can never block a physician's own sign-in for a day.
    */
   perPairDay: 6,
   perSubHour: 5,
-  /** Different addresses one LINE account may ask codes for per 24 h (no mailing arbitrary addresses; room for typos). */
-  emailsPerSubDay: 5,
+  /** Different numbers one LINE account may ask codes for per 24 h (no texting arbitrary numbers; room for typos). */
+  phonesPerSubDay: 5,
   perIpHour: 20,
   cooldownS: 60,
 } as const;
-/**
- * Not a limit: when this many codes were sent in 24 h (all addresses), the administrators are alerted, because
- * the mail account's daily sending quota (about 500 for Gmail) is shared by every sign-in.
- */
-export const VOLUME_ALERT_PER_DAY = 150;
 export const BINDING_MAX_AGE_DAYS = 180;
 
 export function generateCode(): string {
   return randomInt(0, 1_000_000).toString().padStart(6, "0");
 }
 
-/** HMAC-SHA256(OTP_PEPPER, email|sub|code), hex. Only this is stored. */
-export function hashCode(pepper: string, email: string, sub: string, code: string): string {
-  return createHmac("sha256", pepper).update(`${email}|${sub}|${code}`, "utf8").digest("hex");
+/** HMAC-SHA256(OTP_PEPPER, phone|sub|code), hex. Local mode stores only this. */
+export function hashCode(pepper: string, phone: string, sub: string, code: string): string {
+  return createHmac("sha256", pepper).update(`${phone}|${sub}|${code}`, "utf8").digest("hex");
 }
 
-export function codeMatches(pepper: string, email: string, sub: string, code: string, storedHex: string): boolean {
-  const a = Buffer.from(hashCode(pepper, email, sub, code), "hex");
+export function codeMatches(pepper: string, phone: string, sub: string, code: string, storedHex: string): boolean {
+  const a = Buffer.from(hashCode(pepper, phone, sub, code), "hex");
   const b = Buffer.from(storedHex, "hex");
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-export type RequestResult =
-  | { status: "issued"; code: string; sentToday: number }
-  | {
-      status: "limited";
-      reason: "cooldown" | "email" | "pair_day" | "sub" | "sub_emails" | "ip";
-      retryAfterS: number;
-    };
+/** What the SMS side keeps for a code: an HMAC of it (local mode) or the provider's sealed token (deeSMSX). */
+export interface StoredCode {
+  codeHash: string | null;
+  providerToken: string | null;
+}
+
+/**
+ * Why a code was not sent. "failed" and the refusals are certain: no SMS went out. "uncertain": the provider may have
+ * sent (and billed) the SMS although the code cannot be used (a timeout, an unreadable answer, an unknown result).
+ */
+export type SmsFailure = "invalid_number" | "misconfigured" | "no_credit" | "failed" | "uncertain";
+
+export type IssueResult =
+  | { ok: true; ref: string; stored: StoredCode; creditBalance: number | null }
+  | { ok: false; reason: SmsFailure; providerCode: number | null };
+
+export type CheckResult =
+  | { ok: true }
+  | { ok: false; reason: "wrong" | "expired" | "misconfigured" | "failed"; providerCode: number | null };
+
+/** Sends and checks codes: deeSMSX, or the local console/file modes (lib/sms). */
+export interface OtpTransport {
+  issue(args: { phone: string; sub: string; pepper: string }): Promise<IssueResult>;
+  check(args: { phone: string; sub: string; pepper: string; code: string; stored: StoredCode }): Promise<CheckResult>;
+}
+
+export type LimitReason = "cooldown" | "phone" | "pair_day" | "sub" | "sub_phones" | "ip";
+
+export type ReserveResult =
+  | { status: "reserved"; id: string; sentToday: number }
+  | { status: "limited"; reason: LimitReason; retryAfterS: number }
+  /** SMS_DAILY_CAP codes went out in the last 24 h (all numbers together): nothing is sent. */
+  | { status: "capped"; sentToday: number; retryAfterS: number };
 
 const DAY_S = 24 * 3600;
 
@@ -58,197 +79,279 @@ function untilDayWindow(ageS: number | null): number {
 }
 
 /**
- * Creates a code for email+sub after DB-backed rate limits. Every valid address gets a real code:
- * proving ownership comes first; whether the email is authorized is decided after the code is verified
- * (sign-in, or an access request). The limits apply to every address alike, so a refusal says nothing about
- * the physician list. Returns the plaintext code to be emailed (only its HMAC is stored) and how many codes were
- * sent in the last 24 h in total, this one included (see VOLUME_ALERT_PER_DAY).
+ * Checks the rate limits and the global daily cap, then reserves a row for phone+sub (it cannot be verified yet:
+ * expires_at = now). The reservation counts for every limit while the SMS is being sent, so two quick requests
+ * never both send. All reservations are serialized by one advisory lock (held for a few queries, never while the
+ * provider is called), which makes SMS_DAILY_CAP exact. Every valid number is treated alike: the limits never depend
+ * on whether it is on the list.
  */
-export async function requestCode(
+export async function reserveCode(
   pool: Pool,
-  args: { email: string; sub: string; ip: string; pepper: string },
-): Promise<RequestResult> {
-  const { email, sub, ip, pepper } = args;
+  args: { phone: string; sub: string; ip: string; dailyCap: number },
+): Promise<ReserveResult> {
+  const { phone, sub, ip, dailyCap } = args;
   return withTx(pool, async (c) => {
-    // Serialize concurrent sends for the same LINE account and the same email.
-    await c.query("SELECT pg_advisory_xact_lock(hashtext('otp-sub:' || $1))", [sub]);
-    await c.query("SELECT pg_advisory_xact_lock(hashtext('otp-email:' || $1))", [email]);
+    await c.query("SELECT pg_advisory_xact_lock(hashtext('otp-send'))");
     const { rows } = await c.query<{
-      email_15m: number;
+      phone_15m: number;
       pair_24h: number;
       pair_oldest_s: number | null;
       sub_1h: number;
-      sub_emails_24h: number;
-      sub_knows_email: boolean | null;
+      sub_phones_24h: number;
+      sub_knows_phone: boolean | null;
       sub_oldest_s: number | null;
       ip_1h: number;
       pair_age_s: number | null;
     }>(
       `SELECT
-         count(*) FILTER (WHERE email = $1 AND created_at > now() - interval '15 minutes')::int AS email_15m,
-         count(*) FILTER (WHERE email = $1 AND line_sub = $2)::int AS pair_24h,
-         extract(epoch FROM now() - min(created_at) FILTER (WHERE email = $1 AND line_sub = $2))::float8 AS pair_oldest_s,
+         count(*) FILTER (WHERE phone = $1 AND created_at > now() - interval '15 minutes')::int AS phone_15m,
+         count(*) FILTER (WHERE phone = $1 AND line_sub = $2)::int AS pair_24h,
+         extract(epoch FROM now() - min(created_at) FILTER (WHERE phone = $1 AND line_sub = $2))::float8 AS pair_oldest_s,
          count(*) FILTER (WHERE line_sub = $2 AND created_at > now() - interval '1 hour')::int AS sub_1h,
-         count(DISTINCT email) FILTER (WHERE line_sub = $2)::int AS sub_emails_24h,
-         bool_or(line_sub = $2 AND email = $1) AS sub_knows_email,
+         count(DISTINCT phone) FILTER (WHERE line_sub = $2)::int AS sub_phones_24h,
+         bool_or(line_sub = $2 AND phone = $1) AS sub_knows_phone,
          extract(epoch FROM now() - min(created_at) FILTER (WHERE line_sub = $2))::float8 AS sub_oldest_s,
          count(*) FILTER (WHERE ip = $3 AND created_at > now() - interval '1 hour')::int AS ip_1h,
-         extract(epoch FROM now() - max(created_at) FILTER (WHERE email = $1 AND line_sub = $2))::float8 AS pair_age_s
+         extract(epoch FROM now() - max(created_at) FILTER (WHERE phone = $1 AND line_sub = $2))::float8 AS pair_age_s
        FROM otp_codes
        WHERE created_at > now() - interval '24 hours'
-         AND (email = $1 OR line_sub = $2 OR (ip = $3 AND created_at > now() - interval '1 hour'))`,
-      [email, sub, ip],
+         AND (phone = $1 OR line_sub = $2 OR (ip = $3 AND created_at > now() - interval '1 hour'))`,
+      [phone, sub, ip],
     );
     const r = rows[0];
     if (r.pair_age_s !== null && r.pair_age_s < LIMITS.cooldownS) {
       return { status: "limited", reason: "cooldown", retryAfterS: Math.max(1, Math.ceil(LIMITS.cooldownS - r.pair_age_s)) };
     }
-    if (r.email_15m >= LIMITS.perEmail15m) return { status: "limited", reason: "email", retryAfterS: 15 * 60 };
+    if (r.phone_15m >= LIMITS.perPhone15m) return { status: "limited", reason: "phone", retryAfterS: 15 * 60 };
     if (r.pair_24h >= LIMITS.perPairDay) {
       return { status: "limited", reason: "pair_day", retryAfterS: untilDayWindow(r.pair_oldest_s) };
     }
     if (r.sub_1h >= LIMITS.perSubHour) return { status: "limited", reason: "sub", retryAfterS: 3600 };
-    // A new address once this LINE account already asked for LIMITS.emailsPerSubDay others (re-sends to those stay possible).
-    if (!r.sub_knows_email && r.sub_emails_24h >= LIMITS.emailsPerSubDay) {
-      return { status: "limited", reason: "sub_emails", retryAfterS: untilDayWindow(r.sub_oldest_s) };
+    // A new number once this LINE account already asked for LIMITS.phonesPerSubDay others (re-sends to those stay possible).
+    if (!r.sub_knows_phone && r.sub_phones_24h >= LIMITS.phonesPerSubDay) {
+      return { status: "limited", reason: "sub_phones", retryAfterS: untilDayWindow(r.sub_oldest_s) };
     }
     if (r.ip_1h >= LIMITS.perIpHour) return { status: "limited", reason: "ip", retryAfterS: 3600 };
 
-    // Older unused codes for this email+sub stop working.
-    await c.query(
-      "UPDATE otp_codes SET expires_at = now() WHERE email = $1 AND line_sub = $2 AND used_at IS NULL AND expires_at > now()",
-      [email, sub],
+    const total = await c.query<{ n: number; oldest_s: number | null }>(
+      `SELECT count(*)::int AS n, extract(epoch FROM now() - min(created_at))::float8 AS oldest_s
+       FROM otp_codes WHERE created_at > now() - interval '24 hours'`,
     );
-    const code = generateCode();
-    await c.query(
-      `INSERT INTO otp_codes (email, line_sub, code_hash, expires_at, ip)
-       VALUES ($1, $2, $3, now() + make_interval(mins => $4), $5)`,
-      [email, sub, hashCode(pepper, email, sub, code), CODE_TTL_MIN, ip],
+    const sent = total.rows[0].n;
+    if (sent >= dailyCap) return { status: "capped", sentToday: sent, retryAfterS: untilDayWindow(total.rows[0].oldest_s) };
+
+    const ins = await c.query<{ id: string }>(
+      "INSERT INTO otp_codes (phone, line_sub, expires_at, ip) VALUES ($1, $2, now(), $3) RETURNING id",
+      [phone, sub, ip],
     );
     // Housekeeping: codes are useless after expiry; keep a week for rate-limit forensics.
     await c.query("DELETE FROM otp_codes WHERE created_at < now() - interval '7 days'");
-    const total = await c.query<{ n: number }>(
-      "SELECT count(*)::int AS n FROM otp_codes WHERE created_at > now() - interval '24 hours'",
-    );
-    return { status: "issued", code, sentToday: total.rows[0].n };
+    return { status: "reserved", id: String(ins.rows[0].id), sentToday: sent + 1 };
   });
 }
 
-let lastVolumeAlert = -Infinity;
-const VOLUME_ALERT_EVERY_MS = 6 * 3600 * 1000;
-
-/**
- * True when `sentToday` reached VOLUME_ALERT_PER_DAY and this instance has not alerted in the last 6 hours
- * (so a sustained flood gives a few alerts, not one per code).
- */
-export function volumeAlertDue(sentToday: number, now = Date.now()): boolean {
-  if (sentToday < VOLUME_ALERT_PER_DAY || now - lastVolumeAlert < VOLUME_ALERT_EVERY_MS) return false;
-  lastVolumeAlert = now;
-  return true;
+/** The SMS went out: the reserved row becomes a live code for CODE_TTL_MIN, and older unused codes stop working. */
+export async function completeCode(
+  pool: Pool,
+  args: { id: string; phone: string; sub: string; ref: string; stored: StoredCode },
+): Promise<void> {
+  const { id, phone, sub, ref, stored } = args;
+  await withTx(pool, async (c) => {
+    await c.query(
+      "UPDATE otp_codes SET expires_at = now() WHERE phone = $1 AND line_sub = $2 AND used_at IS NULL AND expires_at > now() AND id <> $3",
+      [phone, sub, id],
+    );
+    await c.query(
+      `UPDATE otp_codes SET code_hash = $2, provider_token = $3, ref = $4, expires_at = now() + make_interval(mins => $5)
+       WHERE id = $1`,
+      [id, stored.codeHash, stored.providerToken, ref, CODE_TTL_MIN],
+    );
+  });
 }
 
-/** Tests only. */
-export function resetVolumeAlert(): void {
-  lastVolumeAlert = -Infinity;
+/**
+ * Sending certainly failed (nothing went out): the reservation is removed, so the failure costs no quota (never touches
+ * a completed row). Not used for an uncertain send, whose row stays as a reservation (expires_at = created_at, no code
+ * stored): it can never be verified, but it counts for the cooldown, every limit and SMS_DAILY_CAP like a sent code.
+ */
+export async function releaseCode(pool: Q, id: string): Promise<void> {
+  await pool.query("DELETE FROM otp_codes WHERE id = $1 AND code_hash IS NULL AND provider_token IS NULL", [id]);
+}
+
+export type SendResult =
+  | { status: "sent"; ref: string; sentToday: number; creditBalance: number | null }
+  | { status: "limited"; reason: LimitReason; retryAfterS: number }
+  | { status: "capped"; sentToday: number; retryAfterS: number }
+  | { status: "failed"; reason: SmsFailure; providerCode: number | null };
+
+/**
+ * Sends a code to phone for this LINE account: limits and cap (reserveCode), then the SMS, then the row is completed.
+ * When the SMS certainly did not go out the row is removed; when it may have (reason "uncertain", or the transport
+ * threw) the row is kept, so a slow or failing provider can never be used to send SMS past the limits. Every valid
+ * number gets a real code; whether it is authorized is decided after the code is verified (sign-in, or an access
+ * request).
+ */
+export async function sendCode(
+  pool: Pool,
+  args: { phone: string; sub: string; ip: string; pepper: string; dailyCap: number; transport: OtpTransport },
+): Promise<SendResult> {
+  const { phone, sub, ip, pepper, dailyCap, transport } = args;
+  const reserved = await reserveCode(pool, { phone, sub, ip, dailyCap });
+  if (reserved.status !== "reserved") return reserved;
+  let issued: IssueResult;
+  try {
+    issued = await transport.issue({ phone, sub, pepper });
+  } catch (e) {
+    // Nobody knows how far the transport got: treated as possibly sent.
+    console.error("[otp] sending the SMS failed:", (e as Error).message);
+    issued = { ok: false, reason: "uncertain", providerCode: null };
+  }
+  if (!issued.ok) {
+    if (issued.reason !== "uncertain") await releaseCode(pool, reserved.id);
+    return { status: "failed", reason: issued.reason, providerCode: issued.providerCode };
+  }
+  await completeCode(pool, { id: reserved.id, phone, sub, ref: issued.ref, stored: issued.stored });
+  return { status: "sent", ref: issued.ref, sentToday: reserved.sentToday, creditBalance: issued.creditBalance };
+}
+
+/**
+ * True when phone+sub has a code that can still be verified (unused, not expired, attempts left). Only this account's
+ * own rows decide it.
+ */
+export async function hasLiveCode(pool: Q, phone: string, sub: string): Promise<boolean> {
+  const { rows } = await pool.query(
+    `SELECT 1 FROM otp_codes
+     WHERE phone = $1 AND line_sub = $2 AND used_at IS NULL AND expires_at > now() AND attempts < $3 LIMIT 1`,
+    [phone, sub, MAX_ATTEMPTS],
+  );
+  return rows.length > 0;
 }
 
 export type VerifyResult =
   | { ok: true }
   | { ok: false; reason: "invalid"; remaining: number }
   | { ok: false; reason: "locked" }
-  | { ok: false; reason: "expired" };
+  | { ok: false; reason: "expired" }
+  /** The provider could not be asked (or refused our settings); the attempt is given back. */
+  | { ok: false; reason: "unavailable"; detail: "misconfigured" | "failed"; providerCode: number | null };
 
 /**
- * Checks a code for email+sub. Attempts are counted with a single conditional UPDATE
- * (attempts < MAX_ATTEMPTS), so concurrent guesses can never exceed the limit.
- * Success marks the code used atomically (single use).
+ * Checks a code for phone+sub. The attempt is counted first with a single conditional UPDATE
+ * (attempts < MAX_ATTEMPTS), so concurrent guesses can never exceed the limit; then the code is checked (locally or
+ * by the provider). Success marks the code used atomically (single use).
  */
 export async function verifyCode(
   pool: Q,
-  args: { email: string; sub: string; code: string; pepper: string },
+  args: { phone: string; sub: string; code: string; pepper: string; transport: OtpTransport },
 ): Promise<VerifyResult> {
-  const { email, sub, code, pepper } = args;
-  const { rows } = await pool.query<{ id: string; code_hash: string; attempts: number }>(
+  const { phone, sub, code, pepper, transport } = args;
+  const { rows } = await pool.query<{ id: string; code_hash: string | null; provider_token: string | null; attempts: number }>(
     `UPDATE otp_codes o SET attempts = o.attempts + 1
      FROM (
        SELECT id FROM otp_codes
-       WHERE email = $1 AND line_sub = $2 AND used_at IS NULL AND expires_at > now()
+       WHERE phone = $1 AND line_sub = $2 AND used_at IS NULL AND expires_at > now()
        ORDER BY created_at DESC, id DESC LIMIT 1
      ) t
      WHERE o.id = t.id AND o.attempts < $3 AND o.used_at IS NULL AND o.expires_at > now()
-     RETURNING o.id, o.code_hash, o.attempts`,
-    [email, sub, MAX_ATTEMPTS],
+     RETURNING o.id, o.code_hash, o.provider_token, o.attempts`,
+    [phone, sub, MAX_ATTEMPTS],
   );
   if (rows.length === 0) {
     const live = await pool.query<{ attempts: number }>(
       `SELECT attempts FROM otp_codes
-       WHERE email = $1 AND line_sub = $2 AND used_at IS NULL AND expires_at > now()
+       WHERE phone = $1 AND line_sub = $2 AND used_at IS NULL AND expires_at > now()
        ORDER BY created_at DESC, id DESC LIMIT 1`,
-      [email, sub],
+      [phone, sub],
     );
     return live.rows.length && live.rows[0].attempts >= MAX_ATTEMPTS
       ? { ok: false, reason: "locked" }
       : { ok: false, reason: "expired" };
   }
   const row = rows[0];
-  if (/^\d{6}$/.test(code) && codeMatches(pepper, email, sub, code, row.code_hash)) {
-    const used = await pool.query(
-      "UPDATE otp_codes SET used_at = now() WHERE id = $1 AND used_at IS NULL RETURNING id",
-      [row.id],
-    );
+  let checked: CheckResult;
+  if (!/^\d{6}$/.test(code)) {
+    checked = { ok: false, reason: "wrong", providerCode: null };
+  } else {
+    try {
+      checked = await transport.check({
+        phone,
+        sub,
+        pepper,
+        code,
+        stored: { codeHash: row.code_hash, providerToken: row.provider_token },
+      });
+    } catch (e) {
+      console.error("[otp] checking the code failed:", (e as Error).message);
+      checked = { ok: false, reason: "failed", providerCode: null };
+    }
+  }
+  if (checked.ok) {
+    const used = await pool.query("UPDATE otp_codes SET used_at = now() WHERE id = $1 AND used_at IS NULL RETURNING id", [
+      row.id,
+    ]);
     if (used.rowCount === 1) return { ok: true };
+    return { ok: false, reason: "expired" };
+  }
+  if (checked.reason === "expired") {
+    // The provider says the code is used or expired: so is our row.
+    await pool.query("UPDATE otp_codes SET expires_at = now() WHERE id = $1 AND used_at IS NULL", [row.id]);
+    return { ok: false, reason: "expired" };
+  }
+  if (checked.reason === "misconfigured" || checked.reason === "failed") {
+    await pool.query("UPDATE otp_codes SET attempts = attempts - 1 WHERE id = $1 AND attempts > 0", [row.id]);
+    return { ok: false, reason: "unavailable", detail: checked.reason, providerCode: checked.providerCode };
   }
   const remaining = Math.max(0, MAX_ATTEMPTS - row.attempts);
   return remaining === 0 ? { ok: false, reason: "locked" } : { ok: false, reason: "invalid", remaining };
 }
 
 export interface Binding {
-  email: string;
+  phone: string;
   verifiedAt: Date;
 }
 
 /** Binding for a LINE account if it was verified within BINDING_MAX_AGE_DAYS. */
 export async function findFreshBinding(pool: Q, sub: string): Promise<Binding | null> {
-  const { rows } = await pool.query<{ email: string; verified_at: Date }>(
-    `SELECT email, verified_at FROM line_bindings
+  const { rows } = await pool.query<{ phone: string; verified_at: Date }>(
+    `SELECT phone, verified_at FROM line_bindings
      WHERE line_sub = $1 AND verified_at > now() - make_interval(days => $2)`,
     [sub, BINDING_MAX_AGE_DAYS],
   );
-  return rows.length ? { email: rows[0].email, verifiedAt: rows[0].verified_at } : null;
+  return rows.length ? { phone: rows[0].phone, verifiedAt: rows[0].verified_at } : null;
 }
 
-export async function upsertBinding(pool: Q, sub: string, email: string, displayName: string): Promise<void> {
+export async function upsertBinding(pool: Q, sub: string, phone: string, displayName: string): Promise<void> {
   await pool.query(
-    `INSERT INTO line_bindings (line_sub, email, display_name, verified_at, last_login_at)
+    `INSERT INTO line_bindings (line_sub, phone, display_name, verified_at, last_login_at)
      VALUES ($1, $2, $3, now(), now())
      ON CONFLICT (line_sub) DO UPDATE
-       SET email = EXCLUDED.email, display_name = EXCLUDED.display_name,
+       SET phone = EXCLUDED.phone, display_name = EXCLUDED.display_name,
            verified_at = now(), last_login_at = now()`,
-    [sub, email, displayName.slice(0, 200)],
+    [sub, phone, displayName.slice(0, 200)],
   );
 }
 
 export interface OtpHistory {
-  /** Most recent earlier code verification of this email by any LINE account, or null. */
-  email: Date | null;
-  /** Most recent earlier code verification of this email by this LINE account, or null. */
+  /** Most recent earlier code verification of this number by any LINE account, or null. */
+  phone: Date | null;
+  /** Most recent earlier code verification of this number by this LINE account, or null. */
   account: Date | null;
 }
 
 /** Earlier successful code verifications (audit log). Call before logging the current one. */
-export async function otpHistory(pool: Q, email: string, sub: string): Promise<OtpHistory> {
-  const { rows } = await pool.query<{ email_at: Date | null; account_at: Date | null }>(
-    `SELECT max(at) AS email_at, max(at) FILTER (WHERE line_sub = $2) AS account_at
-     FROM login_events WHERE email = $1 AND event = 'login_otp'`,
-    [email, sub],
+export async function otpHistory(pool: Q, phone: string, sub: string): Promise<OtpHistory> {
+  const { rows } = await pool.query<{ phone_at: Date | null; account_at: Date | null }>(
+    `SELECT max(at) AS phone_at, max(at) FILTER (WHERE line_sub = $2) AS account_at
+     FROM login_events WHERE phone = $1 AND event = 'login_otp'`,
+    [phone, sub],
   );
-  return { email: rows[0]?.email_at ?? null, account: rows[0]?.account_at ?? null };
+  return { phone: rows[0]?.phone_at ?? null, account: rows[0]?.account_at ?? null };
 }
 
-/** Distinct emails that have ever verified with a code. */
-export async function countOtpEmails(pool: Q): Promise<number> {
+/** Distinct numbers that have ever verified with a code. */
+export async function countOtpPhones(pool: Q): Promise<number> {
   const { rows } = await pool.query<{ n: number }>(
-    "SELECT count(DISTINCT email)::int AS n FROM login_events WHERE event = 'login_otp'",
+    "SELECT count(DISTINCT phone)::int AS n FROM login_events WHERE event = 'login_otp'",
   );
   return rows[0]?.n ?? 0;
 }
@@ -265,7 +368,10 @@ export type LoginEvent =
   | "login_otp"
   | "login_access"
   | "otp_sent"
+  | "otp_send_failed"
+  | "otp_send_uncertain"
   | "otp_rate_limited"
+  | "otp_daily_cap"
   | "otp_failed"
   | "otp_locked"
   | "otp_verified_unlisted"
@@ -278,7 +384,7 @@ export type LoginEvent =
 export interface EventRow {
   event: LoginEvent;
   sub?: string | null;
-  email?: string | null;
+  phone?: string | null;
   ip?: string;
   userAgent?: string;
 }
@@ -286,8 +392,8 @@ export interface EventRow {
 /** Audit log row that must be written: throws when it cannot be. */
 export async function insertEvent(pool: Q, e: EventRow): Promise<void> {
   await pool.query(
-    "INSERT INTO login_events (line_sub, email, event, ip, user_agent) VALUES ($1, $2, $3, $4, $5)",
-    [e.sub ?? null, e.email ?? null, e.event, e.ip ?? null, e.userAgent ?? null],
+    "INSERT INTO login_events (line_sub, phone, event, ip, user_agent) VALUES ($1, $2, $3, $4, $5)",
+    [e.sub ?? null, e.phone ?? null, e.event, e.ip ?? null, e.userAgent ?? null],
   );
 }
 

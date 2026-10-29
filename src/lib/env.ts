@@ -66,11 +66,11 @@ export function sessionSecret(): string {
 }
 
 /**
- * Optional break-glass list (comma-separated): these emails are authorized without the database. Empty when unset;
- * the physician list itself is the `physicians` table (lib/authz.ts).
+ * Optional break-glass list (comma-separated): these mobile numbers are authorized without the database. Empty when
+ * unset; the physician list itself is the `physicians` table (lib/authz.ts).
  */
-export function allowedEmailsRaw(): string {
-  return read("ALLOWED_EMAILS") ?? "";
+export function allowedPhonesRaw(): string {
+  return read("ALLOWED_PHONES") ?? "";
 }
 
 export function otpPepper(): string {
@@ -121,44 +121,61 @@ export function lineConfig(): LineConfig {
   };
 }
 
-export type MailTransportKind = "smtp" | "console" | "file";
+export type SmsProviderKind = "deesmsx" | "console" | "file";
 
-export interface MailConfig {
-  kind: MailTransportKind;
-  host: string;
-  port: number;
-  user: string;
-  pass: string;
-  from: string;
+export interface SmsConfig {
+  /**
+   * deesmsx: the provider sends and checks the code. console / file (development and tests only): the app makes the
+   * code and writes the SMS to the log or to a JSON file in outboxDir.
+   */
+  kind: SmsProviderKind;
+  apiKey: string;
+  secretKey: string;
+  sender: string;
+  /** Base URL of the deeSMSX API, without a trailing slash. */
+  apiUrl: string;
   outboxDir: string;
+  /** Hard cap of codes sent in a rolling 24 h, all numbers together (protects the SMS credit). */
+  dailyCap: number;
 }
 
-export function mailConfig(): MailConfig {
+export const DEESMSX_API = "https://apicall.deesmsx.com/v1";
+/** The provider's shared OTP sender: works before a sender name of our own is approved. */
+export const DEESMSX_DEFAULT_SENDER = "deeSMS.OTP";
+export const SMS_DAILY_CAP_DEFAULT = 300;
+
+export function smsConfig(): SmsConfig {
   const c = new Collector();
-  const requested = onVercel() ? "smtp" : (read("EMAIL_TRANSPORT") ?? "smtp");
-  if (!["smtp", "console", "file"].includes(requested)) c.bad.push("EMAIL_TRANSPORT");
-  const kind = requested as MailTransportKind;
-  let user = "";
-  let pass = "";
+  // On Vercel only the real provider is possible: SMS_PROVIDER=console|file is ignored there.
+  const requested = onVercel() ? "deesmsx" : (read("SMS_PROVIDER") ?? "deesmsx");
+  if (!["deesmsx", "console", "file"].includes(requested)) c.bad.push("SMS_PROVIDER");
+  const kind = requested as SmsProviderKind;
+  let apiKey = "";
+  let secretKey = "";
   let outboxDir = "";
-  if (kind === "smtp") {
-    user = c.need("SMTP_USER");
-    pass = c.need("SMTP_PASS");
+  if (kind === "deesmsx") {
+    apiKey = c.need("DEESMSX_API_KEY");
+    secretKey = c.need("DEESMSX_SECRET_KEY");
   } else if (kind === "file") {
-    outboxDir = c.need("EMAIL_OUTBOX_DIR");
+    outboxDir = c.need("SMS_OUTBOX_DIR");
   }
-  const portRaw = read("SMTP_PORT") ?? "465";
-  const port = Number(portRaw);
-  if (!Number.isInteger(port) || port <= 0 || port > 65535) c.bad.push("SMTP_PORT");
+  const sender = read("DEESMSX_SENDER") ?? DEESMSX_DEFAULT_SENDER;
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,19}$/.test(sender)) c.bad.push("DEESMSX_SENDER");
+  // Dev/test-only override (mock deeSMSX server); never honoured on Vercel.
+  const override = onVercel() ? undefined : read("DEESMSX_API_URL");
+  if (override && !isHttpUrl(override)) c.bad.push("DEESMSX_API_URL");
+  const capRaw = read("SMS_DAILY_CAP") ?? String(SMS_DAILY_CAP_DEFAULT);
+  const dailyCap = Number(capRaw);
+  if (!/^\d+$/.test(capRaw) || !Number.isSafeInteger(dailyCap) || dailyCap < 1) c.bad.push("SMS_DAILY_CAP");
   c.done();
   return {
     kind,
-    host: read("SMTP_HOST") ?? "smtp.gmail.com",
-    port,
-    user,
-    pass,
-    from: read("MAIL_FROM") ?? `"ORSKH.APP ตารางห้องผ่าตัด" <${user || "no-reply@localhost"}>`,
+    apiKey,
+    secretKey,
+    sender,
+    apiUrl: (override ?? DEESMSX_API).replace(/\/+$/, ""),
     outboxDir,
+    dailyCap,
   };
 }
 
@@ -202,7 +219,7 @@ export function telegramConfig(): TelegramConfig | null {
 /** Everything the OTP endpoints need. Throws ConfigError listing every missing name. */
 export function assertOtpReady(): void {
   const names: string[] = [];
-  for (const fn of [appUrl, sessionSecret, otpPepper, databaseUrl, mailConfig]) {
+  for (const fn of [appUrl, sessionSecret, otpPepper, databaseUrl, smsConfig]) {
     try {
       fn();
     } catch (e) {

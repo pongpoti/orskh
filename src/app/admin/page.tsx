@@ -19,7 +19,7 @@ export default async function AdminPage() {
   // Admins are listed by LINE user id (the session's sub). Anyone else gets the same page as a mistyped address.
   if (!isAdmin(user.sub)) notFound();
 
-  const [surgeons, name] = await Promise.all([listSurgeons(), displayNameFor(user.email, user.name)]);
+  const [surgeons, name] = await Promise.all([listSurgeons(), displayNameFor(user.phone, user.name)]);
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden">

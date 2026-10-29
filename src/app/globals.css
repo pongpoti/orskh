@@ -387,7 +387,7 @@ body {
     white-space: nowrap;
   }
 
-  /* A quiet text button on the sign-in card (change email, resend the code): 44px tall, underlined. */
+  /* A quiet text button on the sign-in card (change number, resend the code): 44px tall, underlined. */
   .text-btn {
     display: inline-flex;
     min-height: 2.75rem;
@@ -403,10 +403,12 @@ body {
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
   }
-  .text-btn:hover:not(:disabled) {
+  .text-btn:hover:not(:disabled, [aria-disabled="true"]) {
     text-decoration-color: var(--brand);
   }
-  .text-btn:disabled {
+  /* aria-disabled: unavailable for a moment but keeps keyboard focus (verify-form.tsx, while a request runs). */
+  .text-btn:disabled,
+  .text-btn[aria-disabled="true"] {
     cursor: not-allowed;
     color: var(--ink-3);
     text-decoration: none;

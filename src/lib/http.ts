@@ -7,14 +7,21 @@ export const MSG = {
   notReady: "ระบบยังไม่พร้อม กรุณาติดต่อผู้ดูแล",
   badRequest: "คำขอไม่ถูกต้อง",
   sessionExpired: "หมดเวลายืนยันตัวตน กรุณาเข้าสู่ระบบด้วย LINE อีกครั้ง",
-  invalidEmail: "รูปแบบอีเมลไม่ถูกต้อง",
-  // U+00A0 keeps "6 หลัก" together and U+2060 keeps "(รวมถึงจดหมายขยะ)" on one line (Thai line breaking)
-  sent: "ส่งรหัส 6\u00A0หลักไปที่อีเมลแล้ว กรุณาตรวจสอบกล่องจดหมาย (รวม\u2060ถึง\u2060จดหมาย\u2060ขยะ)",
+  // U+00A0 keeps a number with its unit ("10 หลัก") on one line (Thai line breaking)
+  invalidPhone: "เบอร์มือถือไม่ถูกต้อง กรุณากรอก 10\u00A0หลัก ขึ้นต้นด้วย 06, 08 หรือ 09",
+  // deeSMSX refused the number (reference code 99)
+  smsRejected: "ส่ง SMS ไปที่เบอร์นี้ไม่ได้ กรุณาตรวจสอบเบอร์มือถือ",
+  // deeSMSX has no credit left (102)
+  smsUnavailable: "ขณะนี้ระบบส่ง SMS ไม่ได้ กรุณาลองใหม่ภายหลัง หรือติดต่อผู้ดูแล",
+  // deeSMSX may or may not have sent the SMS (timeout, unreadable answer); the wait is LIMITS.cooldownS
+  smsUncertain: "ส่งรหัสไม่สำเร็จ หากได้รับ SMS ภายหลัง รหัสนั้นใช้ไม่ได้ กรุณารอ 1\u00A0นาทีแล้วขอรหัสใหม่",
+  // SMS_DAILY_CAP reached
+  dailyCap: "ระบบส่ง SMS ครบจำนวนของวันนี้แล้ว กรุณาลองใหม่ภายหลัง หรือติดต่อผู้ดูแล",
   tooMany: "ขอรหัสบ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่",
   tooManyToday: "ขอรหัสครบจำนวนต่อวันแล้ว",
   wrongCode: "รหัสไม่ถูกต้อง",
   locked: "ใส่รหัสผิดเกินจำนวนครั้งที่กำหนด กรุณาขอรหัสใหม่",
-  expired: "รหัสหมดอายุหรือยังไม่ได้ขอรหัส กรุณาขอรหัสใหม่",
+  expired: "รหัสหมดอายุหรือใช้ไปแล้ว กรุณาขอรหัสใหม่",
   failed: "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง",
   // access requests (/login/request)
   firstName: "กรุณากรอกชื่อเป็นตัวอักษร (ใช้ได้เฉพาะตัวอักษร ช่องว่าง . - ' ไม่เกิน 60 ตัว)",

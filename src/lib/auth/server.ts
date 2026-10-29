@@ -43,7 +43,7 @@ export async function getPendingLogin(): Promise<PendingLogin | null> {
   }
 }
 
-/** Verified-but-not-authorized email of this browser (set by /api/auth/otp/verify), or null. */
+/** Verified-but-not-authorized phone number of this browser (set by /api/auth/otp/verify), or null. */
 export async function getAccessGrant(): Promise<AccessGrant | null> {
   const jar = await cookies();
   const n = name("access");

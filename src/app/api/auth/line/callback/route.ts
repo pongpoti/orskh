@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { isAuthorizedEmail } from "@/lib/authz";
+import { isAuthorizedPhone } from "@/lib/authz";
 import { clearCookie, cookieName, setCookie } from "@/lib/cookies";
 import { db } from "@/lib/db";
 import { appUrl, ConfigError, lineConfig, sessionSecret } from "@/lib/env";
@@ -43,8 +43,8 @@ export async function GET(req: NextRequest) {
     const profile = await verifyIdToken(cfg, idToken, tx.nonce);
     const next = safeNextPath(tx.next);
 
-    // Fast path: this LINE account was verified by email OTP within 180 days and the email is still
-    // authorized (an active physicians row, an approved access request, or ALLOWED_EMAILS).
+    // Fast path: this LINE account was verified by an SMS code within 180 days and the number is still
+    // authorized (an active physicians row, an approved access request, or ALLOWED_PHONES).
     let pool;
     try {
       pool = await db();
@@ -54,17 +54,17 @@ export async function GET(req: NextRequest) {
       return fail(req, "config");
     }
     const binding = await findFreshBinding(pool, profile.sub);
-    if (binding && (await isAuthorizedEmail(binding.email))) {
+    if (binding && (await isAuthorizedPhone(binding.phone))) {
       await touchBinding(pool, profile.sub, profile.name);
       await logEvent(pool, {
         event: "login_binding",
         sub: profile.sub,
-        email: binding.email,
+        phone: binding.phone,
         ip: clientIp(req.headers),
         userAgent: userAgent(req.headers),
       });
       const token = await signSession(
-        { sub: profile.sub, email: binding.email, name: profile.name, picture: profile.picture },
+        { sub: profile.sub, phone: binding.phone, name: profile.name, picture: profile.picture },
         secret,
       );
       const res = NextResponse.redirect(new URL(next, origin), 303);
@@ -76,7 +76,7 @@ export async function GET(req: NextRequest) {
       return res;
     }
 
-    // Otherwise: prove an email address first (then sign in, or request access if it is not authorized).
+    // Otherwise: prove a mobile number first (then sign in, or request access if it is not authorized).
     const pending = await signPending({ sub: profile.sub, name: profile.name, picture: profile.picture, next }, secret);
     const res = NextResponse.redirect(new URL("/login/verify", origin), 303);
     res.headers.set("Cache-Control", "no-store");

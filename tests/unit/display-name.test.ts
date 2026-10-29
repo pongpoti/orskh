@@ -11,12 +11,12 @@ describe("name shown on the board (displayNameFor)", () => {
     const pool = await db();
     await pool.query("TRUNCATE physicians, access_requests RESTART IDENTITY");
     await pool.query(
-      `INSERT INTO physicians (email, name, dept, active) VALUES
-         ('listed@example.com', ' สมชาย ใจดี ', 'ศัลยกรรมทั่วไป', true),
-         ('retired@example.com', 'สมศักดิ์ เกษียณ', NULL, false)`,
+      `INSERT INTO physicians (phone, name, dept, active) VALUES
+         ('0920000001', ' สมชาย ใจดี ', 'ศัลยกรรมทั่วไป', true),
+         ('0920000002', 'สมศักดิ์ เกษียณ', NULL, false)`,
     );
     const r = await createRequest(pool, {
-      email: "approved@example.com",
+      phone: "0920000003",
       sub: "U1",
       lineName: "Som",
       firstName: "สมหญิง",
@@ -27,7 +27,7 @@ describe("name shown on the board (displayNameFor)", () => {
     assert.ok(r.status === "created");
     await decideRequest(pool, r.request.id, "approved", "111");
     const p = await createRequest(pool, {
-      email: "pending@example.com",
+      phone: "0920000004",
       sub: "U2",
       lineName: "Pen",
       firstName: "รอ",
@@ -44,27 +44,27 @@ describe("name shown on the board (displayNameFor)", () => {
     await pool.end();
   });
 
-  test("the physicians row first (active or not), trimmed, whatever the case of the address", async () => {
-    assert.equal(await displayNameFor("listed@example.com", "LINE Name"), "สมชาย ใจดี");
-    assert.equal(await displayNameFor(" Listed@Example.COM ", "LINE Name"), "สมชาย ใจดี");
-    assert.equal(await displayNameFor("retired@example.com", "LINE Name"), "สมศักดิ์ เกษียณ");
+  test("the physicians row first (active or not), trimmed, however the number is written", async () => {
+    assert.equal(await displayNameFor("0920000001", "LINE Name"), "สมชาย ใจดี");
+    assert.equal(await displayNameFor(" +66 92 000 0001 ", "LINE Name"), "สมชาย ใจดี");
+    assert.equal(await displayNameFor("0920000002", "LINE Name"), "สมศักดิ์ เกษียณ");
   });
 
   test("then the approved access request; a pending one does not count", async () => {
-    assert.equal(await displayNameFor("approved@example.com", "Som"), "สมหญิง รักดี");
-    assert.equal(await displayNameFor("pending@example.com", "Pen"), "Pen");
+    assert.equal(await displayNameFor("0920000003", "Som"), "สมหญิง รักดี");
+    assert.equal(await displayNameFor("0920000004", "Pen"), "Pen");
   });
 
   test("then the LINE display name, then a generic label", async () => {
-    assert.equal(await displayNameFor("nobody@example.com", " หมอ LINE "), "หมอ LINE");
-    assert.equal(await displayNameFor("nobody@example.com", ""), FALLBACK_NAME);
-    assert.equal(await displayNameFor("not an email", "หมอ LINE"), "หมอ LINE");
+    assert.equal(await displayNameFor("0920000005", " หมอ LINE "), "หมอ LINE");
+    assert.equal(await displayNameFor("0920000005", ""), FALLBACK_NAME);
+    assert.equal(await displayNameFor("not a number", "หมอ LINE"), "หมอ LINE");
   });
 
   test("a corrected row shows at once (read on every call)", async () => {
     const pool = await db();
-    await pool.query("UPDATE physicians SET name = 'สมชาย ใจงาม' WHERE email = 'listed@example.com'");
-    assert.equal(await displayNameFor("listed@example.com", "LINE Name"), "สมชาย ใจงาม");
+    await pool.query("UPDATE physicians SET name = 'สมชาย ใจงาม' WHERE phone = '0920000001'");
+    assert.equal(await displayNameFor("0920000001", "LINE Name"), "สมชาย ใจงาม");
   });
 
   test("database down: falls back to the LINE name, logs, never throws", async () => {
@@ -73,8 +73,8 @@ describe("name shown on the board (displayNameFor)", () => {
     const orig = console.error;
     console.error = (...a: unknown[]) => void logged.push(a.map(String).join(" "));
     try {
-      assert.equal(await displayNameFor("listed@example.com", "LINE Name"), "LINE Name");
-      assert.equal(await displayNameFor("listed@example.com", ""), FALLBACK_NAME);
+      assert.equal(await displayNameFor("0920000001", "LINE Name"), "LINE Name");
+      assert.equal(await displayNameFor("0920000001", ""), FALLBACK_NAME);
     } finally {
       console.error = orig;
       setTestEnv();
