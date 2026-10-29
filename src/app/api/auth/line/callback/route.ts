@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
     const next = safeNextPath(tx.next);
 
     // Fast path: this LINE account was verified by an SMS code within 180 days and the number is still
-    // authorized (an active physicians row, an approved access request, or ALLOWED_PHONES).
+    // authorized (a claimed name on the users list, an approved access request, or ALLOWED_PHONES).
     let pool;
     try {
       pool = await db();

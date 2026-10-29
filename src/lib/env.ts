@@ -67,7 +67,7 @@ export function sessionSecret(): string {
 
 /**
  * Optional break-glass list (comma-separated): these mobile numbers are authorized without the database. Empty when
- * unset; the physician list itself is the `physicians` table (lib/authz.ts).
+ * unset; everyone else is authorized by a claimed name (table `users`, claims in `user_claims`) or an approved access request (lib/authz.ts).
  */
 export function allowedPhonesRaw(): string {
   return read("ALLOWED_PHONES") ?? "";

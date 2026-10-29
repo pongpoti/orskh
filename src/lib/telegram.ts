@@ -4,16 +4,17 @@ import { POSITIONS, type AccessRequest, type Position, type TelegramRef } from "
 import { appUrl, ConfigError, onVercel, sessionSecret, telegramConfig, type TelegramConfig } from "./env";
 import type { OtpHistory } from "./otp";
 import { formatPhone } from "./phone";
-import type { Physician } from "./physician-list";
+import { roleLabel, subtypeLabel, TYPE_LABELS } from "./user-labels";
+import type { ListedUser, UserClaim } from "./user-list";
 import { deriveKey } from "./tokens";
 
 /** Public route for Telegram button taps (proxy.ts lets it through without a session or Origin). */
 export const TELEGRAM_WEBHOOK_PATH = "/api/telegram/webhook";
 
 export interface VerifiedAlert {
-  /** Name and department from the physicians table (active or not); null if the number has no row. */
-  physician: Physician | null;
-  /** Name and position from the approved access request, for numbers without a physicians row. */
+  /** The active user whose current claim holds the number, or null. */
+  user: ListedUser | null;
+  /** Name and position from the approved access request, for numbers that hold no name. */
   requester?: { firstName: string; lastName: string; position: Position } | null;
   /** LINE display name: attacker-controlled, so it is flattened and escaped. */
   lineName: string;
@@ -69,20 +70,34 @@ export function thaiDateTime(d: Date): string {
   return `${thaiDate(d)} ${thaiTime(d)} น.`;
 }
 
+/**
+ * "สมชาย ใจดี (แพทย์ · ออร์โธปิดิกส์)". Names come from the users table (loaded by the sync script, which refuses control
+ * characters), escaped and flattened anyway, never shortened.
+ */
+function userLine(s: ListedUser): string {
+  return `${whole(s.firstName)} ${whole(s.lastName)} (${whole(roleLabel(s.type, s.subtype))})`;
+}
+
+/** " (ออร์โธปิดิกส์)", or nothing without a subtype. */
+function sub(s: ListedUser): string {
+  const label = subtypeLabel(s.type, s.subtype);
+  return label ? ` (${whole(label)})` : "";
+}
+
 /** Telegram HTML message for a successful SMS-code verification. */
 export function buildVerifiedAlert(a: VerifiedAlert): string {
-  // A known number on a LINE account that never verified it before is flagged: it may not be the physician.
+  // A known number on a LINE account that never verified it before is flagged: it may not be its owner.
   const header =
     a.history.phone === null
       ? "🆕 <b>ผู้ใช้ใหม่ยืนยันตัวตนสำเร็จ</b>"
       : a.history.account === null
         ? "⚠️ <b>บัญชี LINE ใหม่ของเบอร์ที่เคยยืนยันแล้ว</b>"
         : "🔁 <b>ยืนยันตัวตนอีกครั้ง</b>";
-  const who = a.physician
-    ? `แพทย์: ${text(a.physician.name)}${a.physician.dept ? ` (${text(a.physician.dept)})` : ""}`
+  const who = a.user
+    ? `${TYPE_LABELS[a.user.type]}: ${whole(a.user.firstName)} ${whole(a.user.lastName)}${sub(a.user)}`
     : a.requester
       ? `${POSITIONS[a.requester.position]}: ${whole(a.requester.firstName)} ${whole(a.requester.lastName)} (อนุมัติจากคำขอ)`
-      : "แพทย์: ไม่พบในรายชื่อแพทย์";
+      : "ไม่พบในรายชื่อเจ้าหน้าที่";
   const lines = [
     header,
     "ORSKH.APP ตารางห้องผ่าตัด",
@@ -180,6 +195,28 @@ export function buildDecidedMessage(r: AccessRequest, decision: "approved" | "re
   return `${buildRequestMessage(r)}\n\n${verdict} · ${thaiDateTime(at)}`;
 }
 
+/**
+ * Telegram HTML message for a claimed name (sent with the undo button, claimKeyboard()):
+ * "🪪 ยืนยันชื่อ: <name> (<type> · <subtype>)", the number in full with the LINE name, the time in Bangkok.
+ */
+export function buildClaimMessage(user: ListedUser, claim: Pick<UserClaim, "phone" | "lineName" | "createdAt">): string {
+  return [
+    `🪪 ยืนยันชื่อ: ${userLine(user)}`,
+    `เบอร์ ${whole(formatPhone(claim.phone))} · LINE: ${text(claim.lineName ?? "") || "ไม่ระบุ"}`,
+    `เวลา ${thaiDateTime(claim.createdAt)}`,
+  ].join("\n");
+}
+
+/** The claim message once undone (sent as an edit without the button). `by` is the Telegram name of whoever tapped. */
+export function buildClaimUndoneMessage(
+  user: ListedUser,
+  claim: Pick<UserClaim, "phone" | "lineName" | "createdAt">,
+  by: string,
+  at: Date,
+): string {
+  return `${buildClaimMessage(user, claim)}\n\n↩️ ยกเลิกแล้ว โดย ${text(by) || "ผู้ดูแล"} เวลา ${thaiDateTime(at)}`;
+}
+
 export type CallbackAction = "approve" | "reject";
 
 /**
@@ -195,6 +232,24 @@ export function parseCallbackData(v: unknown): { id: string; action: CallbackAct
   if (typeof v !== "string" || v.length > 64) return null;
   const m = /^ox:([1-9]\d{0,14}):([ar])$/.exec(v);
   return m ? { id: m[1], action: m[2] === "a" ? "approve" : "reject" } : null;
+}
+
+/**
+ * callback_data "oc:<claim id>:u" (undo a claimed name). Its own prefix, so a claim id can never be read as a request
+ * id or the other way round; as strict as "ox:".
+ */
+export function claimCallbackData(id: string): string {
+  return `oc:${id}:u`;
+}
+
+export function parseClaimCallbackData(v: unknown): { claimId: string } | null {
+  if (typeof v !== "string" || v.length > 64) return null;
+  const m = /^oc:([1-9]\d{0,14}):u$/.exec(v);
+  return m ? { claimId: m[1] } : null;
+}
+
+export function claimKeyboard(id: string) {
+  return { inline_keyboard: [[{ text: "↩️ ยกเลิกการยืนยัน", callback_data: claimCallbackData(id) }]] };
 }
 
 export function requestKeyboard(id: string) {
@@ -261,10 +316,10 @@ export async function notify(html: string): Promise<void> {
 }
 
 /**
- * Sends the request with its two buttons to every configured chat; a failing chat is logged and skipped.
- * Returns the messages that were sent, to be edited after the decision.
+ * Sends one message with buttons to every configured chat; a failing chat is logged and skipped. Returns the messages
+ * that were sent, to be edited once a button was used.
  */
-export async function sendRequestMessages(r: AccessRequest): Promise<TelegramRef[]> {
+async function sendWithButtons(html: string, reply_markup: unknown, what: string): Promise<TelegramRef[]> {
   const cfg = telegramConfig();
   if (!cfg) return [];
   const sent: TelegramRef[] = [];
@@ -272,18 +327,47 @@ export async function sendRequestMessages(r: AccessRequest): Promise<TelegramRef
     try {
       const m = await callTelegram<{ message_id?: unknown } | null>(cfg, "sendMessage", {
         chat_id: chatId,
-        text: buildRequestMessage(r),
+        text: html,
         parse_mode: "HTML",
         link_preview_options: { is_disabled: true },
-        reply_markup: requestKeyboard(r.id),
+        reply_markup,
       });
       const id = m?.message_id;
       if (typeof id === "number" && Number.isSafeInteger(id)) sent.push({ chat_id: chatId, message_id: id });
     } catch (e) {
-      console.error("[access] request message failed:", (e as Error).message);
+      console.error(`[${what}] message failed:`, (e as Error).message);
     }
   }
   return sent;
+}
+
+/** Sends the request with its two buttons to every configured chat (see sendWithButtons()). */
+export async function sendRequestMessages(r: AccessRequest): Promise<TelegramRef[]> {
+  return sendWithButtons(buildRequestMessage(r), requestKeyboard(r.id), "access");
+}
+
+/** Announces a claimed name with its undo button in every configured chat (see sendWithButtons()). */
+export async function sendClaimMessages(user: ListedUser, claim: UserClaim): Promise<TelegramRef[]> {
+  return sendWithButtons(buildClaimMessage(user, claim), claimKeyboard(claim.id), "claim");
+}
+
+/** Pause before the one retry of a claim announcement that reached no chat. */
+export const CLAIM_RETRY_MS = 2_000;
+
+/**
+ * As sendClaimMessages(), tried a second time after CLAIM_RETRY_MS when no chat got the message (Telegram briefly
+ * down, a timeout). A claim that still reached nobody keeps an empty tg_messages: README "Claims" has the query that
+ * finds such unannounced claims.
+ */
+export async function announceClaim(
+  user: ListedUser,
+  claim: UserClaim,
+  wait: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms)),
+): Promise<TelegramRef[]> {
+  const sent = await sendClaimMessages(user, claim);
+  if (sent.length || !telegramConfig()) return sent;
+  await wait(CLAIM_RETRY_MS);
+  return sendClaimMessages(user, claim);
 }
 
 /** Replaces each request message with the decided text. No reply_markup: the buttons disappear. */
@@ -328,6 +412,20 @@ export function webhookSecret(botToken: string, secret: string): string {
 /** Numeric ids in TELEGRAM_CHAT_ID: the people allowed to decide (a private chat's id is the user's id). */
 export function adminIds(cfg: TelegramConfig): Set<string> {
   return new Set(cfg.chatIds.filter((id) => /^\d{1,20}$/.test(id)));
+}
+
+/**
+ * Name claims are open only when every claim can be announced with an undo button that someone may press: Telegram is
+ * configured and valid, and TELEGRAM_CHAT_ID holds at least one numeric (person) id. Otherwise a verified number that
+ * holds no name goes to the access request, which waits for a decision (fail closed, like requests). Never throws.
+ */
+export function claimsEnabled(): boolean {
+  try {
+    const cfg = telegramConfig();
+    return !!cfg && adminIds(cfg).size > 0;
+  } catch {
+    return false; // malformed settings (ConfigError)
+  }
 }
 
 /**

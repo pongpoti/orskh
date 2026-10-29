@@ -6,8 +6,18 @@ import { after, before, beforeEach, describe, test } from "node:test";
 import { createRequest, getRequest, saveTelegramRefs, type AccessRequest } from "@/lib/access";
 import { isAuthorizedPhone, resetAuthzCache } from "@/lib/authz";
 import { db } from "@/lib/db";
+import { upsertBinding } from "@/lib/otp";
+import { claimBlocked, claimUser, getClaim, saveClaimTelegramRefs, type UserClaim, type ListedUser } from "@/lib/user-list";
 import {
+  announceClaim,
+  buildClaimMessage,
+  CLAIM_RETRY_MS,
+  buildClaimUndoneMessage,
   buildDecidedMessage,
+  claimCallbackData,
+  claimKeyboard,
+  parseClaimCallbackData,
+  sendClaimMessages,
   buildRequestMessage,
   callbackData,
   ensureWebhook,
@@ -34,7 +44,7 @@ const REQUEST: AccessRequest = {
   lineName: "Som",
   firstName: "สมชาย",
   lastName: "ใจดี",
-  position: "nurse",
+  position: "RN",
   status: "pending",
   createdAt: new Date("2026-10-25T09:30:00Z"), // 16:30 in Bangkok
   decidedAt: null,
@@ -57,7 +67,9 @@ describe("Telegram request message", () => {
         "🕒 เวลา: 25 ต.ค. 2569 16:30 น.",
       ].join("\n"),
     );
-    assert.match(buildRequestMessage({ ...REQUEST, position: "doctor" }), /\n💼 ตำแหน่ง: แพทย์\n/);
+    assert.match(buildRequestMessage({ ...REQUEST, position: "DR" }), /\n💼 ตำแหน่ง: แพทย์\n/);
+    assert.match(buildRequestMessage({ ...REQUEST, position: "PN" }), /\n💼 ตำแหน่ง: ผู้ช่วยพยาบาล\n/);
+    assert.match(buildRequestMessage({ ...REQUEST, position: "PCA" }), /\n💼 ตำแหน่ง: พนักงานช่วยเหลือคนไข้\n/);
     assert.match(buildRequestMessage({ ...REQUEST, lineName: null }), /\n💬 ชื่อ LINE: ไม่ระบุ\n/);
     assert.match(buildRequestMessage({ ...REQUEST, lineName: " ‮ " }), /\n💬 ชื่อ LINE: ไม่ระบุ\n/);
   });
@@ -119,6 +131,46 @@ describe("Telegram request message", () => {
     const at = new Date("2026-10-25T10:05:00Z");
     assert.equal(buildDecidedMessage(REQUEST, "approved", at), `${buildRequestMessage(REQUEST)}\n\n✅ <b>อนุมัติแล้ว</b> · 25 ต.ค. 2569 17:05 น.`);
     assert.equal(buildDecidedMessage(REQUEST, "rejected", at), `${buildRequestMessage(REQUEST)}\n\n❌ <b>ไม่อนุมัติ</b> · 25 ต.ค. 2569 17:05 น.`);
+  });
+});
+
+describe("Telegram claim message", () => {
+  const user: ListedUser = { id: "9", firstName: "สมชาย", lastName: "ใจดี", type: "DR", subtype: "ORTHO" };
+  const claim = { phone: "0812345678", lineName: "Som", createdAt: new Date("2026-10-25T09:30:00Z") };
+
+  test("exact layout: name with type and subtype, the whole number and the LINE name, Bangkok time", () => {
+    assert.equal(
+      buildClaimMessage(user, claim),
+      ["🪪 ยืนยันชื่อ: สมชาย ใจดี (แพทย์ · ออร์โธปิดิกส์)", "เบอร์ 081-234-5678 · LINE: Som", "เวลา 25 ต.ค. 2569 16:30 น."].join("\n"),
+    );
+    assert.match(buildClaimMessage({ ...user, type: "PCA", subtype: null }, claim), /^🪪 ยืนยันชื่อ: สมชาย ใจดี \(พนักงานช่วยเหลือคนไข้\)\n/);
+    assert.match(buildClaimMessage({ ...user, type: "RN", subtype: "ANES" }, claim), /\(พยาบาล · วิสัญญี\)/);
+    assert.match(buildClaimMessage(user, { ...claim, lineName: null }), /· LINE: ไม่ระบุ\n/);
+  });
+
+  test("the LINE name and the tapper's name cannot inject markup or lines", () => {
+    const html = buildClaimMessage(user, { ...claim, lineName: '<a href="https://evil.test">x</a>\nเบอร์ 099-999-9999\u202E' });
+    const lines = html.split("\n");
+    assert.equal(lines.length, 3);
+    assert.ok(lines[1].startsWith("เบอร์ 081-234-5678 · LINE: &lt;a href=") && !html.includes("<a") && !html.includes("\u202E"), lines[1]);
+    const undone = buildClaimUndoneMessage(user, claim, "<b>Admin</b>\n🪪 fake", new Date("2026-10-25T10:05:00Z"));
+    assert.equal(
+      undone,
+      `${buildClaimMessage(user, claim)}\n\n↩️ ยกเลิกแล้ว โดย &lt;b&gt;Admin&lt;/b&gt; 🪪 fake เวลา 25 ต.ค. 2569 17:05 น.`,
+    );
+  });
+
+  test("one undo button; callback_data oc:<claim id>:u, parsed strictly and never confused with a request", () => {
+    assert.deepEqual(claimKeyboard("42"), { inline_keyboard: [[{ text: "↩️ ยกเลิกการยืนยัน", callback_data: "oc:42:u" }]] });
+    const max = claimCallbackData("999999999999999");
+    assert.ok(Buffer.byteLength(max) <= 64);
+    assert.deepEqual(parseClaimCallbackData(max), { claimId: "999999999999999" });
+    assert.deepEqual(parseClaimCallbackData("oc:7:u"), { claimId: "7" });
+    for (const bad of ["", "oc:7", "oc:7:a", "oc:0:u", "oc:07:u", "oc:-7:u", "oc:7:u ", " oc:7:u", "ox:7:u", "oc:1234567890123456:u", "oc:7:u:x", null, 7]) {
+      assert.equal(parseClaimCallbackData(bad), null, JSON.stringify(bad));
+    }
+    assert.equal(parseCallbackData("oc:7:u"), null, "not a request decision");
+    assert.equal(parseClaimCallbackData("ox:7:a"), null);
   });
 });
 
@@ -232,7 +284,7 @@ describe("Telegram webhook and Bot API (mock)", () => {
       lineName: "Som",
       firstName: "สมชาย",
       lastName: "ใจดี",
-      position: "nurse",
+      position: "RN",
       ip: "203.0.113.5",
     });
     assert.ok(r.status === "created");
@@ -493,5 +545,158 @@ describe("Telegram webhook and Bot API (mock)", () => {
     assert.equal(calls.length, 0);
     delete process.env.TELEGRAM_BOT_TOKEN;
     assert.equal(await ensureWebhook(), false, "off when Telegram is not configured");
+  });
+
+  async function newClaim(phone: string, sub: string, first: string): Promise<{ claim: UserClaim; user: ListedUser }> {
+    const pool = await db();
+    const { rows } = await pool.query<{ id: string }>(
+      "INSERT INTO users (first_name, last_name, type, subtype) VALUES ($1, 'ทดสอบ', 'RN', 'OR') RETURNING id::text AS id",
+      [first],
+    );
+    const r = await claimUser(pool, { userId: rows[0].id, phone, sub, lineName: "Som", ip: "203.0.113.5", userAgent: "t" });
+    assert.ok(r.status === "claimed");
+    return r;
+  }
+
+  test("claim messages go to every chat with the undo button", async () => {
+    await (await db()).query("TRUNCATE user_claims, users RESTART IDENTITY");
+    const { claim, user } = await newClaim("0900000031", "U-c1", "ส่งข้อความ");
+    const sent = await sendClaimMessages(user, claim);
+    assert.equal(sent.length, 3);
+    for (const m of calls.filter((c) => c.method === "sendMessage")) {
+      assert.equal(m.body.text, buildClaimMessage(user, claim));
+      assert.equal(m.body.parse_mode, "HTML");
+      assert.deepEqual(m.body.reply_markup, claimKeyboard(claim.id));
+    }
+    await saveClaimTelegramRefs(await db(), claim.id, sent);
+    assert.deepEqual((await getClaim(await db(), claim.id))?.tgMessages, sent);
+  });
+
+  test("undo by someone not in TELEGRAM_CHAT_ID: refused, the claim stands", async () => {
+    await (await db()).query("TRUNCATE user_claims, users RESTART IDENTITY");
+    const { claim } = await newClaim("0900000032", "U-c2", "คนแปลก");
+    for (const from of [333, Number(GROUP), "111", null]) {
+      assert.equal((await post(tap(claimCallbackData(claim.id), from))).status, 200);
+    }
+    assert.deepEqual(answers(), Array(4).fill(ANSWERS.notAdmin));
+    assert.equal(calls.filter((c) => c.method !== "answerCallbackQuery").length, 0, "no edit");
+    assert.equal((await getClaim(await db(), claim.id))?.undoneAt, null);
+    resetAuthzCache();
+    assert.equal(await isAuthorizedPhone("0900000032"), true);
+  });
+
+  test("undo: the name is freed, the binding deleted, this instance's cache drops the number, each message says who undid it", async () => {
+    await (await db()).query("TRUNCATE user_claims, users RESTART IDENTITY");
+    const { claim, user } = await newClaim("0900000033", "U-c3", "ยกเลิก");
+    const usersBefore = (await (await db()).query("SELECT * FROM users ORDER BY id")).rows;
+    await upsertBinding(await db(), "U-c3", "0900000033", "Som");
+    await saveClaimTelegramRefs(await db(), claim.id, [
+      { chat_id: String(ADMIN), message_id: 301 },
+      { chat_id: String(ADMIN_2), message_id: 302 },
+    ]);
+    resetAuthzCache();
+    assert.equal(await isAuthorizedPhone("0900000033"), true, "in this instance's cached list");
+    const tapped = { message_id: 302, chat: { id: ADMIN_2, type: "private" }, date: 0 };
+    const update = tap(claimCallbackData(claim.id), ADMIN_2, tapped);
+    (update.callback_query.from as Record<string, unknown>).last_name = "Ops";
+    const res = await post(update);
+    assert.equal(res.status, 200);
+    assert.deepEqual(res.body, { ok: true });
+    const pool = await db();
+    const row = await getClaim(pool, claim.id);
+    assert.equal(row?.undoneBy, String(ADMIN_2));
+    assert.equal(row?.undoReason, "admin");
+    assert.ok(row?.undoneAt instanceof Date);
+    const s = await pool.query("SELECT count(*)::int AS n FROM user_claims WHERE user_id = $1 AND undone_at IS NULL", [user.id]);
+    assert.equal(s.rows[0].n, 0, "the name is free again");
+    assert.deepEqual(usersBefore, (await pool.query("SELECT * FROM users ORDER BY id")).rows, "users is never written");
+    assert.equal((await pool.query("SELECT 1 FROM line_bindings WHERE phone = '0900000033'")).rowCount, 0, "binding deleted");
+    assert.equal(await isAuthorizedPhone("0900000033"), false, "this instance refuses the session at once");
+    assert.equal(await claimBlocked(pool, "0900000033", "U-other"), true, "no new claim for 24 h");
+    assert.deepEqual(answers(), [ANSWERS.claimUndone]);
+    const edits = calls.filter((c) => c.method === "editMessageText");
+    assert.deepEqual(
+      edits.map((e) => [e.body.chat_id, e.body.message_id]),
+      [
+        [String(ADMIN), 301],
+        [String(ADMIN_2), 302],
+      ],
+    );
+    for (const e of edits) {
+      assert.equal(e.body.reply_markup, undefined, "button removed");
+      assert.ok(String(e.body.text).startsWith(`${buildClaimMessage(user, claim)}\n\n↩️ ยกเลิกแล้ว โดย Admin Ops เวลา `), String(e.body.text));
+    }
+    const ev = await pool.query("SELECT line_sub FROM login_events WHERE event = 'claim_undone' AND phone = '0900000033'");
+    assert.deepEqual(ev.rows, [{ line_sub: "U-c3" }]);
+
+    // later taps: nothing changes
+    calls.length = 0;
+    await post(tap(claimCallbackData(claim.id), ADMIN));
+    assert.deepEqual(answers(), [ANSWERS.claimAlready]);
+    assert.equal(ANSWERS.claimAlready, "ดำเนินการไปแล้ว");
+    assert.equal(calls.length, 1, "no edit");
+  });
+
+  test("undo of an ended claim (released by hand, the name claimed again) and of an unknown claim change nothing", async () => {
+    await (await db()).query("TRUNCATE user_claims, users RESTART IDENTITY");
+    const pool = await db();
+    const first = await newClaim("0900000034", "U-c4", "เก่า");
+    await pool.query("UPDATE user_claims SET undone_at = now(), undo_reason = 'manual' WHERE id = $1", [first.claim.id]);
+    const second = await claimUser(pool, { userId: first.user.id, phone: "0900000035", sub: "U-c5", lineName: "x", ip: "", userAgent: "" });
+    assert.ok(second.status === "claimed");
+    await post(tap(claimCallbackData(first.claim.id), ADMIN));
+    assert.deepEqual(answers(), [ANSWERS.claimAlready]);
+    assert.equal((await getClaim(pool, first.claim.id))?.undoReason, "manual", "not turned into an admin undo (no 24 h block)");
+    assert.equal(await claimBlocked(pool, "0900000034", "U-c4"), false);
+    const cur = await pool.query("SELECT phone FROM user_claims WHERE user_id = $1 AND undone_at IS NULL", [first.user.id]);
+    assert.equal(cur.rows[0].phone, "0900000035", "the newer claim stands");
+    calls.length = 0;
+    await post(tap(claimCallbackData("987654"), ADMIN));
+    assert.deepEqual(answers(), [ANSWERS.claimMissing]);
+    assert.equal(calls.filter((c) => c.method === "editMessageText").length, 0);
+  });
+
+  test("undo of a number that stays authorized another way (approved request, ALLOWED_PHONES) says so instead of 'signed out'", async () => {
+    await (await db()).query("TRUNCATE user_claims, users RESTART IDENTITY");
+    const pool = await db();
+    // an approved request made before claims and requests excluded each other (or set by hand)
+    const { claim } = await newClaim("0900000036", "U-c6", "ยังเข้าได้");
+    await pool.query(
+      `INSERT INTO access_requests (phone, line_sub, first_name, last_name, position, status, decided_at)
+       VALUES ('0900000036', 'U-c6', 'ยัง', 'เข้าได้', 'RN', 'approved', now())`,
+    );
+    await post(tap(claimCallbackData(claim.id), ADMIN));
+    assert.deepEqual(answers(), [ANSWERS.claimUndoneStillAllowed]);
+    resetAuthzCache();
+    assert.equal(await isAuthorizedPhone("0900000036"), true, "the approved request still authorizes it");
+    // a break-glass number (ALLOWED_PHONES has 081-234-5678)
+    calls.length = 0;
+    const glass = await newClaim("0812345678", "U-c7", "ฉุกเฉิน");
+    await post(tap(claimCallbackData(glass.claim.id), ADMIN));
+    assert.deepEqual(answers(), [ANSWERS.claimUndoneStillAllowed]);
+  });
+
+  test("a claim announcement that reaches no chat is tried once more", async () => {
+    await (await db()).query("TRUNCATE user_claims, users RESTART IDENTITY");
+    const { claim, user } = await newClaim("0900000037", "U-c8", "ส่งซ้ำ");
+    const waits: number[] = [];
+    failing.add("sendMessage");
+    const none = await announceClaim(user, claim, async (ms) => {
+      waits.push(ms);
+    });
+    assert.deepEqual(none, []);
+    assert.deepEqual(waits, [CLAIM_RETRY_MS]);
+    assert.equal(calls.filter((c) => c.method === "sendMessage").length, 6, "two rounds of three chats");
+    calls.length = 0;
+    failing.clear();
+    let retried = false;
+    const sent = await announceClaim(user, claim, async () => {
+      retried = true;
+    });
+    assert.equal(sent.length, 3);
+    assert.equal(retried, false, "no retry when it went out");
+    // not configured: no retry either
+    delete process.env.TELEGRAM_BOT_TOKEN;
+    assert.deepEqual(await announceClaim(user, claim, async () => assert.fail("no wait")), []);
   });
 });

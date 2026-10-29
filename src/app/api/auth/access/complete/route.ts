@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { approvedRequest } from "@/lib/access";
 import { accessGrantFor } from "@/lib/access-http";
-import { noteApproved } from "@/lib/authz";
+import { noteAuthorized } from "@/lib/authz";
 import { clearCookie, setCookie } from "@/lib/cookies";
 import { db } from "@/lib/db";
 import { sessionSecret } from "@/lib/env";
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     const approved = await approvedRequest(pool, grant.phone, grant.sub);
     if (!approved) return json({ error: MSG.notApproved }, 403);
     await upsertBinding(pool, grant.sub, grant.phone, grant.name);
-    noteApproved(grant.phone);
+    noteAuthorized(grant.phone);
     await logEvent(pool, {
       event: "login_access",
       sub: grant.sub,

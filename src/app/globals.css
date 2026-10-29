@@ -183,6 +183,7 @@ body {
   }
   .badge-warning { color: var(--late); background: var(--late-tint); border-color: rgb(217 140 0 / 0.3); }
   .badge-success { color: var(--live); background: var(--live-tint); border-color: rgb(21 127 61 / 0.25); }
+  .badge-muted { color: var(--ink-3); background: #fff; border-color: var(--line-strong); }
 
   /* Department chip, coloured by --chip (the department's own colour). */
   .chip {
@@ -414,6 +415,50 @@ body {
     text-decoration: none;
   }
 
+  /* A row to pick on the claim page (a type, a name): at least 52px tall, white, a brown edge on hover. */
+  .choice {
+    display: flex;
+    width: 100%;
+    min-height: 3.25rem;
+    align-items: center;
+    gap: 0.75rem;
+    border-radius: 12px;
+    border: 1px solid var(--line-strong);
+    background: #fff;
+    padding: 0.5rem 0.75rem 0.5rem 0.875rem;
+    text-align: left;
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    color: var(--ink);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+  }
+  .choice:hover:not(:disabled) {
+    border-color: var(--brand);
+    background: var(--surface);
+  }
+  /* A taken name: still readable (its badge says why), on the page's own tint. */
+  .choice:disabled {
+    cursor: not-allowed;
+    background: var(--surface-2);
+    border-color: var(--line);
+    color: var(--ink-2);
+  }
+  /*
+   * The names flow in the page's one scroller (no box inside it, so a swipe on the list always scrolls the page);
+   * the search bar above them is sticky and keeps this opaque backing while names pass under it.
+   */
+  .choice-list {
+    margin-inline: -0.25rem;
+    padding: 0.25rem;
+  }
+  .claim-search {
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
+
   /* "Waiting for a decision": a pulsing dot before the text. */
   .waiting {
     display: inline-flex;
@@ -589,6 +634,7 @@ dialog[open]::backdrop {
   .room-sheet,
   .case-row,
   .btn,
+  .choice,
   .field {
     transition: none;
   }

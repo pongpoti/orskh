@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Notice } from "@/components/auth-shell";
+import { USER_TYPES, TYPE_LABELS } from "@/lib/user-labels";
 import { NETWORK_ERROR, postJson, type ApiResult } from "../verify/verify-form";
 
 export type PanelView = "form" | "pending" | "approved" | "rejected" | "signin" | "error";
@@ -41,7 +42,7 @@ const TONES = {
 } as const;
 
 /** A round status icon above a state's heading; the heading says the same in words. */
-function StateIcon({ icon, tone }: { icon: keyof typeof ICONS; tone: keyof typeof TONES }) {
+export function StateIcon({ icon, tone }: { icon: keyof typeof ICONS; tone: keyof typeof TONES }) {
   return (
     <div className={`mx-auto mb-3 grid size-14 place-items-center rounded-full ring-1 ${TONES[tone]}`}>
       <svg
@@ -62,13 +63,14 @@ function StateIcon({ icon, tone }: { icon: keyof typeof ICONS; tone: keyof typeo
   );
 }
 
-const H2 = "text-lg leading-snug font-bold text-ink";
-const HELP = "mt-2 text-sm leading-6 text-muted";
-const NOTE = "mt-3 text-[0.8125rem] leading-5 text-muted";
-const LABEL = "mb-1.5 block text-sm font-semibold text-ink-2";
+export const H2 = "text-lg leading-snug font-bold text-ink";
+export const HELP = "mt-2 text-sm leading-6 text-muted";
+export const NOTE = "mt-3 text-[0.8125rem] leading-5 text-muted";
+export const LABEL = "mb-1.5 block text-sm font-semibold text-ink-2";
+export const EXPIRED_MESSAGE = EXPIRED;
 
 /** Back to the number step (LINE again, then another number), e.g. after verifying the wrong number by mistake. */
-function OtherPhone() {
+export function OtherPhone() {
   return (
     <a className="text-btn mt-2" href="/api/auth/line/start" data-testid="other-phone">
       ใช้เบอร์อื่น
@@ -76,7 +78,8 @@ function OtherPhone() {
   );
 }
 
-export function RequestPanel({ initial, phone }: { initial: PanelView; phone: string }) {
+/** `claims`: whether names can be claimed now (lib/telegram.ts claimsEnabled()); without, there is no way back to it. */
+export function RequestPanel({ initial, phone, claims = true }: { initial: PanelView; phone: string; claims?: boolean }) {
   const [view, setView] = useState<PanelView>(initial);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -360,9 +363,11 @@ export function RequestPanel({ initial, phone }: { initial: PanelView; phone: st
       data-testid="request-form"
     >
       <h2 className={H2} ref={headingRef} tabIndex={-1}>
-        เบอร์นี้ยังไม่อยู่ในรายชื่อ
+        ส่งคำขอเข้าใช้งาน
       </h2>
-      <p className={HELP}>กรอกข้อมูลด้านล่างเพื่อส่งคำขอให้ผู้ดูแลอนุมัติ</p>
+      <p className={HELP}>
+        {claims ? "สำหรับผู้ที่ไม่พบชื่อในรายชื่อ หรือชื่อมีผู้เลือกแล้ว " : ""}กรอกข้อมูลด้านล่างเพื่อส่งคำขอให้ผู้ดูแลอนุมัติ
+      </p>
       <div className="mt-4 grid gap-4">
         <div>
           <label className={LABEL} htmlFor="firstName">
@@ -412,8 +417,11 @@ export function RequestPanel({ initial, phone }: { initial: PanelView; phone: st
             {...invalid("position")}
           >
             <option value="">เลือกตำแหน่ง</option>
-            <option value="doctor">แพทย์</option>
-            <option value="nurse">พยาบาล</option>
+            {USER_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {TYPE_LABELS[t]}
+              </option>
+            ))}
           </select>
         </div>
       </div>
@@ -430,7 +438,14 @@ export function RequestPanel({ initial, phone }: { initial: PanelView; phone: st
         {busy ? "กำลังส่ง…" : "ส่งคำขอ"}
       </button>
       <p className={NOTE}>ผู้ดูแลจะพิจารณาคำขอ เมื่ออนุมัติแล้ว ระบบจะเข้าสู่ระบบให้อัตโนมัติ</p>
-      <OtherPhone />
+      <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3">
+        {claims ? (
+          <a className="text-btn mt-2" href="/login/claim" data-testid="back-to-claim">
+            กลับไปเลือกชื่อ
+          </a>
+        ) : null}
+        <OtherPhone />
+      </div>
     </form>
   );
 }

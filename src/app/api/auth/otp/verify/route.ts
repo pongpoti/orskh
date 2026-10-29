@@ -1,5 +1,5 @@
 import { after, NextResponse, type NextRequest } from "next/server";
-import { approvedRequest } from "@/lib/access";
+import { approvedRequest, latestRequest, viewFor } from "@/lib/access";
 import { isAuthorizedPhone } from "@/lib/authz";
 import { clearCookie, cookieName, setCookie } from "@/lib/cookies";
 import { db } from "@/lib/db";
@@ -7,11 +7,11 @@ import { assertOtpReady, ConfigError, otpPepper, sessionSecret, smsConfig, teleg
 import { guardPost, json, MSG } from "@/lib/http";
 import { countOtpPhones, logEvent, otpHistory, upsertBinding, verifyCode } from "@/lib/otp";
 import { normalizePhone } from "@/lib/phone";
-import { physicianFor } from "@/lib/physician-list";
 import { clientIp, readJsonBody, safeNextPath, userAgent } from "@/lib/security";
 import { smsTransport } from "@/lib/sms";
+import { userForPhone } from "@/lib/user-list";
 import { alertsAfterVerify } from "@/lib/sms/alerts";
-import { notify, notifyVerified } from "@/lib/telegram";
+import { claimsEnabled, notify, notifyVerified } from "@/lib/telegram";
 import { signAccess, signSession, verifyPending } from "@/lib/tokens";
 
 export async function POST(req: NextRequest) {
@@ -57,11 +57,17 @@ export async function POST(req: NextRequest) {
       });
     }
     if (result.ok && !(await isAuthorizedPhone(phone, { fresh: true }))) {
-      // The number is proven but not authorized: no session. A short-lived access cookie lets this
-      // LINE account ask for access (/login/request) and wait for an administrator's decision.
+      // The number is proven but not authorized: no session. A short-lived access cookie lets this LINE account claim
+      // its name on the users list (/login/claim), or ask for access (/login/request) and wait for an administrator's
+      // decision. A number that already has a request (pending, approved or recently rejected) goes back to it, and
+      // every number goes to the request while claims are off (no Telegram administrator, claimsEnabled()).
       await logEvent(pool, { event: "otp_verified_unlisted", sub: pending.sub, phone, ip, userAgent: ua });
+      const requested = !claimsEnabled() || viewFor(await latestRequest(pool, phone), pending.sub) !== "form";
       const grant = await signAccess({ sub: pending.sub, name: pending.name, picture: pending.picture, phone }, secret);
-      const res = NextResponse.json({ ok: true, redirect: "/login/request" }, { headers: { "Cache-Control": "no-store" } });
+      const res = NextResponse.json(
+        { ok: true, redirect: requested ? "/login/request" : "/login/claim" },
+        { headers: { "Cache-Control": "no-store" } },
+      );
       clearCookie(res, "pending");
       setCookie(res, "access", grant);
       return res;
@@ -81,10 +87,13 @@ export async function POST(req: NextRequest) {
         const at = new Date();
         after(async () => {
           const verifiedPhones = await countOtpPhones(pool).catch(() => 0);
-          const physician = await physicianFor(pool, phone);
-          // No physicians row: the approved request (if any) gives the name and position the alert shows.
-          const requester = physician ? null : await approvedRequest(pool, phone).catch(() => null);
-          await notifyVerified({ physician, requester, lineName: pending.name, phone, at, history, verifiedPhones });
+          const user = await userForPhone(pool, phone).catch((e) => {
+            console.error("[alert] user lookup failed:", (e as Error).message);
+            return null;
+          });
+          // No claimed name: the approved request (if any) gives the name and position the alert shows.
+          const requester = user ? null : await approvedRequest(pool, phone).catch(() => null);
+          await notifyVerified({ user, requester, lineName: pending.name, phone, at, history, verifiedPhones });
         });
       }
       const token = await signSession({ sub: pending.sub, phone, name: pending.name, picture: pending.picture }, secret);

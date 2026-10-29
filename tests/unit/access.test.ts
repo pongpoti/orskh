@@ -10,6 +10,7 @@ import {
   getRequest,
   latestRequest,
   parsePosition,
+  POSITIONS,
   REQUEST_LIMITS,
   saveTelegramRefs,
   viewFor,
@@ -60,10 +61,12 @@ describe("access request validation", () => {
     }
   });
 
-  test("positions: doctor or nurse only", () => {
-    assert.equal(parsePosition("doctor"), "doctor");
-    assert.equal(parsePosition("nurse"), "nurse");
-    for (const bad of ["", "Doctor", "แพทย์", "admin", null, 1, ["nurse"]]) assert.equal(parsePosition(bad), null);
+  test("positions: the four user types only, with their Thai labels", () => {
+    for (const p of ["DR", "RN", "PN", "PCA"]) assert.equal(parsePosition(p), p);
+    assert.deepEqual(POSITIONS, { DR: "แพทย์", RN: "พยาบาล", PN: "ผู้ช่วยพยาบาล", PCA: "พนักงานช่วยเหลือคนไข้" });
+    for (const bad of ["", "dr", "Dr", "doctor", "nurse", "แพทย์", "admin", "__proto__", "toString", null, 1, ["RN"]]) {
+      assert.equal(parsePosition(bad), null, JSON.stringify(bad));
+    }
   });
 });
 
@@ -75,7 +78,7 @@ describe("what /login/request shows", () => {
     lineName: "x",
     firstName: "ก",
     lastName: "ข",
-    position: "nurse",
+    position: "RN",
     status: "pending",
     createdAt: new Date("2026-10-25T00:00:00Z"),
     decidedAt: null,
@@ -104,10 +107,10 @@ describe("what /login/request shows", () => {
 
 describe("access requests (database)", () => {
   const pool = createPool(TEST_DB);
-  const person = { lineName: "LINE คน", firstName: "สมหญิง", lastName: "ใจดี", position: "nurse" as const, ip: "203.0.113.9" };
+  const person = { lineName: "LINE คน", firstName: "สมหญิง", lastName: "ใจดี", position: "RN" as const, ip: "203.0.113.9" };
 
   before(async () => {
-    await pool.query("DROP TABLE IF EXISTS otp_codes, line_bindings, login_events, physicians, access_requests");
+    await pool.query("DROP TABLE IF EXISTS otp_codes, line_bindings, login_events, user_claims, users, access_requests");
     await ensureSchema(pool);
   });
   beforeEach(async () => {
@@ -123,7 +126,7 @@ describe("access requests (database)", () => {
     assert.ok(r.status === "created");
     assert.equal(r.request.status, "pending");
     assert.equal(r.request.firstName, "สมหญิง");
-    assert.equal(r.request.position, "nurse");
+    assert.equal(r.request.position, "RN");
     assert.equal(r.request.lineName, "LINE คน");
     assert.deepEqual(await create("0900000011", "U1"), { status: "exists", view: "pending" });
     assert.deepEqual(await create("0900000011", "U2"), { status: "exists", view: "pending" });

@@ -92,7 +92,7 @@ describe("OTP rate limits and attempts (database)", () => {
   let fake = fakeTransport();
 
   before(async () => {
-    await pool.query("DROP TABLE IF EXISTS otp_codes, line_bindings, login_events, physicians, access_requests");
+    await pool.query("DROP TABLE IF EXISTS otp_codes, line_bindings, login_events, user_claims, users, access_requests");
     await ensureSchema(pool);
   });
   beforeEach(async () => {

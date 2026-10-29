@@ -263,7 +263,7 @@ export function VerifyForm() {
       >
         <StepHeading step="ขั้นที่ 1 จาก 2">กรอกเบอร์มือถือ</StepHeading>
         <p className="text-sm leading-6 text-muted">
-          ใช้เบอร์ที่ลงทะเบียนไว้กับโรงพยาบาล ระบบจะส่งรหัส 6&nbsp;หลักทาง SMS
+          ใช้เบอร์มือถือของคุณเอง ระบบจะส่งรหัส 6&nbsp;หลักทาง SMS ครั้งต่อไปใช้เบอร์เดิม
         </p>
         <label className={`${LABEL} mt-4`} htmlFor="phone">
           เบอร์มือถือ
@@ -299,7 +299,7 @@ export function VerifyForm() {
           {busy ? "กำลังส่ง…" : phoneWait > 0 ? `ส่งรหัสได้ใน ${waitText(phoneWait)}` : "ส่งรหัสทาง SMS"}
         </button>
         <p className="mt-4 text-[0.8125rem] leading-5 text-muted">
-          เบอร์ยังไม่อยู่ในรายชื่อ? ยืนยันรหัสก่อน แล้วส่งคำขอเข้าใช้งานได้ในขั้นถัดไป
+          ครั้งแรก ยืนยันรหัสแล้วเลือกชื่อของคุณจากรายชื่อ หากไม่พบชื่อ ส่งคำขอเข้าใช้งานได้
         </p>
       </form>
     );

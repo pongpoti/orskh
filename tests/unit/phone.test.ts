@@ -2,7 +2,7 @@ import "./_setup";
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { formatPhone, isAllowedPhone, normalizePhone, parsePhoneList, PHONE_RE, toInternational } from "@/lib/phone";
-import { normalizePhone as rosterNormalizePhone, PHONE_RE as ROSTER_PHONE_RE } from "../../scripts/physicians-roster.mjs";
+import { normalizePhone as rosterNormalizePhone, PHONE_RE as ROSTER_PHONE_RE } from "../../scripts/phone.mjs";
 
 describe("phone normalization", () => {
   test("accepts 0XXXXXXXXX, 66XXXXXXXXX and +66XXXXXXXXX with spaces, dashes, dots and parentheses", () => {
@@ -105,10 +105,10 @@ describe("phone normalization", () => {
     assert.deepEqual(logged, []);
   });
 
-  test("scripts/physicians-roster.mjs uses the same pattern and normalization", () => {
+  test("scripts/phone.mjs (the dev scripts) uses the same pattern and normalization", () => {
     assert.equal(ROSTER_PHONE_RE.source, PHONE_RE.source);
     assert.equal(ROSTER_PHONE_RE.flags, PHONE_RE.flags);
-    // the sync script must store exactly what the app looks up
+    // dev-session must sign exactly what the app looks up
     for (const input of [
       "0812345678",
       "081-234-5678",

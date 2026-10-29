@@ -16,6 +16,7 @@ const ADMIN_ICON = (
 /** One bar: the mark, today's date as the page heading, the admin page for admins, and the account menu behind the avatar. */
 export function TopBar({
   name,
+  role = null,
   phone,
   image,
   date,
@@ -23,8 +24,10 @@ export function TopBar({
   showAccount = true,
   adminHref = null,
 }: {
-  /** The person's full name (physicians table, else the approved request, else the LINE name). */
+  /** The person's full name (claimed user, else the approved request, else the LINE name). */
   name: string;
+  /** Type and subtype in Thai ("แพทย์ · ออร์โธปิดิกส์"), shown under the name in the account menu. */
+  role?: string | null;
   /** The signed-in mobile number as shown (081-234-5678), under the name in the account menu. */
   phone?: string;
   /** LINE profile picture; only https *.line-scdn.net is shown, otherwise the name's first letter. */
@@ -97,6 +100,11 @@ export function TopBar({
                   <p className="text-sm leading-snug font-semibold break-words text-ink" data-testid="account-name">
                     {name}
                   </p>
+                  {role ? (
+                    <p className="text-xs leading-snug text-ink-2" data-testid="account-role">
+                      {role}
+                    </p>
+                  ) : null}
                   {phone ? (
                     // The whole number, never cut off: it is what the session is bound to.
                     <p className="text-xs leading-snug whitespace-nowrap text-muted tabular-nums" data-testid="account-phone">

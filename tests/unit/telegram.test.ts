@@ -27,7 +27,7 @@ afterEach(() => {
 describe("Telegram alert text", () => {
   test("first verification: new-user header, Thai date and time in Bangkok, total", () => {
     const html = buildVerifiedAlert({
-      physician: { name: "สมชาย ใจดี", dept: "ศัลยกรรมทั่วไป" },
+      user: { id: "1", firstName: "สมชาย", lastName: "ใจดี", type: "DR", subtype: "GENSX" },
       lineName: "Pong",
       phone: "0812345678",
       at: AT,
@@ -51,7 +51,7 @@ describe("Telegram alert text", () => {
 
   test("repeat verification: again header and the previous date", () => {
     const html = buildVerifiedAlert({
-      physician: { name: "สมหญิง รักดี", dept: null },
+      user: { id: "2", firstName: "สมหญิง", lastName: "รักดี", type: "DR", subtype: null },
       lineName: "หมอ A",
       phone: "0900000001",
       at: AT,
@@ -62,12 +62,21 @@ describe("Telegram alert text", () => {
     assert.match(html, /\n🗓 เบอร์นี้ยืนยันครั้งก่อน: 12 เม\.ย\. 2569\n/);
     assert.match(html, /👥 ยืนยันแล้วทั้งหมด: 1,234 เบอร์$/);
     assert.doesNotMatch(html, /ผู้ใช้ใหม่/);
-    assert.match(html, /\n🩺 แพทย์: สมหญิง รักดี\n/, "no department brackets when the doctor has none");
+    assert.match(html, /\n🩺 แพทย์: สมหญิง รักดี\n/, "no brackets without a subtype");
+    const nurse = buildVerifiedAlert({
+      user: { id: "3", firstName: "ปราณี", lastName: "สายบุญ", type: "RN", subtype: "ANES" },
+      lineName: "x",
+      phone: "0900000001",
+      at: AT,
+      history: NONE,
+      verifiedPhones: 1,
+    });
+    assert.match(nurse, /\n🩺 พยาบาล: ปราณี สายบุญ \(วิสัญญี\)\n/);
   });
 
   test("known number on a LINE account that never verified it: warning header", () => {
     const html = buildVerifiedAlert({
-      physician: { name: "สมชาย ใจดี", dept: "ศัลยกรรมทั่วไป" },
+      user: { id: "1", firstName: "สมชาย", lastName: "ใจดี", type: "DR", subtype: "GENSX" },
       lineName: "someone",
       phone: "0900000002",
       at: AT,
@@ -80,7 +89,7 @@ describe("Telegram alert text", () => {
 
   test("LINE name cannot inject markup or fake lines", () => {
     const html = buildVerifiedAlert({
-      physician: null,
+      user: null,
       lineName: '<a href="https://evil.test">x</a>\n📱 เบอร์: 081-234-5678\u202E',
       phone: "0900000001",
       at: AT,
@@ -92,14 +101,14 @@ describe("Telegram alert text", () => {
     assert.ok(!nameLine.includes("<a") && nameLine.includes("&lt;a href="), nameLine);
     assert.ok(!/\u202E/.test(html), "bidi override removed");
     assert.equal(html.split("\n").filter((l) => l.startsWith("📱")).length, 1, "only one number line");
-    assert.match(html, /\n🩺 แพทย์: ไม่พบในรายชื่อแพทย์\n/);
+    assert.match(html, /\n🩺 ไม่พบในรายชื่อเจ้าหน้าที่\n/);
     assert.equal(escapeHtml("a&b<c>"), "a&amp;b&lt;c&gt;");
   });
 
   test("approved (non-listed) user: the 🩺 line shows the requested name and position", () => {
     const html = buildVerifiedAlert({
-      physician: null,
-      requester: { firstName: "สมชาย", lastName: "ใจดี", position: "nurse" },
+      user: null,
+      requester: { firstName: "สมชาย", lastName: "ใจดี", position: "RN" },
       lineName: "Som",
       phone: "0910000003",
       at: AT,
@@ -108,8 +117,8 @@ describe("Telegram alert text", () => {
     });
     assert.match(html, /\n🩺 พยาบาล: สมชาย ใจดี \(อนุมัติจากคำขอ\)\n/);
     const doctor = buildVerifiedAlert({
-      physician: null,
-      requester: { firstName: "A", lastName: "B", position: "doctor" },
+      user: null,
+      requester: { firstName: "A", lastName: "B", position: "DR" },
       lineName: "x",
       phone: "0900000001",
       at: AT,
@@ -117,14 +126,14 @@ describe("Telegram alert text", () => {
       verifiedPhones: 2,
     });
     assert.match(doctor, /\n🩺 แพทย์: A B \(อนุมัติจากคำขอ\)\n/);
-    assert.doesNotMatch(doctor, /ไม่พบในรายชื่อแพทย์/);
+    assert.doesNotMatch(doctor, /ไม่พบในรายชื่อ/);
   });
 
   test("the number and an approved requester's name are never shortened", () => {
     for (const phone of ["0812345678", "0611111111"]) {
       const html = buildVerifiedAlert({
-        physician: null,
-        requester: { firstName: "ก".repeat(60), lastName: "ข".repeat(60), position: "doctor" },
+        user: null,
+        requester: { firstName: "ก".repeat(60), lastName: "ข".repeat(60), position: "DR" },
         lineName: "x",
         phone,
         at: AT,
@@ -152,9 +161,9 @@ describe("Telegram alert text", () => {
   });
 
   test("empty or very long LINE names", () => {
-    const empty = buildVerifiedAlert({ physician: null, lineName: "  ", phone: "0900000001", at: AT, history: NONE, verifiedPhones: 1 });
+    const empty = buildVerifiedAlert({ user: null, lineName: "  ", phone: "0900000001", at: AT, history: NONE, verifiedPhones: 1 });
     assert.match(empty, /👤 ชื่อ LINE: ไม่ระบุ/);
-    const long = buildVerifiedAlert({ physician: null, lineName: "ก".repeat(300), phone: "0900000001", at: AT, history: NONE, verifiedPhones: 1 });
+    const long = buildVerifiedAlert({ user: null, lineName: "ก".repeat(300), phone: "0900000001", at: AT, history: NONE, verifiedPhones: 1 });
     const line = long.split("\n").find((l) => l.startsWith("👤")) ?? "";
     assert.ok(line.length < 130 && line.endsWith("…"), line);
   });
@@ -250,7 +259,7 @@ describe("Telegram sending (mock Bot API)", () => {
     calls.length = 0;
     assert.equal(await sendTelegram("x"), false);
     await notify(buildVolumeAlert(150, 300, AT));
-    await notifyVerified({ physician: null, lineName: "A", phone: "0900000001", at: AT, history: NONE, verifiedPhones: 1 });
+    await notifyVerified({ user: null, lineName: "A", phone: "0900000001", at: AT, history: NONE, verifiedPhones: 1 });
     assert.equal(calls.length, 0);
   });
 
@@ -263,11 +272,11 @@ describe("Telegram sending (mock Bot API)", () => {
     const orig = console.error;
     console.error = (...a: unknown[]) => void logged.push(a.map(String).join(" "));
     try {
-      await notifyVerified({ physician: null, lineName: "A", phone: "0900000001", at: AT, history: NONE, verifiedPhones: 1 });
+      await notifyVerified({ user: null, lineName: "A", phone: "0900000001", at: AT, history: NONE, verifiedPhones: 1 });
       process.env.TELEGRAM_API_URL = "http://127.0.0.1:9"; // nothing listens there
-      await notifyVerified({ physician: null, lineName: "A", phone: "0900000001", at: AT, history: NONE, verifiedPhones: 1 });
+      await notifyVerified({ user: null, lineName: "A", phone: "0900000001", at: AT, history: NONE, verifiedPhones: 1 });
       process.env.TELEGRAM_CHAT_ID = "not a chat";
-      await notifyVerified({ physician: null, lineName: "A", phone: "0900000001", at: AT, history: NONE, verifiedPhones: 1 });
+      await notifyVerified({ user: null, lineName: "A", phone: "0900000001", at: AT, history: NONE, verifiedPhones: 1 });
     } finally {
       console.error = orig;
     }
@@ -283,7 +292,7 @@ describe("verification history (database)", () => {
   const pool = createPool(TEST_DB);
 
   before(async () => {
-    await pool.query("DROP TABLE IF EXISTS otp_codes, line_bindings, login_events, physicians, access_requests");
+    await pool.query("DROP TABLE IF EXISTS otp_codes, line_bindings, login_events, user_claims, users, access_requests");
     await ensureSchema(pool);
   });
   after(() => pool.end());

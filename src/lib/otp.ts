@@ -11,7 +11,7 @@ export const LIMITS = {
   perPhone15m: 3,
   /**
    * Codes to one number for one LINE account per 24 h (no SMS-bombing a phone). Counted per pair, so someone else's
-   * requests can never block a physician's own sign-in for a day.
+   * requests can never block someone's own sign-in for a day.
    */
   perPairDay: 6,
   perSubHour: 5,
@@ -379,6 +379,10 @@ export type LoginEvent =
   | "access_request_limited"
   | "access_approved"
   | "access_rejected"
+  | "claim"
+  | "claim_failed"
+  | "claim_refused"
+  | "claim_undone"
   | "logout";
 
 export interface EventRow {

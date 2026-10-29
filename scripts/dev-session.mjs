@@ -4,7 +4,7 @@
 // Token format must match signSession() in lib/tokens.ts. Refuses when APP_URL is https or on Vercel.
 import { SignJWT } from "jose";
 import { loadEnvLocal } from "./load-env.mjs";
-import { normalizePhone } from "./physicians-roster.mjs";
+import { normalizePhone } from "./phone.mjs";
 
 const env = loadEnvLocal();
 const [rawPhone, name = "ผู้ทดสอบ (dev)"] = process.argv.slice(2);
@@ -37,7 +37,7 @@ const allowed = new Set(
 // Outside the break-glass list the app needs the database to accept the session (lib/authz.ts).
 if (!allowed.has(phone)) {
   console.error(
-    "note: the app accepts this session only while the number has an active row in the physicians table (or an " +
+    "note: the app accepts this session only while the number holds a current claim on an active user (or an " +
       "approved access request); add it to ALLOWED_PHONES in .env.local to work without a database",
   );
 }

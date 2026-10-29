@@ -11,7 +11,7 @@
     "test": "tsx --conditions=react-server --test --test-concurrency=1 --test-reporter=spec \"src/lib/*.test.ts\" \"tests/unit/**/*.test.ts\"",
     "test:e2e": "node tests/e2e/run.mjs",
     "dev-session": "node scripts/dev-session.mjs",
-    "sync-physicians": "node scripts/sync-physicians.mjs"
+    "sync-users": "node scripts/sync-users.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",

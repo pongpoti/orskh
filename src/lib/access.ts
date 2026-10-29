@@ -1,17 +1,19 @@
 import "server-only";
 import type { Pool, PoolClient } from "pg";
 import { withTx } from "./db";
+import { isUserType, TYPE_LABELS, type UserType } from "./user-labels";
 
 type Q = Pool | PoolClient;
 
 /**
- * Access requests: a LINE account that verified a mobile number which is not on the physician list asks for access;
- * an administrator approves or rejects it in Telegram (lib/telegram-webhook.ts). A number with an approved
- * request is authorized like a listed physician (lib/authz.ts).
+ * Access requests: a LINE account that verified a mobile number which holds no name (someone not on the users list, or
+ * whose name was claimed by someone else) asks for access; an administrator approves or rejects it in Telegram
+ * (lib/telegram-webhook.ts). A number with an approved request is authorized like a claimed name (lib/authz.ts).
  */
 
-export const POSITIONS = { doctor: "แพทย์", nurse: "พยาบาล" } as const;
-export type Position = keyof typeof POSITIONS;
+/** The four user types (lib/user-labels.ts), with their Thai labels. */
+export const POSITIONS: Record<UserType, string> = TYPE_LABELS;
+export type Position = UserType;
 export type RequestStatus = "pending" | "approved" | "rejected";
 
 export const NAME_MAX = 60;
@@ -33,7 +35,7 @@ export function cleanPersonName(input: unknown): string | null {
 }
 
 export function parsePosition(input: unknown): Position | null {
-  return input === "doctor" || input === "nurse" ? input : null;
+  return isUserType(input) ? input : null;
 }
 
 export interface TelegramRef {
@@ -165,8 +167,10 @@ export type CreateResult =
 
 /**
  * Stores a new pending request unless one is pending (one per number, also enforced by a partial unique
- * index), the number was approved, it was rejected less than 24 h ago, or this LINE account already sent
- * REQUEST_LIMITS.perSubDay requests in the last 24 h.
+ * index), the number was approved, it was rejected less than 24 h ago, the number holds an active name on the users
+ * list (it signs in with that: "signin"), or this LINE account already sent REQUEST_LIMITS.perSubDay requests in the
+ * last 24 h. lib/user-list.ts claimUser() takes the same 'access-phone:' lock, so a claim and a request of one number
+ * never both go through.
  */
 export async function createRequest(
   pool: Pool,
@@ -178,6 +182,12 @@ export async function createRequest(
       await c.query("SELECT pg_advisory_xact_lock(hashtext('access-phone:' || $1))", [r.phone]);
       const view = viewFor(await latestRequest(c, r.phone), r.sub);
       if (view !== "form") return { status: "exists", view };
+      const held = await c.query(
+        `SELECT 1 FROM user_claims cl JOIN users u ON u.id = cl.user_id
+         WHERE cl.phone = $1 AND cl.undone_at IS NULL AND u.active`,
+        [r.phone],
+      );
+      if (held.rowCount) return { status: "exists", view: "signin" };
       const { rows } = await c.query<{ n: number; oldest_s: number | null }>(
         `SELECT count(*)::int AS n, extract(epoch FROM now() - min(created_at))::float8 AS oldest_s
          FROM access_requests WHERE line_sub = $1 AND created_at > now() - interval '24 hours'`,

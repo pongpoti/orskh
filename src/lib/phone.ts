@@ -3,8 +3,8 @@ import { allowedPhonesRaw } from "./env";
 
 /**
  * Thai mobile numbers, the sign-in identity. Stored and compared in one canonical form, "0812345678": ten digits,
- * a leading 0, then 6, 8 or 9 (the mobile ranges). scripts/physicians-roster.mjs repeats PHONE_RE and normalizePhone()
- * (a unit test keeps the two identical).
+ * a leading 0, then 6, 8 or 9 (the mobile ranges); db/schema.sql checks the same pattern, and scripts/phone.mjs
+ * repeats PHONE_RE and normalizePhone() for the dev scripts (a unit test keeps the two identical).
  */
 export const PHONE_RE = /^0[689]\d{8}$/;
 

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { latestRequest, viewFor } from "@/lib/access";
 import { accessGrantFor } from "@/lib/access-http";
-import { isListedPhysician } from "@/lib/authz";
+import { isListedUser } from "@/lib/authz";
 import { db } from "@/lib/db";
 import { json, MSG } from "@/lib/http";
 
@@ -9,8 +9,8 @@ import { json, MSG } from "@/lib/http";
 export async function GET(req: NextRequest) {
   const grant = await accessGrantFor(req);
   if (grant instanceof NextResponse) return grant;
-  // Added to the physician list meanwhile: a normal sign-in (LINE + code) now works.
-  if (await isListedPhysician(grant.phone)) return json({ status: "signin" });
+  // The number holds a name now (claimed on another device, or set by hand): a normal sign-in (LINE + code) works.
+  if (await isListedUser(grant.phone)) return json({ status: "signin" });
   try {
     const view = viewFor(await latestRequest(await db(), grant.phone), grant.sub);
     return json({ status: view });

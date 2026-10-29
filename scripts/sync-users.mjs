@@ -1,30 +1,36 @@
 #!/usr/bin/env node
-// Usage: node scripts/sync-physicians.mjs [--apply] [--allow-mass-deactivate] <roster.csv|->
-//        (or: npm run sync-physicians -- ...)
-// Makes the database table physicians (who may sign in, and their names for the sign-in alert) match a roster CSV:
-// UTF-8, header phone,name,dept, one row per Thai mobile number (a second number is another row with the same name).
-// Prints what changes: added, changed (name or dept), reactivated, deactivated (active rows missing from the CSV),
-// and which numbers off the roster still sign in through an approved access request (revoking those stays manual).
-// Writes only with --apply, in one transaction, and never deletes a row: a removed physician is deactivated, so the
-// alert still names them. --apply refuses to deactivate more than 5 rows and more than 10% of the active ones at
-// once (a partial CSV?) unless --allow-mass-deactivate. The app sees the change within 60 s, no redeploy.
-// The CSV holds physician phone numbers: it must live OUTSIDE the repository ("-" reads stdin). DATABASE_URL comes from
-// env or .env.local. A missing table is created from db/schema.sql (as lib/db.ts does) before the sync.
+// Usage: node scripts/sync-users.mjs [--apply] [--allow-mass-deactivate] <all-users.csv|->
+//        (or: npm run sync-users -- ...)
+// Makes the database table users (shared with the rest of the project; the names people claim on /login/claim) match
+// Pong's list: a CSV in UTF-8 (a BOM is fine) with the header first_name,last_name,type,subtype; type is DR, RN, PN or
+// PCA, subtype a code (ORTHO, OR, ANES, ...) and required (users.subtype is NOT NULL). A row is one person, keyed by
+// (first_name, last_name), the table's unique constraint, after the names are cleaned (NFC, single spaces, invisible
+// characters removed); a person whose type changes keeps their row, with the new type and subtype. Prints counts per
+// type and what changes: added, changed (type or subtype), reactivated, deactivated (active rows missing from the
+// CSV), and which deactivated names hold a current claim (those numbers stop signing in). Writes only with --apply, in
+// one transaction. It never deletes a row, never sets an id (users.id is an identity column, so ids stay stable), sets
+// updated_at = now() on every row it changes, and never touches user_claims (a claim survives a sync; a deactivated
+// claimed name stops authorizing, and authorizes again when it comes back). --apply refuses to deactivate more than 5
+// rows and more than 10% of the active ones at once (a partial CSV?) unless --allow-mass-deactivate. The app sees the
+// change within 60 s. This script is the only writer of users on the sign-in side; the app only reads it.
+// The CSV holds names: it must live OUTSIDE the repository ("-" reads stdin). DATABASE_URL comes from env or
+// .env.local. Missing tables are created from db/schema.sql (as lib/db.ts does) before the sync; where users already
+// exists (production) that statement is a no-op.
 import { readFileSync, realpathSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import pg from "pg";
 import { loadEnvLocal, repoRoot } from "./load-env.mjs";
 import {
   diffRoster,
+  formatClaimedOff,
   formatDiff,
-  formatStillApproved,
+  formatSummary,
   isEmptyDiff,
   isMassDeactivation,
-  offRoster,
   parseRoster,
-} from "./physicians-roster.mjs";
+} from "./users-roster.mjs";
 
-const USAGE = "usage: node scripts/sync-physicians.mjs [--apply] [--allow-mass-deactivate] <roster.csv|->";
+const USAGE = "usage: node scripts/sync-users.mjs [--apply] [--allow-mass-deactivate] <all-users.csv|->";
 const FLAGS = new Set(["--apply", "--allow-mass-deactivate"]);
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "::1", ""]);
 
@@ -54,7 +60,7 @@ function readRoster() {
     }
     const rel = relative(realpathSync(repoRoot), file);
     if (rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel))) {
-      fail("the CSV must live outside the repository (it holds physician phone numbers)");
+      fail("the CSV must live outside the repository (it holds real names)");
     }
     try {
       bytes = readFileSync(file);
@@ -96,20 +102,20 @@ async function hasTable(c, name) {
   return rows[0].present;
 }
 
-/** Every row of the table, or null when it does not exist yet. */
+/**
+ * Every row of the table, with whether it holds a current claim (never the number or the LINE id), or null when the
+ * table does not exist yet.
+ */
 async function currentRows(c) {
-  if (!(await hasTable(c, "physicians"))) return null;
-  return (await c.query("SELECT phone, name, dept, active FROM physicians ORDER BY phone")).rows;
-}
-
-/** Those of `phones` with an approved access request (lib/authz.ts authorizes them without an active row). */
-async function stillApproved(c, phones) {
-  if (!phones.length || !(await hasTable(c, "access_requests"))) return [];
+  if (!(await hasTable(c, "users"))) return null;
+  const claimed = (await hasTable(c, "user_claims"))
+    ? "EXISTS (SELECT 1 FROM user_claims c WHERE c.user_id = u.id AND c.undone_at IS NULL)"
+    : "false";
   const { rows } = await c.query(
-    "SELECT DISTINCT phone FROM access_requests WHERE status = 'approved' AND phone = ANY($1) ORDER BY phone",
-    [phones],
+    `SELECT u.id::text AS id, u.first_name, u.last_name, u.type, u.subtype, u.active, ${claimed} AS claimed
+     FROM users u ORDER BY u.id`,
   );
-  return rows.map((r) => r.phone);
+  return rows;
 }
 
 const { entries, errors } = parseRoster(readRoster());
@@ -124,17 +130,18 @@ const { c, target } = client(url);
 
 try {
   await c.connect();
-  console.log(`database ${target}; CSV: ${entries.length} numbers, ${new Set(entries.map((e) => e.name)).size} names`);
+  console.log(`database ${target}`);
   const massNote = (diff, current) =>
-    `deactivates ${diff.deactivated.length} of ${current.filter((r) => r.active).length} active physicians at once ` +
+    `deactivates ${diff.deactivated.length} of ${current.filter((r) => r.active).length} active names at once ` +
     "(a partial CSV?): check the list above, then add --allow-mass-deactivate if it is right";
   if (!apply) {
     const rows = await currentRows(c);
-    if (!rows) console.log("table physicians does not exist yet (--apply creates it from db/schema.sql)");
+    if (!rows) console.log("table users does not exist yet (--apply creates it from db/schema.sql)");
     const current = rows ?? [];
     const diff = diffRoster(current, entries);
     for (const l of formatDiff(diff)) console.log(l);
-    for (const l of formatStillApproved(await stillApproved(c, offRoster(current, entries)))) console.log(l);
+    for (const l of formatSummary(entries, diff)) console.log(l);
+    for (const l of formatClaimedOff(diff)) console.log(l);
     if (!allowMass && isMassDeactivation(diff, current)) console.log(`--apply will refuse this: it ${massNote(diff, current)}`);
     console.log(isEmptyDiff(diff) ? "nothing to change" : "dry run: nothing was written; run again with --apply to write these changes");
   } else {
@@ -145,38 +152,45 @@ try {
     await c.query("COMMIT");
 
     await c.query("BEGIN");
-    // Other writers (another sync, a manual UPDATE) wait until this commits; sign-ins keep reading the table.
-    await c.query("LOCK TABLE physicians IN SHARE ROW EXCLUSIVE MODE");
+    // Other writers (another sync, a manual UPDATE) wait until this commits; sign-ins and claims keep reading the table.
+    await c.query("LOCK TABLE users IN SHARE ROW EXCLUSIVE MODE");
     const current = await currentRows(c);
     const diff = diffRoster(current, entries);
     for (const l of formatDiff(diff)) console.log(l);
+    for (const l of formatSummary(entries, diff)) console.log(l);
     if (!allowMass && isMassDeactivation(diff, current)) {
       await c.query("ROLLBACK");
       console.error(`refused, nothing was written: this ${massNote(diff, current)}`);
       process.exitCode = 1;
     } else {
+      // id is GENERATED ALWAYS: never given, so the table numbers new rows itself.
       for (const e of diff.added) {
-        await c.query("INSERT INTO physicians (phone, name, dept) VALUES ($1, $2, $3)", [e.phone, e.name, e.dept]);
+        await c.query("INSERT INTO users (first_name, last_name, type, subtype) VALUES ($1, $2, $3, $4)", [
+          e.firstName,
+          e.lastName,
+          e.type,
+          e.subtype,
+        ]);
       }
+      // Only type, subtype and active (the row keeps its id and names; claims in user_claims stay as they are).
       for (const e of [...diff.changed, ...diff.reactivated]) {
-        await c.query("UPDATE physicians SET name = $2, dept = $3, active = true, updated_at = now() WHERE phone = $1", [
-          e.phone,
-          e.name,
-          e.dept,
+        await c.query("UPDATE users SET type = $2, subtype = $3, active = true, updated_at = now() WHERE id = $1", [
+          e.before.id,
+          e.type,
+          e.subtype,
         ]);
       }
       for (const r of diff.deactivated) {
-        await c.query("UPDATE physicians SET active = false, updated_at = now() WHERE phone = $1", [r.phone]);
+        await c.query("UPDATE users SET active = false, updated_at = now() WHERE id = $1", [r.id]);
       }
-      const approved = await stillApproved(c, offRoster(current, entries));
       await c.query("COMMIT");
       console.log(isEmptyDiff(diff) ? "nothing to change" : "applied (the site sees it within 60 s)");
-      for (const l of formatStillApproved(approved)) console.log(l);
+      for (const l of formatClaimedOff(diff)) console.log(l);
     }
   }
 } catch (e) {
   await c.query("ROLLBACK").catch(() => {});
-  console.error(`sync failed, the roster was not changed: ${e.message}`);
+  console.error(`sync failed, the users table was not changed: ${e.message}`);
   process.exitCode = 1;
 } finally {
   await c.end().catch(() => {});
