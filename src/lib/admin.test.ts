@@ -42,7 +42,7 @@ test("a surgeon needs a name and one of the listed specialties", () => {
   assert.equal(checkSurgeon(undefined, "URO").ok, false);
   assert.equal(checkSurgeon(42, "URO").ok, false);
   assert.equal(checkSurgeon("สมชาย ใจดี", "").ok, false);
-  assert.equal(checkSurgeon("สมชาย ใจดี", "VASCULAR").ok, false); // the code is VAS
+  assert.equal(checkSurgeon("สมชาย ใจดี", "VAS").ok, false); // the code is VASCULAR
   assert.equal(checkSurgeon("สมชาย ใจดี", "NEPHRO").ok, false); // a department, but not a surgical specialty
   assert.equal(checkSurgeon("ก".repeat(121), "URO").ok, false);
   assert.equal(checkSurgeon("ก".repeat(120), "URO").ok, true);

@@ -40,7 +40,7 @@ test("gives each OR to the department the proposed schedule names", () => {
     "or-7": ["URO", "URO", "URO", "URO", "URO"],
     "or-8": ["EMER", "EMER", "EMER", "EMER", "EMER"],
     "or-9": ["PLASTIC", "MAXILLO", "PLASTIC", "PLASTIC", "OBGYN"],
-    "or-10": ["CVT", "ORTHO", "ORTHO", "ORTHO", "VAS"],
+    "or-10": ["CVT", "ORTHO", "ORTHO", "ORTHO", "VASCULAR"],
     "or-11": ["EYE", "EYE", "EYE", "EYE", "EYE"],
     "or-12": ["ORTHO", "NEURO", "ORTHO", "NEURO", "ORTHO"],
     "or-13": ["ORTHO", "ORTHO", "CVT", "ORTHO", "ORTHO"],
@@ -52,7 +52,7 @@ test("gives each OR to the department the proposed schedule names", () => {
 
 test("keeps each room's department all day, except OR 10 on Friday", () => {
   const friday = allocationFor("or-10", "2026-10-09");
-  assert.deepEqual([friday?.am?.code, friday?.pm?.code, friday?.split], ["VAS", "NEPHRO", true]);
+  assert.deepEqual([friday?.am?.code, friday?.pm?.code, friday?.split], ["VASCULAR", "NEPHRO", true]);
   assert.equal(allocationText(friday!), "เช้า ศัลยกรรมหลอดเลือด · บ่าย อายุรกรรมโรคไต");
   for (const room of ROOMS.filter((item) => item.kind === "or")) {
     for (const date of WEEK) {
@@ -113,21 +113,21 @@ test("matches the schedule's half-day periods per department", () => {
   }
   assert.deepEqual(periods, {
     INFECT: 10, GENSX: 17, SCOPE: 10, OBGYN: 14, ENT: 8, PEDSX: 3, URO: 10, EMER: 10,
-    PLASTIC: 6, MAXILLO: 2, CVT: 4, ORTHO: 20, VAS: 1, NEPHRO: 1, EYE: 10, NEURO: 4,
+    PLASTIC: 6, MAXILLO: 2, CVT: 4, ORTHO: 20, VASCULAR: 1, NEPHRO: 1, EYE: 10, NEURO: 4,
   });
   assert.equal(Object.values(periods).reduce((a, b) => a + b, 0), 130);
 });
 
 test("keeps the plan labels", () => {
   assert.equal(DEPARTMENTS.INFECT.label, "dressing");
-  assert.equal(DEPARTMENTS.VAS.label, "VASCULAR");
+  assert.equal(DEPARTMENTS.VASCULAR.label, "VASCULAR");
   assert.equal(DEPARTMENTS.EMER.label, "EMER");
   assert.equal(DEPARTMENTS.PLASTIC.label, "PLASTIC");
 });
 
 test("uses the hospital's department colour list", () => {
   const list = {
-    GENSX: "#0E5E6F", SCOPE: "#B04A3A", VAS: "#CC4759", ORTHO: "#4F3D8C", OBGYN: "#8C3B6E", EYE: "#1A9BB0",
+    GENSX: "#0E5E6F", SCOPE: "#B04A3A", VASCULAR: "#CC4759", ORTHO: "#4F3D8C", OBGYN: "#8C3B6E", EYE: "#1A9BB0",
     URO: "#2E7D5B", PLASTIC: "#D9822B", ENT: "#2F5FA8", NEPHRO: "#7D8C2F", PEDSX: "#E0A800", NEURO: "#8A5A22",
     CVT: "#5E6A73", MAXILLO: "#8C699E", INFECT: "#B9A67A", EMER: "#1C1C1C", MINOR: "#E3E8EA", UNK: "#CFCFCF",
   };

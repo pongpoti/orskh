@@ -8,7 +8,7 @@ export const SPECIALTY_CODES = [
   "NEURO",
   "PEDSX",
   "CVT",
-  "VAS",
+  "VASCULAR",
   "ORTHO",
   "OBGYN",
   "ENT",
@@ -20,7 +20,7 @@ export type SpecialtyCode = (typeof SPECIALTY_CODES)[number];
 
 export type Specialty = {
   code: SpecialtyCode;
-  /** The code as the hospital writes it (VAS reads "VASCULAR"). */
+  /** The code as shown on the page. */
   label: string;
   name: string;
   color: string;
