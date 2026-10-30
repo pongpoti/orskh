@@ -118,11 +118,13 @@ test("matches the schedule's half-day periods per department", () => {
   assert.equal(Object.values(periods).reduce((a, b) => a + b, 0), 130);
 });
 
-test("keeps the plan labels", () => {
-  assert.equal(DEPARTMENTS.INFECT.label, "dressing");
-  assert.equal(DEPARTMENTS.VASCULAR.label, "VASCULAR");
+test("keeps the plan labels short", () => {
+  assert.equal(DEPARTMENTS.INFECT.label, "D/S");
+  assert.equal(DEPARTMENTS.VASCULAR.label, "VAS");
+  assert.equal(DEPARTMENTS.PLASTIC.label, "PLAST");
+  assert.equal(DEPARTMENTS.NEPHRO.label, "NEPHR");
   assert.equal(DEPARTMENTS.EMER.label, "EMER");
-  assert.equal(DEPARTMENTS.PLASTIC.label, "PLASTIC");
+  for (const dept of Object.values(DEPARTMENTS)) assert.ok(dept.label.length <= 5, dept.code);
 });
 
 test("uses the hospital's department colour list", () => {

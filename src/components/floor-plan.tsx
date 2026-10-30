@@ -21,6 +21,9 @@ function floorFill(room: Room, allocation: RoomAllocation | null): string | unde
   return allocation.am?.color ?? UNALLOCATED_FILL;
 }
 
+/** Every department label is drawn at this size; the labels are five characters at most, so all fit the narrowest room. */
+const DEPT_SIZE = 40;
+
 /** Rough advance of a bold label glyph, in em: capitals are wide, lowercase and Thai are narrower. */
 function advance(text: string): number {
   return /^[A-Z]+$/.test(text) ? 0.72 : 0.58;
@@ -36,15 +39,11 @@ function DeptText({
   y,
   dept,
   width,
-  max,
-  min,
 }: {
   x: number;
   y: number;
   dept: Department | null;
   width: number;
-  max: number;
-  min: number;
 }) {
   const text = dept ? dept.label : "ไม่จัดสรร";
   return (
@@ -53,7 +52,7 @@ function DeptText({
       x={x}
       y={y}
       dy="0.35em"
-      style={{ fontSize: fitSize(text, width, max, min), fill: dept ? readableTextOn(dept.color) : "var(--fp-ink)" }}
+      style={{ fontSize: dept ? DEPT_SIZE : fitSize(text, width, 34, 28), fill: dept ? readableTextOn(dept.color) : "var(--fp-ink)" }}
     >
       {text}
     </text>
@@ -71,8 +70,8 @@ function RoomLabel({ room, allocation }: { room: Room; allocation: RoomAllocatio
     const radius = 36;
     return (
       <>
-        <DeptText x={x} y={(minY + (y - radius)) / 2} dept={allocation.am} width={width} max={36} min={26} />
-        <DeptText x={x} y={(y + radius + maxY) / 2} dept={allocation.pm} width={width} max={36} min={26} />
+        <DeptText x={x} y={(minY + (y - radius)) / 2} dept={allocation.am} width={width} />
+        <DeptText x={x} y={(y + radius + maxY) / 2} dept={allocation.pm} width={width} />
         <circle className="fp-badge" cx={x} cy={y} r={radius} />
         <text className="fp-label" x={x} y={y} dy="0.35em" style={{ fontSize: 44 }}>
           {room.number}
@@ -91,7 +90,7 @@ function RoomLabel({ room, allocation }: { room: Room; allocation: RoomAllocatio
         {room.number}
       </text>
       {allocation ? (
-        <DeptText x={x} y={y + (short ? 44 : 54)} dept={allocation.am} width={width} max={allocation.am ? (short ? 40 : 46) : 34} min={28} />
+        <DeptText x={x} y={y + (short ? 44 : 54)} dept={allocation.am} width={width} />
       ) : null}
     </>
   );
