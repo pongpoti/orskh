@@ -42,9 +42,10 @@ function dept(code: DeptCode, name: string, color: string, label: string = code)
 }
 
 /**
- * Department names and colours from the hospital's department colour list (October 2026). Three colours are
- * nudged by an invisible amount so their room labels clear 4.5:1: VASCULAR #D1495B → #CC4759,
- * MAXILLO #8D6A9F → #8C699E and NEPHRO #7C8B2E → #7D8C2F.
+ * Department names and colours from the hospital's department colour list (October 2026). Two colours are
+ * nudged by an invisible amount so their room labels clear 4.5:1: VASCULAR #D1495B → #CC4759 and
+ * MAXILLO #8D6A9F → #8C699E. NEPHRO #7C8B2E is darkened to #6E7B29 so its label can be white, as Pong asked
+ * (black on that green was hard to read).
  */
 export const DEPARTMENTS: Record<DeptCode, Department> = {
   GENSX: dept("GENSX", "ศัลยกรรมทั่วไป", "#0E5E6F"),
@@ -56,11 +57,11 @@ export const DEPARTMENTS: Record<DeptCode, Department> = {
   URO: dept("URO", "ศัลยกรรมทางเดินปัสสาวะ", "#2E7D5B"),
   PLASTIC: dept("PLASTIC", "ศัลยกรรมตกแต่ง", "#D9822B", "PLAST"),
   ENT: dept("ENT", "โสต ศอ นาสิก", "#2F5FA8"),
-  NEPHRO: dept("NEPHRO", "อายุรกรรมโรคไต", "#7D8C2F", "NEPHR"),
+  NEPHRO: dept("NEPHRO", "อายุรกรรมโรคไต", "#6E7B29", "NEPHR"),
   PEDSX: dept("PEDSX", "ศัลยกรรมเด็ก", "#E0A800"),
   NEURO: dept("NEURO", "ศัลยกรรมระบบประสาท", "#8A5A22"),
   CVT: dept("CVT", "ศัลยกรรมหัวใจและทรวงอก", "#5E6A73"),
-  MAXILLO: dept("MAXILLO", "แม็กซิลโลเฟเชียล", "#8C699E", "MAXIL"),
+  MAXILLO: dept("MAXILLO", "แม็กซิลโลเฟเชียล", "#8C699E", "MAXI"),
   INFECT: dept("INFECT", "เคสทำแผล (ทุกสาขา)", "#B9A67A", "D/S"),
   EMER: dept("EMER", "เคสฉุกเฉิน (ทุกสาขา)", "#1C1C1C"),
   MINOR: dept("MINOR", "เคส LA ทุกแผนก", "#E3E8EA"),

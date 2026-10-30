@@ -123,6 +123,7 @@ test("keeps the plan labels short", () => {
   assert.equal(DEPARTMENTS.VASCULAR.label, "VAS");
   assert.equal(DEPARTMENTS.PLASTIC.label, "PLAST");
   assert.equal(DEPARTMENTS.NEPHRO.label, "NEPHR");
+  assert.equal(DEPARTMENTS.MAXILLO.label, "MAXI");
   assert.equal(DEPARTMENTS.EMER.label, "EMER");
   for (const dept of Object.values(DEPARTMENTS)) assert.ok(dept.label.length <= 5, dept.code);
 });
@@ -130,7 +131,7 @@ test("keeps the plan labels short", () => {
 test("uses the hospital's department colour list", () => {
   const list = {
     GENSX: "#0E5E6F", SCOPE: "#B04A3A", VASCULAR: "#CC4759", ORTHO: "#4F3D8C", OBGYN: "#8C3B6E", EYE: "#1A9BB0",
-    URO: "#2E7D5B", PLASTIC: "#D9822B", ENT: "#2F5FA8", NEPHRO: "#7D8C2F", PEDSX: "#E0A800", NEURO: "#8A5A22",
+    URO: "#2E7D5B", PLASTIC: "#D9822B", ENT: "#2F5FA8", NEPHRO: "#6E7B29", PEDSX: "#E0A800", NEURO: "#8A5A22",
     CVT: "#5E6A73", MAXILLO: "#8C699E", INFECT: "#B9A67A", EMER: "#1C1C1C", MINOR: "#E3E8EA", UNK: "#CFCFCF",
   };
   assert.deepEqual(Object.fromEntries(Object.values(DEPARTMENTS).map((dept) => [dept.code, dept.color])), list);
@@ -139,6 +140,7 @@ test("uses the hospital's department colour list", () => {
 
 test("picks white or ink text, whichever reads better", () => {
   assert.equal(readableTextOn("#0E5E6F"), "#ffffff");
+  assert.equal(readableTextOn(DEPARTMENTS.NEPHRO.color), "#ffffff");
   assert.equal(readableTextOn("#1D3F8F"), "#ffffff");
   assert.equal(readableTextOn("#B3261E"), "#ffffff");
   assert.equal(readableTextOn("#C9D86A"), INK);
