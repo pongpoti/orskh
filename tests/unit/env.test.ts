@@ -62,6 +62,26 @@ describe("env validation", () => {
     assert.equal(c.verifyUrl, "https://api.line.me/oauth2/v2.1/verify");
   });
 
+  test("LINE channel: the old Auth.js names AUTH_LINE_ID / AUTH_LINE_SECRET still work; the new names win", () => {
+    delete process.env.LINE_CHANNEL_ID;
+    delete process.env.LINE_CHANNEL_SECRET;
+    assert.throws(
+      () => lineConfig(),
+      (e: unknown) => e instanceof ConfigError && e.names.join() === "LINE_CHANNEL_ID,LINE_CHANNEL_SECRET",
+      "reported under the new names",
+    );
+    process.env.AUTH_LINE_ID = "1111111111";
+    process.env.AUTH_LINE_SECRET = "old-line-secret";
+    let c = lineConfig();
+    assert.equal(c.channelId, "1111111111");
+    assert.equal(c.channelSecret, "old-line-secret");
+    process.env.LINE_CHANNEL_ID = "2222222222";
+    process.env.LINE_CHANNEL_SECRET = "new-line-secret";
+    c = lineConfig();
+    assert.equal(c.channelId, "2222222222");
+    assert.equal(c.channelSecret, "new-line-secret");
+  });
+
   test("SMS: local modes for development, only deeSMSX on Vercel", () => {
     process.env.SMS_PROVIDER = "file";
     process.env.SMS_OUTBOX_DIR = "/tmp/outbox";

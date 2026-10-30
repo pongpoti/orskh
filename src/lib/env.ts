@@ -31,6 +31,15 @@ class Collector {
     }
     return v;
   }
+  /** Like need(), but also accepts an older name for the same value (reported under the new name when both are unset). */
+  needEither(name: string, legacy: string): string {
+    const v = read(name) ?? read(legacy);
+    if (!v) {
+      this.bad.push(name);
+      return "";
+    }
+    return v;
+  }
   done(): void {
     if (this.bad.length) throw new ConfigError(this.bad);
   }
@@ -101,8 +110,9 @@ const LINE_API = "https://api.line.me";
 
 export function lineConfig(): LineConfig {
   const c = new Collector();
-  const channelId = c.need("LINE_CHANNEL_ID");
-  const channelSecret = c.need("LINE_CHANNEL_SECRET");
+  // AUTH_LINE_ID / AUTH_LINE_SECRET are the names Auth.js used, so the existing Vercel settings keep working.
+  const channelId = c.needEither("LINE_CHANNEL_ID", "AUTH_LINE_ID");
+  const channelSecret = c.needEither("LINE_CHANNEL_SECRET", "AUTH_LINE_SECRET");
   const app = c.need("APP_URL", isHttpUrl);
   // Dev/test-only overrides (mock LINE server); never honoured on Vercel.
   const authOverride = onVercel() ? undefined : read("LINE_AUTH_URL");

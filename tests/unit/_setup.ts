@@ -13,6 +13,8 @@ export const TEST_PEPPER = randomBytes(24).toString("base64url");
 export function setTestEnv(): void {
   delete process.env.VERCEL;
   delete process.env.VERCEL_ENV;
+  delete process.env.AUTH_LINE_ID;
+  delete process.env.AUTH_LINE_SECRET;
   Object.assign(process.env, {
     APP_URL: "http://localhost:3999",
     SESSION_SECRET: TEST_SESSION_SECRET,
