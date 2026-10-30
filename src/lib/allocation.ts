@@ -42,31 +42,30 @@ function dept(code: DeptCode, name: string, color: string, label: string = code)
 }
 
 /**
- * Department names and colours from the hospital's department colour list (October 2026). Two colours are
- * nudged by an invisible amount so their room labels clear 4.5:1: VASCULAR #D1495B → #CC4759 and
- * MAXILLO #8D6A9F → #8C699E. NEPHRO #7C8B2E is darkened to #6E7B29 so its label can be white, as Pong asked
- * (black on that green was hard to read).
+ * Department names and colours. The colours were redesigned from scratch on 30 Oct 2026, at Pong's request, to sit
+ * with the app's brown and tan theme: muted, slightly warm tones of even weight, each dark enough that its white
+ * label clears 4.5:1 (the tests check this). Hues are spread round the wheel so neighbouring rooms differ.
  */
 export const DEPARTMENTS: Record<DeptCode, Department> = {
-  GENSX: dept("GENSX", "ศัลยกรรมทั่วไป", "#0E5E6F"),
-  SCOPE: dept("SCOPE", "ส่องกล้องทางเดินอาหาร", "#B04A3A"),
-  VASCULAR: dept("VASCULAR", "ศัลยกรรมหลอดเลือด", "#CC4759", "VAS"),
-  ORTHO: dept("ORTHO", "ออร์โธปิดิกส์", "#4F3D8C"),
-  OBGYN: dept("OBGYN", "สูติ-นรีเวชกรรม", "#8C3B6E"),
-  EYE: dept("EYE", "จักษุ", "#1A9BB0"),
-  URO: dept("URO", "ศัลยกรรมทางเดินปัสสาวะ", "#2E7D5B"),
-  PLASTIC: dept("PLASTIC", "ศัลยกรรมตกแต่ง", "#D9822B", "PLAST"),
-  ENT: dept("ENT", "โสต ศอ นาสิก", "#2F5FA8"),
-  NEPHRO: dept("NEPHRO", "อายุรกรรมโรคไต", "#6E7B29", "NEPHR"),
-  PEDSX: dept("PEDSX", "ศัลยกรรมเด็ก", "#E0A800"),
-  NEURO: dept("NEURO", "ศัลยกรรมระบบประสาท", "#8A5A22"),
-  CVT: dept("CVT", "ศัลยกรรมหัวใจและทรวงอก", "#5E6A73"),
-  MAXILLO: dept("MAXILLO", "แม็กซิลโลเฟเชียล", "#8C699E", "MAXI"),
-  INFECT: dept("INFECT", "เคสทำแผล (ทุกสาขา)", "#B9A67A", "D/S"),
-  EMER: dept("EMER", "เคสฉุกเฉิน (ทุกสาขา)", "#1C1C1C"),
-  MINOR: dept("MINOR", "เคส LA ทุกแผนก", "#E3E8EA"),
+  GENSX: dept("GENSX", "ศัลยกรรมทั่วไป", "#116370"),
+  SCOPE: dept("SCOPE", "ส่องกล้องทางเดินอาหาร", "#9B4630"),
+  VASCULAR: dept("VASCULAR", "ศัลยกรรมหลอดเลือด", "#A72B48", "VAS"),
+  ORTHO: dept("ORTHO", "ออร์โธปิดิกส์", "#503983"),
+  OBGYN: dept("OBGYN", "สูติ-นรีเวชกรรม", "#822F5C"),
+  EYE: dept("EYE", "จักษุ", "#3C7A9E"),
+  URO: dept("URO", "ศัลยกรรมทางเดินปัสสาวะ", "#2D6D42"),
+  PLASTIC: dept("PLASTIC", "ศัลยกรรมตกแต่ง", "#AA5F04", "PLAST"),
+  ENT: dept("ENT", "โสต ศอ นาสิก", "#315A97"),
+  NEPHRO: dept("NEPHRO", "อายุรกรรมโรคไต", "#5C732D", "NEPHR"),
+  PEDSX: dept("PEDSX", "ศัลยกรรมเด็ก", "#8D6F18"),
+  NEURO: dept("NEURO", "ศัลยกรรมระบบประสาท", "#5C3D27"),
+  CVT: dept("CVT", "ศัลยกรรมหัวใจและทรวงอก", "#566572"),
+  MAXILLO: dept("MAXILLO", "แม็กซิลโลเฟเชียล", "#82608A", "MAXI"),
+  INFECT: dept("INFECT", "เคสทำแผล (ทุกสาขา)", "#7B6C54", "D/S"),
+  EMER: dept("EMER", "เคสฉุกเฉิน (ทุกสาขา)", "#28201B"),
+  MINOR: dept("MINOR", "เคส LA ทุกแผนก", "#6B7377"),
   /** Not in the schedule: the colour of a room that has cases but no department. */
-  UNK: dept("UNK", "ไม่ทราบสาขา", "#CFCFCF"),
+  UNK: dept("UNK", "ไม่ทราบสาขา", "#78746F"),
 };
 
 /** A department holding the room on a given day. `nth` limits it to those occurrences of the weekday in the month. */

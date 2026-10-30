@@ -52,7 +52,7 @@ function DeptText({
       x={x}
       y={y}
       dy="0.35em"
-      style={{ fontSize: dept ? DEPT_SIZE : fitSize(text, width, 34, 28), fill: dept ? readableTextOn(dept.color) : "var(--fp-ink)" }}
+      style={{ fontSize: dept ? DEPT_SIZE : fitSize(text, width, 34, 28), fill: readableTextOn(dept?.color ?? UNALLOCATED_FILL) }}
     >
       {text}
     </text>

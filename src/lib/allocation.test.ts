@@ -128,11 +128,11 @@ test("keeps the plan labels short", () => {
   for (const dept of Object.values(DEPARTMENTS)) assert.ok(dept.label.length <= 5, dept.code);
 });
 
-test("uses the hospital's department colour list", () => {
+test("uses the redesigned department colours", () => {
   const list = {
-    GENSX: "#0E5E6F", SCOPE: "#B04A3A", VASCULAR: "#CC4759", ORTHO: "#4F3D8C", OBGYN: "#8C3B6E", EYE: "#1A9BB0",
-    URO: "#2E7D5B", PLASTIC: "#D9822B", ENT: "#2F5FA8", NEPHRO: "#6E7B29", PEDSX: "#E0A800", NEURO: "#8A5A22",
-    CVT: "#5E6A73", MAXILLO: "#8C699E", INFECT: "#B9A67A", EMER: "#1C1C1C", MINOR: "#E3E8EA", UNK: "#CFCFCF",
+    GENSX: "#116370", EYE: "#3C7A9E", ENT: "#315A97", CVT: "#566572", ORTHO: "#503983", MAXILLO: "#82608A",
+    OBGYN: "#822F5C", VASCULAR: "#A72B48", SCOPE: "#9B4630", PLASTIC: "#AA5F04", PEDSX: "#8D6F18", NEURO: "#5C3D27",
+    INFECT: "#7B6C54", NEPHRO: "#5C732D", URO: "#2D6D42", EMER: "#28201B", MINOR: "#6B7377", UNK: "#78746F",
   };
   assert.deepEqual(Object.fromEntries(Object.values(DEPARTMENTS).map((dept) => [dept.code, dept.color])), list);
   assert.equal(new Set(Object.values(DEPARTMENTS).map((dept) => dept.color)).size, 18);
@@ -140,7 +140,6 @@ test("uses the hospital's department colour list", () => {
 
 test("picks white or ink text, whichever reads better", () => {
   assert.equal(readableTextOn("#0E5E6F"), "#ffffff");
-  assert.equal(readableTextOn(DEPARTMENTS.NEPHRO.color), "#ffffff");
   assert.equal(readableTextOn("#1D3F8F"), "#ffffff");
   assert.equal(readableTextOn("#B3261E"), "#ffffff");
   assert.equal(readableTextOn("#C9D86A"), INK);
@@ -148,7 +147,7 @@ test("picks white or ink text, whichever reads better", () => {
   assert.equal(readableTextOn("#E3E8EA"), INK);
 });
 
-test("every department label meets 4.5:1 contrast on its colour", () => {
+test("every department label is white and meets 4.5:1 on its colour", () => {
   const luminance = (hex: string) => {
     const [r, g, b] = [1, 3, 5].map((i) => {
       const v = parseInt(hex.slice(i, i + 2), 16) / 255;
@@ -161,10 +160,9 @@ test("every department label meets 4.5:1 contrast on its colour", () => {
     return (hi + 0.05) / (lo + 0.05);
   };
   for (const dept of Object.values(DEPARTMENTS)) {
-    assert.ok(contrast(dept.color, readableTextOn(dept.color)) >= 4.5, `${dept.code} ${dept.color}`);
+    assert.equal(readableTextOn(dept.color), "#ffffff", dept.code);
+    assert.ok(contrast(dept.color, "#ffffff") >= 4.5, `${dept.code} ${dept.color}`);
   }
-  // Ink text on the "no department" gray.
-  assert.ok(contrast(DEPARTMENTS.UNK.color, INK) >= 4.5);
 });
 
 test("room outlines enclose their label point", () => {
