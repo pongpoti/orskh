@@ -32,13 +32,13 @@ function isPopoverOpen(): boolean {
 function Owner({ dept, part }: { dept: Department | null; part?: string }) {
   return (
     <span className="inline-flex items-center gap-1.5">
-      {part ? <span className="text-xs font-semibold text-ink-2">{part}</span> : null}
+      {part ? <span className="text-sm font-semibold text-ink-2">{part}</span> : null}
       {dept ? (
-        <span className="chip" style={{ "--chip": dept.color, color: readableTextOn(dept.color) } as CSSProperties}>
+        <span className="chip chip-lg" style={{ "--chip": dept.color, color: readableTextOn(dept.color) } as CSSProperties}>
           {dept.name}
         </span>
       ) : (
-        <span className="chip text-ink-2" style={{ "--chip": UNALLOCATED_FILL } as CSSProperties}>
+        <span className="chip chip-lg text-ink-2" style={{ "--chip": UNALLOCATED_FILL } as CSSProperties}>
           ไม่จัดสรร
         </span>
       )}
@@ -223,7 +223,7 @@ export function SuiteBoard({
                           {item.procedure}
                           <span className="sr-only"> ({STATUS_LABEL[item.status]})</span>
                         </p>
-                        <p className="text-sm text-muted">{item.specialty ? `${item.surgeon} · ${item.specialty}` : item.surgeon}</p>
+                        <p className="text-sm text-muted">{item.surgeon}</p>
                         {item.shift === "out" ? (
                           <p className="mt-1.5">
                             <span className="badge badge-warning">นอกเวลา</span>

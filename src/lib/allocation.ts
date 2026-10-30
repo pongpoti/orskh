@@ -31,7 +31,7 @@ export type Department = {
   code: DeptCode;
   /** Full Thai name, as in the report's abbreviation key. */
   name: string;
-  /** Short text drawn on the plan: the code, except OR 1 which the report writes as "dressing". */
+  /** Short text drawn on the plan, five characters at most so every room's label is the same size: the code, or an abbreviation of it. */
   label: string;
   /** The department's colour in the report's schedule and floor plans. */
   color: string;
@@ -49,19 +49,19 @@ function dept(code: DeptCode, name: string, color: string, label: string = code)
 export const DEPARTMENTS: Record<DeptCode, Department> = {
   GENSX: dept("GENSX", "ศัลยกรรมทั่วไป", "#0E5E6F"),
   SCOPE: dept("SCOPE", "ส่องกล้องทางเดินอาหาร", "#B04A3A"),
-  VASCULAR: dept("VASCULAR", "ศัลยกรรมหลอดเลือด", "#CC4759"),
+  VASCULAR: dept("VASCULAR", "ศัลยกรรมหลอดเลือด", "#CC4759", "VAS"),
   ORTHO: dept("ORTHO", "ออร์โธปิดิกส์", "#4F3D8C"),
   OBGYN: dept("OBGYN", "สูติ-นรีเวชกรรม", "#8C3B6E"),
   EYE: dept("EYE", "จักษุ", "#1A9BB0"),
   URO: dept("URO", "ศัลยกรรมทางเดินปัสสาวะ", "#2E7D5B"),
-  PLASTIC: dept("PLASTIC", "ศัลยกรรมตกแต่ง", "#D9822B"),
+  PLASTIC: dept("PLASTIC", "ศัลยกรรมตกแต่ง", "#D9822B", "PLAST"),
   ENT: dept("ENT", "โสต ศอ นาสิก", "#2F5FA8"),
-  NEPHRO: dept("NEPHRO", "อายุรกรรมโรคไต", "#7D8C2F"),
+  NEPHRO: dept("NEPHRO", "อายุรกรรมโรคไต", "#7D8C2F", "NEPHR"),
   PEDSX: dept("PEDSX", "ศัลยกรรมเด็ก", "#E0A800"),
   NEURO: dept("NEURO", "ศัลยกรรมระบบประสาท", "#8A5A22"),
   CVT: dept("CVT", "ศัลยกรรมหัวใจและทรวงอก", "#5E6A73"),
-  MAXILLO: dept("MAXILLO", "แม็กซิลโลเฟเชียล", "#8C699E"),
-  INFECT: dept("INFECT", "เคสทำแผล (ทุกสาขา)", "#B9A67A", "dressing"),
+  MAXILLO: dept("MAXILLO", "แม็กซิลโลเฟเชียล", "#8C699E", "MAXIL"),
+  INFECT: dept("INFECT", "เคสทำแผล (ทุกสาขา)", "#B9A67A", "D/S"),
   EMER: dept("EMER", "เคสฉุกเฉิน (ทุกสาขา)", "#1C1C1C"),
   MINOR: dept("MINOR", "เคส LA ทุกแผนก", "#E3E8EA"),
   /** Not in the schedule: the colour of a room that has cases but no department. */

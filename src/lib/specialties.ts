@@ -29,7 +29,7 @@ export type Specialty = {
 
 export const SPECIALTIES: readonly Specialty[] = SPECIALTY_CODES.map((code) => {
   const dept = DEPARTMENTS[code];
-  return { code, label: dept.label, name: dept.name, color: dept.color, text: readableTextOn(dept.color) };
+  return { code, label: code, name: dept.name, color: dept.color, text: readableTextOn(dept.color) };
 });
 
 export function specialtyOf(code: string): Specialty | null {
