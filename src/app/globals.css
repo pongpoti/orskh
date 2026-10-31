@@ -122,6 +122,10 @@ body {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
+/* Headings that receive focus from script (a sign-in step changed) are announced, not outlined. */
+[tabindex="-1"]:focus {
+  outline: none;
+}
 
 @layer components {
   .appbar {
@@ -178,6 +182,8 @@ body {
     background: currentColor;
   }
   .badge-warning { color: var(--late); background: var(--late-tint); border-color: rgb(217 140 0 / 0.3); }
+  .badge-success { color: var(--live); background: var(--live-tint); border-color: rgb(21 127 61 / 0.25); }
+  .badge-muted { color: var(--ink-3); background: #fff; border-color: var(--line-strong); }
 
   /* Department chip, coloured by --chip (the department's own colour). */
   .chip {
@@ -388,6 +394,93 @@ body {
     white-space: nowrap;
   }
 
+  /* A quiet text button on the sign-in card (change number, resend the code): 44px tall, underlined. */
+  .text-btn {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    border-radius: 8px;
+    padding: 0 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--brand);
+    text-decoration: underline;
+    text-decoration-color: var(--line-strong);
+    text-underline-offset: 4px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .text-btn:hover:not(:disabled, [aria-disabled="true"]) {
+    text-decoration-color: var(--brand);
+  }
+  /* aria-disabled: unavailable for a moment but keeps keyboard focus (verify-form.tsx, while a request runs). */
+  .text-btn:disabled,
+  .text-btn[aria-disabled="true"] {
+    cursor: not-allowed;
+    color: var(--ink-3);
+    text-decoration: none;
+  }
+
+  /* A row to pick on the claim page (a type, a name): at least 52px tall, white, a brown edge on hover. */
+  .choice {
+    display: flex;
+    width: 100%;
+    min-height: 3.25rem;
+    align-items: center;
+    gap: 0.75rem;
+    border-radius: 12px;
+    border: 1px solid var(--line-strong);
+    background: #fff;
+    padding: 0.5rem 0.75rem 0.5rem 0.875rem;
+    text-align: left;
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    color: var(--ink);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+  }
+  .choice:hover:not(:disabled) {
+    border-color: var(--brand);
+    background: var(--surface);
+  }
+  /* A taken name: still readable (its badge says why), on the page's own tint. */
+  .choice:disabled {
+    cursor: not-allowed;
+    background: var(--surface-2);
+    border-color: var(--line);
+    color: var(--ink-2);
+  }
+  /*
+   * The names flow in the page's one scroller (no box inside it, so a swipe on the list always scrolls the page);
+   * the search bar above them is sticky and keeps this opaque backing while names pass under it.
+   */
+  .choice-list {
+    margin-inline: -0.25rem;
+    padding: 0.25rem;
+  }
+  .claim-search {
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
+
+  /* "Waiting for a decision": a pulsing dot before the text. */
+  .waiting {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .waiting::before {
+    content: "";
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--brand);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+
   .notice {
     display: flex;
     gap: 0.625rem;
@@ -419,6 +512,12 @@ dialog[open]::backdrop {
   from {
     opacity: 0;
     transform: translateY(8px) scale(0.98);
+  }
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.25;
   }
 }
 
@@ -541,12 +640,14 @@ dialog[open]::backdrop {
   .room-sheet,
   .case-row,
   .btn,
+  .choice,
   .field {
     transition: none;
   }
   .scrim,
   dialog[open],
-  dialog[open]::backdrop {
+  dialog[open]::backdrop,
+  .waiting::before {
     animation: none;
   }
 }

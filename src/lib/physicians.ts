@@ -416,13 +416,6 @@ export type Physician = {
   specialtyId: string;
 };
 
-export const JOBS = [
-  { id: "physician", label: "แพทย์" },
-  { id: "nurse", label: "พยาบาล" },
-] as const;
-
-export type JobId = (typeof JOBS)[number]["id"];
-
 export function listPhysicians(): Physician[] {
   return PHYSICIAN_GROUPS.flatMap((group) =>
     group.names.map((name, index) => ({

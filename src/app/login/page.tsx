@@ -1,48 +1,52 @@
 import { redirect } from "next/navigation";
-import { auth, lineLoginConfigured } from "@/auth";
-import { AuthShell, Notice } from "@/components/auth-shell";
+import { AuthShell } from "@/components/auth-shell";
 import { LineLoginButton } from "@/components/line-login-button";
-import { isUserAllowed } from "@/lib/allowlist";
+import { latestRequest, viewFor } from "@/lib/access";
+import { getAccessGrant, getUser } from "@/lib/auth/server";
+import { isListedUser } from "@/lib/authz";
+import { db } from "@/lib/db";
+import { safeNextPath } from "@/lib/security";
+import { claimsEnabled } from "@/lib/telegram";
 
-export const dynamic = "force-dynamic";
-
-const ERRORS: Record<string, string> = {
-  Configuration: "ตั้งค่า LINE Login ยังไม่ครบ",
-  AccessDenied: "LINE ปฏิเสธการเข้าสู่ระบบ",
-  Verification: "ยืนยันตัวตนไม่สำเร็จ",
-  OAuthSignin: "เริ่มเข้าสู่ระบบกับ LINE ไม่สำเร็จ",
-  OAuthCallback: "LINE ส่งกลับมาไม่สำเร็จ ตรวจ Callback URL ของช่อง",
-  Callback: "LINE ส่งกลับมาไม่สำเร็จ ตรวจ Callback URL ของช่อง",
-  Default: "เข้าสู่ระบบไม่สำเร็จ ลองอีกครั้ง",
-};
-
-export default async function LoginPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string }>;
-}) {
-  const session = await auth();
-  if (session?.user) {
-    if (!isUserAllowed(session.user.id)) redirect("/pending");
-    redirect(session.user.registered ? "/" : "/register");
+/**
+ * Where a browser with a verified number continues: its access request, or picking its name (only while claims are
+ * open). Nothing when the number holds a name by now (claimed on another device, or set by hand): signing in with LINE,
+ * the primary button, is the way on, and the claim or request pages would only lead back here.
+ */
+async function continueAt(phone: string, sub: string): Promise<"request" | "claim" | null> {
+  if (await isListedUser(phone)) return null;
+  try {
+    return claimsEnabled() && viewFor(await latestRequest(await db(), phone), sub) === "form" ? "claim" : "request";
+  } catch {
+    return "request"; // that page reports the outage
   }
+}
 
-  const params = await searchParams;
-  const error = params.error ? (ERRORS[params.error] ?? ERRORS.Default) : null;
-  const configured = lineLoginConfigured();
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string | string[] }> }) {
+  const sp = await searchParams;
+  const next = safeNextPath(typeof sp.next === "string" ? sp.next : undefined);
+  if (await getUser()) redirect(next);
+  // A verified number that is not authorized yet (a name to pick, or an access request in progress, on this browser).
+  const grant = await getAccessGrant();
+  const resume = grant ? await continueAt(grant.phone, grant.sub) : null;
 
   return (
     <AuthShell title="ตารางห้องผ่าตัด" description="เข้าสู่ระบบเพื่อดูเคสผ่าตัดของวันนี้">
-      {error ? (
-        <Notice tone="warning" role="alert" className="mb-4">
-          {error}
-        </Notice>
+      <LineLoginButton next={next} />
+      <p className="mt-4 text-center text-sm leading-6 text-muted">
+        สำหรับเจ้าหน้าที่ห้องผ่าตัดที่ได้รับอนุญาตเท่านั้น
+        <br />
+        ครั้งแรกต้องยืนยันเบอร์มือถือด้วยรหัสทาง SMS
+      </p>
+      {resume === "request" ? (
+        <a className="btn btn-secondary mt-4 w-full" href="/login/request" data-testid="request-status-link">
+          ดูสถานะคำขอเข้าใช้งาน
+        </a>
+      ) : resume === "claim" ? (
+        <a className="btn btn-secondary mt-4 w-full" href="/login/claim" data-testid="claim-resume-link">
+          เลือกชื่อของคุณต่อ
+        </a>
       ) : null}
-      {configured ? (
-        <LineLoginButton />
-      ) : (
-        <Notice tone="info">ยังไม่ได้ตั้งค่า LINE Login บนเซิร์ฟเวอร์</Notice>
-      )}
     </AuthShell>
   );
 }

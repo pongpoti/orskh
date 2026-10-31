@@ -40,3 +40,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# safety nets: the users CSV (real names) lives outside the repository, the dev SMS outbox holds codes
+# and numbers, and screenshots may show names
+*.csv
+outbox/
+screens/
+test-results/
+playwright-report/

@@ -1,7 +1,7 @@
 "use server";
 
-import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
+import { getUser } from "@/lib/auth/server";
 import { addSurgeon, deleteSurgeon, listSurgeons, updateSurgeon } from "@/lib/surgeon-store";
 import { checkSurgeon, isSurgeonId, type Surgeon } from "@/lib/surgeons";
 
@@ -13,8 +13,9 @@ const FAILED: AdminResult = { ok: false, error: "บันทึกไม่ส�
 
 /** Server actions can be called by anyone who can reach the site, so each one checks the admin again. */
 async function signedInAdmin(): Promise<boolean> {
-  const session = await auth();
-  return isAdmin(session?.user?.id);
+  // getUser() re-checks the signed session and that the phone number is still authorized; admins are listed by LINE user id.
+  const user = await getUser();
+  return isAdmin(user?.sub);
 }
 
 /** Adds a surgeon (`id` null) or edits one. */
