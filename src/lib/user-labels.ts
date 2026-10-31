@@ -22,11 +22,8 @@ export function isUserType(v: unknown): v is UserType {
 /** Nursing units of RN, PN and PCA users. */
 const UNIT_LABELS: Record<string, string> = { OR: "ห้องผ่าตัด", ANES: "วิสัญญี" };
 
-/**
- * Doctor subtypes the operating-suite department list does not hold. CHEST is chest (respiratory) medicine; chest
- * surgery is CVT in the department list.
- */
-const EXTRA_SPECIALTIES: Record<string, string> = { ANES: "วิสัญญี", CHEST: "อายุรกรรมโรคทรวงอก" };
+/** Doctor subtypes the operating-suite department list does not hold. */
+const EXTRA_SPECIALTIES: Record<string, string> = { ANES: "วิสัญญี" };
 
 /**
  * The subtype in Thai: for doctors the app's specialty names (lib/specialties.ts, then the department list in
