@@ -38,7 +38,7 @@ function Owner({ dept, part }: { dept: Department | null; part?: string }) {
           {dept.name}
         </span>
       ) : (
-        <span className="chip chip-lg text-ink-2" style={{ "--chip": UNALLOCATED_FILL } as CSSProperties}>
+        <span className="chip chip-lg" style={{ "--chip": UNALLOCATED_FILL, color: readableTextOn(UNALLOCATED_FILL) } as CSSProperties}>
           ไม่จัดสรร
         </span>
       )}
