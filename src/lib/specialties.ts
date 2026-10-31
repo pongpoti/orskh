@@ -1,19 +1,21 @@
 import { DEPARTMENTS, readableTextOn, type DeptCode } from "./allocation.ts";
 
-/** The specialties a surgeon can be given in the admin list, in the order of the supplied surgeon list. */
+/** The specialties a doctor can be given in the admin list, in code order (A to Z), which is also the list's order. */
 export const SPECIALTY_CODES = [
-  "GENSX",
-  "URO",
-  "PLASTIC",
-  "NEURO",
-  "PEDSX",
+  "CHEST",
   "CVT",
-  "VASCULAR",
-  "ORTHO",
-  "OBGYN",
   "ENT",
   "EYE",
+  "GENSX",
   "MAXILLO",
+  "NEPHRO",
+  "NEURO",
+  "OBGYN",
+  "ORTHO",
+  "PEDSX",
+  "PLASTIC",
+  "URO",
+  "VASCULAR",
 ] as const satisfies readonly DeptCode[];
 
 export type SpecialtyCode = (typeof SPECIALTY_CODES)[number];

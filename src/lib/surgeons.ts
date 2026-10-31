@@ -1,4 +1,4 @@
-import { SPECIALTY_CODES, isSpecialtyCode, type SpecialtyCode } from "./specialties.ts";
+import { isSpecialtyCode, type SpecialtyCode } from "./specialties.ts";
 
 /** A surgeon in the admin list. The specialty is a department code; rows edited by hand may hold one the app no longer lists. */
 export type Surgeon = { id: number; name: string; specialty: string };
@@ -18,13 +18,14 @@ export function normaliseName(name: string): string {
     .normalize("NFC");
 }
 
-const ORDER = new Map<string, number>(SPECIALTY_CODES.map((code, index) => [code, index]));
-
-/** Grouped by specialty in the order of the supplied list, then by name in Thai order. */
+/** By specialty code from A to Z, then by name in Thai alphabetical order. */
 export function sortSurgeons<T extends { name: string; specialty: string }>(list: readonly T[]): T[] {
-  return [...list].sort(
-    (a, b) => (ORDER.get(a.specialty) ?? ORDER.size) - (ORDER.get(b.specialty) ?? ORDER.size) || a.name.localeCompare(b.name, "th"),
-  );
+  return [...list].sort((a, b) => compareCodes(a.specialty, b.specialty) || a.name.localeCompare(b.name, "th"));
+}
+
+/** Plain character order, so the codes sort the same on every machine whatever its locale. */
+function compareCodes(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
 }
 
 /** The form's name and specialty, cleaned, or the reason they cannot be saved. Anything may arrive here, so nothing is assumed. */

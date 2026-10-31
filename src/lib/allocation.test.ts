@@ -132,10 +132,10 @@ test("uses the redesigned department colours", () => {
   const list = {
     GENSX: "#116370", EYE: "#3C7A9E", ENT: "#315A97", CVT: "#566572", ORTHO: "#503983", MAXILLO: "#82608A",
     OBGYN: "#822F5C", VASCULAR: "#A72B48", SCOPE: "#9B4630", PLASTIC: "#AA5F04", PEDSX: "#8D6F18", NEURO: "#5C3D27",
-    INFECT: "#7B6C54", NEPHRO: "#5C732D", URO: "#2D6D42", EMER: "#28201B", MINOR: "#6B7377", UNK: "#78746F",
+    INFECT: "#7B6C54", NEPHRO: "#5C732D", CHEST: "#6367BC", URO: "#2D6D42", EMER: "#28201B", MINOR: "#6B7377", UNK: "#78746F",
   };
   assert.deepEqual(Object.fromEntries(Object.values(DEPARTMENTS).map((dept) => [dept.code, dept.color])), list);
-  assert.equal(new Set(Object.values(DEPARTMENTS).map((dept) => dept.color)).size, 18);
+  assert.equal(new Set(Object.values(DEPARTMENTS).map((dept) => dept.color)).size, 19);
 });
 
 test("picks white or ink text, whichever reads better", () => {

@@ -527,6 +527,20 @@ dialog[open]::backdrop {
   }
 }
 
+/* A grey block standing in for text or a control while a page loads. */
+.skeleton {
+  display: block;
+  background: var(--brand-tint);
+  border-radius: 10px;
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+
 .room-sheet {
   background: var(--surface);
   transform: translate3d(0, 100%, 0);
@@ -645,6 +659,7 @@ dialog[open]::backdrop {
     transition: none;
   }
   .scrim,
+  .skeleton,
   dialog[open],
   dialog[open]::backdrop,
   .waiting::before {

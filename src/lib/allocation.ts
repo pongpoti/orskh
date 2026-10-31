@@ -18,6 +18,7 @@ export type DeptCode =
   | "PLASTIC"
   | "ENT"
   | "NEPHRO"
+  | "CHEST"
   | "PEDSX"
   | "NEURO"
   | "CVT"
@@ -57,6 +58,8 @@ export const DEPARTMENTS: Record<DeptCode, Department> = {
   PLASTIC: dept("PLASTIC", "ศัลยกรรมตกแต่ง", "#AA5F04", "PLAST"),
   ENT: dept("ENT", "โสต ศอ นาสิก", "#315A97"),
   NEPHRO: dept("NEPHRO", "อายุรกรรมโรคไต", "#5C732D", "NEPHR"),
+  /** Not in the schedule: the pulmonologists in the admin list. */
+  CHEST: dept("CHEST", "อายุรกรรมโรคปอด", "#6367BC"),
   PEDSX: dept("PEDSX", "ศัลยกรรมเด็ก", "#8D6F18"),
   NEURO: dept("NEURO", "ศัลยกรรมระบบประสาท", "#5C3D27"),
   CVT: dept("CVT", "ศัลยกรรมหัวใจและทรวงอก", "#566572"),
