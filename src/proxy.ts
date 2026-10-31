@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { isAdmin } from "@/lib/admin";
 import { userFromToken } from "@/lib/auth/user";
 import { cookieName, cookieOptions } from "@/lib/cookies";
 import { appUrl } from "@/lib/env";
@@ -13,6 +14,8 @@ import { TELEGRAM_WEBHOOK_PATH } from "@/lib/telegram";
  * 4. auth gate: everything except /login*, /api/auth/*, the Telegram webhook and /preview* needs a valid session
  *    (pages ALSO verify the session themselves; this is the first line, not the only one). The /preview pages answer
  *    404 unless NODE_ENV is development.
+ * 5. admin gate: /admin* answers the mistyped-address 404 to a session whose sub is not in AUTH_ADMIN_LINE_IDS, before
+ *    anything renders (the page's own check runs behind its loading screen, whose response is already a 200).
  * The Telegram webhook is server-to-server (no Origin, no session): its route checks Telegram's secret header.
  */
 
@@ -109,6 +112,11 @@ export async function proxy(req: NextRequest) {
         res.cookies.set(sessionCookie, "", { ...cookieOptions("session"), maxAge: 0 });
       }
       return withCsp(res, csp);
+    }
+
+    // 5. Admin gate: a path no route matches, so Next answers its own 404 page with status 404.
+    if ((pathname === "/admin" || pathname.startsWith("/admin/")) && !isAdmin(user.sub)) {
+      return withCsp(NextResponse.rewrite(new URL("/_admin-not-found", req.nextUrl), { request: { headers: requestHeaders } }), csp);
     }
   }
 
