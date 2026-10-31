@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { adminIds, isAdmin } from "./admin.ts";
 import { SURGEONS } from "../data/surgeons.ts";
+import { SPECIALTY_CODES } from "./specialties.ts";
 import { checkSurgeon, isSurgeonId, normaliseName, sortSurgeons } from "./surgeons.ts";
 
 test("only the LINE ids in AUTH_ADMIN_LINE_IDS are admins", () => {
@@ -43,7 +44,9 @@ test("a surgeon needs a name and one of the listed specialties", () => {
   assert.equal(checkSurgeon(42, "URO").ok, false);
   assert.equal(checkSurgeon("สมชาย ใจดี", "").ok, false);
   assert.equal(checkSurgeon("สมชาย ใจดี", "VAS").ok, false); // the code is VASCULAR
-  assert.equal(checkSurgeon("สมชาย ใจดี", "NEPHRO").ok, false); // a department, but not a surgical specialty
+  assert.equal(checkSurgeon("สมชาย ใจดี", "SCOPE").ok, false); // a department, but not a doctor's specialty
+  assert.equal(checkSurgeon("สมชาย ใจดี", "NEPHRO").ok, true); // nephrologists and pulmonologists are listed too
+  assert.equal(checkSurgeon("สมชาย ใจดี", "CHEST").ok, true);
   assert.equal(checkSurgeon("ก".repeat(121), "URO").ok, false);
   assert.equal(checkSurgeon("ก".repeat(120), "URO").ok, true);
 });
@@ -53,15 +56,25 @@ test("row ids from the page must be positive whole numbers", () => {
   for (const id of [0, -1, 1.5, Number.NaN, Number.MAX_SAFE_INTEGER + 1, "1", null, undefined]) assert.equal(isSurgeonId(id), false, String(id));
 });
 
-test("the list is grouped by specialty, then by name; unknown codes go last", () => {
+test("the list is sorted by specialty code from A to Z, then by name in Thai order", () => {
   const list = sortSurgeons([
     { name: "ข", specialty: "URO" },
-    { name: "ก", specialty: "EYE" },
+    { name: "ก", specialty: "VASCULAR" },
     { name: "ก", specialty: "URO" },
-    { name: "ค", specialty: "OLD" },
+    { name: "ฮ", specialty: "CHEST" },
     { name: "ง", specialty: "GENSX" },
+    { name: "เก", specialty: "NEPHRO" }, // a leading vowel sorts by the consonant after it
+    { name: "ค", specialty: "NEPHRO" },
+    { name: "ข", specialty: "CVT" },
   ]);
-  assert.deepEqual(list.map((item) => `${item.specialty} ${item.name}`), ["GENSX ง", "URO ก", "URO ข", "EYE ก", "OLD ค"]);
+  assert.deepEqual(list.map((item) => `${item.specialty} ${item.name}`), [
+    "CHEST ฮ", "CVT ข", "GENSX ง", "NEPHRO เก", "NEPHRO ค", "URO ก", "URO ข", "VASCULAR ก",
+  ]);
+});
+
+test("the specialty choices are in the same code order as the list", () => {
+  assert.deepEqual([...SPECIALTY_CODES], [...SPECIALTY_CODES].sort());
+  assert.ok(SPECIALTY_CODES.includes("NEPHRO") && SPECIALTY_CODES.includes("CHEST"));
 });
 
 test("the seed list is clean: valid specialties and no repeated names", () => {

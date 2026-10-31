@@ -2,7 +2,7 @@ import Link from "next/link";
 import { BrandMark } from "@/components/brand-mark";
 import { ProfileAvatar } from "@/components/profile-avatar";
 
-/** The admin pages' bar: the mark, the page heading, a way back to the board, and who is signed in. */
+/** The admin pages' bar: the mark, the page heading, a way back to the board, and who is signed in (a grey circle while the page loads). */
 export function AdminBar({
   title,
   name,
@@ -10,7 +10,7 @@ export function AdminBar({
   boardHref = "/",
 }: {
   title: string;
-  name: string;
+  name?: string;
   image?: string | null;
   boardHref?: string;
 }) {
@@ -30,10 +30,14 @@ export function AdminBar({
           </svg>
           <span className="hidden sm:inline">ตารางผ่าตัด</span>
         </Link>
-        <span className="flex shrink-0 items-center gap-2">
-          <ProfileAvatar src={image ?? null} initial={name.trim().slice(0, 1) || "•"} />
-          <span className="sr-only lg:not-sr-only lg:block lg:max-w-44 lg:truncate lg:text-sm lg:font-medium lg:text-ink-2">{name}</span>
-        </span>
+        {name === undefined ? (
+          <span className="skeleton size-[34px] shrink-0 rounded-full" aria-hidden />
+        ) : (
+          <span className="flex shrink-0 items-center gap-2">
+            <ProfileAvatar src={image ?? null} initial={name.trim().slice(0, 1) || "•"} />
+            <span className="sr-only lg:not-sr-only lg:block lg:max-w-44 lg:truncate lg:text-sm lg:font-medium lg:text-ink-2">{name}</span>
+          </span>
+        )}
       </div>
     </header>
   );
