@@ -35,7 +35,7 @@ describe("user labels (lib/user-labels.ts)", () => {
     assert.equal(subtypeLabel("DR", "VASCULAR"), "ศัลยกรรมหลอดเลือด");
     assert.equal(subtypeLabel("DR", "NEPHRO"), "อายุรกรรมโรคไต", "from the department list");
     assert.equal(subtypeLabel("DR", "ANES"), "วิสัญญี");
-    assert.equal(subtypeLabel("DR", "CHEST"), "อายุรกรรมโรคทรวงอก");
+    assert.equal(subtypeLabel("DR", "CHEST"), "อายุรกรรมโรคปอด");
     assert.equal(subtypeLabel("DR", "ZZZ"), "ZZZ", "no label: the code");
     assert.equal(subtypeLabel("DR", "constructor"), "constructor", "no prototype lookups");
     assert.equal(subtypeLabel("RN", "OR"), "ห้องผ่าตัด");

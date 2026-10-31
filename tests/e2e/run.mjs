@@ -736,7 +736,7 @@ async function main() {
         placeholder: el.placeholder,
       }));
       assert(
-        JSON.stringify(attrs) === JSON.stringify({ type: "tel", inputMode: "numeric", autocomplete: "tel-national", placeholder: "08x-xxx-xxxx" }),
+        JSON.stringify(attrs) === JSON.stringify({ type: "tel", inputMode: "numeric", autocomplete: "tel-national", placeholder: "0xx-xxx-xxxx" }),
         `phone field: ${JSON.stringify(attrs)}`,
       );
       assert((await page.textContent('label[for="phone"]')).trim() === "เบอร์มือถือ", "phone label");
@@ -1685,12 +1685,19 @@ async function main() {
       for (const token of [await sessionToken(DOC1), await sessionToken(DOC1, SESSION_SECRET, SUB_A)]) {
         const r = await rawRequest("/admin", headers(token));
         assert(r.status === 404, `non-admin /admin -> ${r.status}`);
+        // not even the loading screen: nothing of the admin page reaches a non-admin
+        const body = await (await fetch(`${APP}/admin`, { headers: { cookie: `session=${token}` }, redirect: "manual" })).text();
+        assert(!body.includes("จัดการรายชื่อแพทย์") && !body.includes("รายชื่อแพทย์"), "no admin page or loading screen for a non-admin");
         const html = await (await fetch(`${APP}/`, { headers: { cookie: `session=${token}` } })).text();
         assert(!html.includes('href="/admin"'), "no admin link on a non-admin's board");
       }
       // an admin sub with a number that is not authorized gets no session at all
       const unlisted = await rawRequest("/admin", headers(await sessionToken("0899999999", SESSION_SECRET, ADMIN_SUB)));
       assert(unlisted.status === 307 && unlisted.location?.startsWith("/login"), `admin sub, unlisted number -> ${unlisted.status}`);
+      // an admin sub with an authorized number opens the page
+      const admin = await fetch(`${APP}/admin`, { headers: { cookie: `session=${await sessionToken(DOC2, SESSION_SECRET, ADMIN_SUB)}` }, redirect: "manual" });
+      const adminHtml = await admin.text();
+      assert(admin.status === 200 && adminHtml.includes("จัดการรายชื่อแพทย์"), `admin /admin -> ${admin.status}`);
 
       const ctx = await newContext(browser);
       await ctx.addCookies([{ name: "session", value: await sessionToken(DOC2, SESSION_SECRET, ADMIN_SUB), url: APP, httpOnly: true, sameSite: "Lax" }]);

@@ -284,7 +284,7 @@ export function VerifyForm() {
             setPhone(cleanPhoneInput(e.target.value));
             setPhoneInvalid(false);
           }}
-          placeholder="08x-xxx-xxxx"
+          placeholder="0xx-xxx-xxxx"
           aria-describedby={error ? "phone-error" : undefined}
           aria-invalid={phoneInvalid || undefined}
         />
