@@ -131,12 +131,21 @@ export function lineConfig(): LineConfig {
   };
 }
 
-export type SmsProviderKind = "deesmsx" | "console" | "file";
+export type SmsProviderKind = "deesmsx" | "twilio" | "console" | "file";
+
+export interface TwilioSettings {
+  accountSid: string;
+  authToken: string;
+  /** The Verify Service SID (VA…). */
+  serviceSid: string;
+  /** Base URL of the Twilio Verify API, without a trailing slash. */
+  apiUrl: string;
+}
 
 export interface SmsConfig {
   /**
-   * deesmsx: the provider sends and checks the code. console / file (development and tests only): the app makes the
-   * code and writes the SMS to the log or to a JSON file in outboxDir.
+   * deesmsx / twilio: the provider sends and checks the code. console / file (development and tests only): the app
+   * makes the code and writes the SMS to the log or to a JSON file in outboxDir.
    */
   kind: SmsProviderKind;
   apiKey: string;
@@ -144,6 +153,8 @@ export interface SmsConfig {
   sender: string;
   /** Base URL of the deeSMSX API, without a trailing slash. */
   apiUrl: string;
+  /** Twilio Verify settings when kind is "twilio", else null. */
+  twilio: TwilioSettings | null;
   outboxDir: string;
   /** Hard cap of codes sent in a rolling 24 h, all numbers together (protects the SMS credit). */
   dailyCap: number;
@@ -152,20 +163,42 @@ export interface SmsConfig {
 export const DEESMSX_API = "https://apicall.deesmsx.com/v1";
 /** The provider's shared OTP sender: works before a sender name of our own is approved. */
 export const DEESMSX_DEFAULT_SENDER = "deeSMS.OTP";
+export const TWILIO_VERIFY_API = "https://verify.twilio.com/v2";
 export const SMS_DAILY_CAP_DEFAULT = 300;
+
+const PROVIDERS = ["deesmsx", "twilio"];
+
+/**
+ * The SMS provider: SMS_PROVIDER when set, else twilio when TWILIO_VERIFY_SERVICE_SID is set, else deesmsx. On Vercel
+ * only a real provider is possible: SMS_PROVIDER=console|file is ignored there.
+ */
+function smsProvider(): string {
+  const explicit = read("SMS_PROVIDER");
+  const auto = read("TWILIO_VERIFY_SERVICE_SID") ? "twilio" : "deesmsx";
+  if (onVercel()) return explicit && PROVIDERS.includes(explicit) ? explicit : auto;
+  return explicit ?? auto;
+}
 
 export function smsConfig(): SmsConfig {
   const c = new Collector();
-  // On Vercel only the real provider is possible: SMS_PROVIDER=console|file is ignored there.
-  const requested = onVercel() ? "deesmsx" : (read("SMS_PROVIDER") ?? "deesmsx");
-  if (!["deesmsx", "console", "file"].includes(requested)) c.bad.push("SMS_PROVIDER");
+  const requested = smsProvider();
+  if (![...PROVIDERS, "console", "file"].includes(requested)) c.bad.push("SMS_PROVIDER");
   const kind = requested as SmsProviderKind;
   let apiKey = "";
   let secretKey = "";
   let outboxDir = "";
+  let twilio: TwilioSettings | null = null;
   if (kind === "deesmsx") {
     apiKey = c.need("DEESMSX_API_KEY");
     secretKey = c.need("DEESMSX_SECRET_KEY");
+  } else if (kind === "twilio") {
+    const accountSid = c.need("TWILIO_ACCOUNT_SID", (s) => /^AC[0-9a-fA-F]{32}$/.test(s));
+    const authToken = c.need("TWILIO_AUTH_TOKEN", (s) => /^[A-Za-z0-9]{32,64}$/.test(s));
+    const serviceSid = c.need("TWILIO_VERIFY_SERVICE_SID", (s) => /^VA[0-9a-fA-F]{32}$/.test(s));
+    // Dev/test-only override (mock Twilio server); never honoured on Vercel.
+    const twilioOverride = onVercel() ? undefined : read("TWILIO_VERIFY_API_URL");
+    if (twilioOverride && !isHttpUrl(twilioOverride)) c.bad.push("TWILIO_VERIFY_API_URL");
+    twilio = { accountSid, authToken, serviceSid, apiUrl: (twilioOverride ?? TWILIO_VERIFY_API).replace(/\/+$/, "") };
   } else if (kind === "file") {
     outboxDir = c.need("SMS_OUTBOX_DIR");
   }
@@ -184,6 +217,7 @@ export function smsConfig(): SmsConfig {
     secretKey,
     sender,
     apiUrl: (override ?? DEESMSX_API).replace(/\/+$/, ""),
+    twilio,
     outboxDir,
     dailyCap,
   };

@@ -1,17 +1,19 @@
 import "server-only";
+import type { SmsProviderKind } from "../env";
 import type { SendResult, VerifyResult } from "../otp";
-import { buildCapAlert, buildLowCreditAlert, buildSmsProblemAlert, buildVolumeAlert } from "../telegram";
+import { buildCapAlert, buildLowCreditAlert, buildSmsProblemAlert, buildVolumeAlert, type AlertProvider } from "../telegram";
 
 /**
  * Telegram alerts about sending codes, each kind at most once per interval per server instance (a sustained problem
  * gives a few alerts, not one per sign-in):
- * - misconfigured: deeSMSX refused our settings (reference code 9, 100 or 204): nobody can get a code;
- * - no_credit: deeSMSX says the credit is used up (102);
+ * - misconfigured: the provider refused our settings (deeSMSX reference code 9, 100 or 204; Twilio e.g. 20003, 20404,
+ *   60605): nobody can get a code;
+ * - no_credit: deeSMSX says the credit is used up (102), or Twilio that the account is suspended (20005);
  * - cap: SMS_DAILY_CAP codes were sent in 24 h, sending has stopped;
- * - low_credit: the balance deeSMSX reports fell below LOW_CREDIT_BELOW;
+ * - low_credit: the balance deeSMSX reports fell below LOW_CREDIT_BELOW (Twilio reports none);
  * - volume: half the daily cap was used (unusually many codes);
- * - uncertain: UNCERTAIN_ALERT_AFTER sends within UNCERTAIN_WINDOW_MS ended without knowing whether deeSMSX sent the
- *   SMS (timeouts, unreadable answers): users get errors while credit may still be spent.
+ * - uncertain: UNCERTAIN_ALERT_AFTER sends within UNCERTAIN_WINDOW_MS ended without knowing whether the provider sent
+ *   the SMS (timeouts, unreadable answers): users get errors while credit may still be spent.
  */
 export const ALERT_EVERY_MS = {
   misconfigured: 3600_000,
@@ -51,19 +53,24 @@ export function volumeThreshold(cap: number): number {
   return Math.max(1, Math.floor(cap / 2));
 }
 
+function alertProvider(kind: SmsProviderKind): AlertProvider {
+  return kind === "twilio" ? "twilio" : "deesmsx";
+}
+
 /** Telegram messages (HTML) that are due after sending a code. */
-export function alertsAfterSend(r: SendResult, dailyCap: number, now = Date.now()): string[] {
+export function alertsAfterSend(r: SendResult, dailyCap: number, now = Date.now(), provider: SmsProviderKind = "deesmsx"): string[] {
   const at = new Date(now);
+  const p = alertProvider(provider);
   const out: string[] = [];
   if (r.status === "capped") {
     if (alertDue("cap", now)) out.push(buildCapAlert(dailyCap, at));
   } else if (r.status === "failed") {
-    if (r.reason === "misconfigured" && alertDue("misconfigured", now)) out.push(buildSmsProblemAlert("misconfigured", r.providerCode, at));
-    if (r.reason === "no_credit" && alertDue("no_credit", now)) out.push(buildSmsProblemAlert("no_credit", r.providerCode, at));
+    if (r.reason === "misconfigured" && alertDue("misconfigured", now)) out.push(buildSmsProblemAlert("misconfigured", r.providerCode, at, 0, p));
+    if (r.reason === "no_credit" && alertDue("no_credit", now)) out.push(buildSmsProblemAlert("no_credit", r.providerCode, at, 0, p));
     if (r.reason === "uncertain") {
       uncertainAt = [...uncertainAt.filter((t) => now - t < UNCERTAIN_WINDOW_MS), now];
       if (uncertainAt.length >= UNCERTAIN_ALERT_AFTER && alertDue("uncertain", now)) {
-        out.push(buildSmsProblemAlert("uncertain", r.providerCode, at, uncertainAt.length));
+        out.push(buildSmsProblemAlert("uncertain", r.providerCode, at, uncertainAt.length, p));
       }
     }
   } else if (r.status === "sent") {
@@ -76,9 +83,9 @@ export function alertsAfterSend(r: SendResult, dailyCap: number, now = Date.now(
 }
 
 /** Telegram messages (HTML) that are due after checking a code. */
-export function alertsAfterVerify(r: VerifyResult, now = Date.now()): string[] {
+export function alertsAfterVerify(r: VerifyResult, now = Date.now(), provider: SmsProviderKind = "deesmsx"): string[] {
   if (!r.ok && r.reason === "unavailable" && r.detail === "misconfigured" && alertDue("misconfigured", now)) {
-    return [buildSmsProblemAlert("misconfigured", r.providerCode, new Date(now))];
+    return [buildSmsProblemAlert("misconfigured", r.providerCode, new Date(now), 0, alertProvider(provider))];
   }
   return [];
 }

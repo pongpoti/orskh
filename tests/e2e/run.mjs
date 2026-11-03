@@ -3,7 +3,8 @@
 // (Chromium). The main app runs in provider mode (SMS_PROVIDER=deesmsx against tests/mock-deesmsx.mjs through
 // DEESMSX_API_URL); a second app on the same build runs in local file mode (SMS_PROVIDER=file) near the end.
 // Configurable so several copies can run in parallel:
-//   E2E_APP_PORT (3100)  E2E_FILE_APP_PORT (3101)  E2E_LINE_PORT (4010)  E2E_SMS_PORT (4011)
+//   E2E_APP_PORT (3100)  E2E_FILE_APP_PORT (3101)  E2E_TWILIO_APP_PORT (3102)  E2E_LINE_PORT (4010)  E2E_SMS_PORT (4011)
+//   E2E_TWILIO_PORT (4012)
 //   E2E_DATABASE_URL (postgres://postgres:postgres@localhost:5432/orskh_e2e)
 //   E2E_OUTBOX_DIR (tmp)  E2E_SCREENS_DIR (tmp)  E2E_SKIP_BUILD=1 (reuse .next)
 //   ALLOW_REMOTE_TEST_DB=1 (allow a non-local E2E_DATABASE_URL; see tests/db-guard.mjs)
@@ -33,6 +34,8 @@ const APP_PORT = Number(process.env.E2E_APP_PORT ?? 3100);
 const FILE_APP_PORT = Number(process.env.E2E_FILE_APP_PORT ?? 3101);
 const LINE_PORT = Number(process.env.E2E_LINE_PORT ?? 4010);
 const SMS_PORT = Number(process.env.E2E_SMS_PORT ?? 4011);
+const TWILIO_APP_PORT = Number(process.env.E2E_TWILIO_APP_PORT ?? 3102);
+const TWILIO_PORT = Number(process.env.E2E_TWILIO_PORT ?? 4012);
 const DB_URL = process.env.E2E_DATABASE_URL ?? "postgres://postgres:postgres@localhost:5432/orskh_e2e";
 // This run drops the sign-in tables and users: refuse a remote database unless ALLOW_REMOTE_TEST_DB=1 (tests/db-guard.mjs).
 assertLocalTestDatabase(DB_URL, "E2E_DATABASE_URL");
@@ -43,6 +46,8 @@ const APP = `http://localhost:${APP_PORT}`;
 const FILE_APP = `http://localhost:${FILE_APP_PORT}`;
 const LINE = `http://127.0.0.1:${LINE_PORT}`;
 const SMS = `http://127.0.0.1:${SMS_PORT}`;
+const TWILIO_APP = `http://localhost:${TWILIO_APP_PORT}`;
+const TWILIO = `http://127.0.0.1:${TWILIO_PORT}`;
 
 const SESSION_SECRET = randomBytes(32).toString("base64url");
 const OTP_PEPPER = randomBytes(24).toString("base64url");
@@ -50,6 +55,10 @@ const LINE_ID = "1234567890";
 const LINE_SECRET = randomBytes(16).toString("hex");
 const SMS_API_KEY = randomBytes(16).toString("hex");
 const SMS_SECRET_KEY = randomBytes(24).toString("hex");
+// invented Twilio credentials in the right shapes, for the mock only
+const TW_ACCOUNT = `AC${randomBytes(16).toString("hex")}`;
+const TW_TOKEN = randomBytes(16).toString("hex");
+const TW_SERVICE = `VA${randomBytes(16).toString("hex")}`;
 // The users list (table users, invented names, no numbers): DOC1 claims DOC1_NAME at the first login, DOC2 claims
 // DOC2_NAME from a second LINE account; RETIRED's name is deactivated (it holds a claim made by hand); BREAK_GLASS is
 // only in ALLOWED_PHONES.
@@ -64,6 +73,8 @@ const RETIRED = "0900000002";
 const RETIRED_NAME = "สมศักดิ์ เกษียณ";
 const BREAK_GLASS = "0611111111";
 const LOCKED = "0900000008"; // locks its code with 5 wrong guesses
+const TW_PHONE = "0900000010"; // Twilio Verify mode
+const TW_REFUSED = "0900000011"; // Twilio Verify mode: refused sends
 const USERS_CSV = [
   "\uFEFFfirst_name,last_name,type,subtype",
   "สมชาย,ใจดี,DR,ORTHO",
@@ -94,6 +105,8 @@ const SUB_K = "U0000000000000000000000000000000k";
 const SUB_L = "U0000000000000000000000000000000l";
 const SUB_M = "U0000000000000000000000000000000m";
 const SUB_N = "U0000000000000000000000000000000n";
+const SUB_O = "U0000000000000000000000000000000o";
+const SUB_P = "U0000000000000000000000000000000p";
 // AUTH_ADMIN_LINE_IDS: admins are listed by LINE user id, the session's sub
 const ADMIN_SUB = "U00000000000000000000000000000ad1";
 const TG_TOKEN = "123456789:AAe2eTOKENe2eTOKENe2eTOKEN_test";
@@ -127,7 +140,7 @@ const intl = (p) => `66${p.slice(1)}`;
 function baseEnv() {
   const env = { ...process.env };
   for (const k of Object.keys(env)) {
-    if (/^(VERCEL|SMS_|DEESMSX_|ALLOWED_|TELEGRAM_|AUTH_ADMIN)/.test(k)) delete env[k];
+    if (/^(VERCEL|SMS_|DEESMSX_|TWILIO_|ALLOWED_|TELEGRAM_|AUTH_ADMIN)/.test(k)) delete env[k];
   }
   return env;
 }
@@ -282,6 +295,36 @@ async function smsControl(path, body) {
     body: JSON.stringify(body),
   });
   if (!r.ok) throw new Error(`mock deeSMSX ${path} failed`);
+}
+
+/** Every SMS the mock Twilio Verify sent [{to: "+66…", code, sid, channel, locale, at}]. */
+async function twilioSent() {
+  return (await fetch(`${TWILIO}/__control/sms`)).json();
+}
+
+async function twilioFail(body) {
+  const r = await fetch(`${TWILIO}/__control/fail`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error("mock Twilio fail failed");
+}
+
+/** The next SMS the mock Twilio Verify sent to `phone` that is not in `seen` (indexes into the sent list). */
+async function waitForTwilioSms(phone, seen, timeoutMs = 10_000) {
+  const end = Date.now() + timeoutMs;
+  while (Date.now() < end) {
+    const all = await twilioSent();
+    for (let i = 0; i < all.length; i++) {
+      if (seen.has(i) || all[i].to !== `+${intl(phone)}`) continue;
+      seen.add(i);
+      issuedCodes.push(all[i].code, all[i].sid);
+      return all[i];
+    }
+    await sleep(150);
+  }
+  throw new Error(`no Twilio SMS to ${fmt(phone)} within ${timeoutMs} ms`);
 }
 
 /** The next OTP the mock deeSMSX issued to `phone` that is not in `seen` (indexes into the issued list). */
@@ -501,8 +544,10 @@ async function main() {
   const portsFree = async () => {
     await assertPortFree(APP_PORT, undefined, "E2E_APP_PORT");
     await assertPortFree(FILE_APP_PORT, undefined, "E2E_FILE_APP_PORT");
+    await assertPortFree(TWILIO_APP_PORT, undefined, "E2E_TWILIO_APP_PORT");
     await assertPortFree(LINE_PORT, "127.0.0.1", "E2E_LINE_PORT");
     await assertPortFree(SMS_PORT, "127.0.0.1", "E2E_SMS_PORT");
+    await assertPortFree(TWILIO_PORT, "127.0.0.1", "E2E_TWILIO_PORT");
   };
   await portsFree();
   rmSync(OUTBOX, { recursive: true, force: true });
@@ -569,6 +614,8 @@ async function main() {
   });
   const app = startProcess("app", ["node_modules/next/dist/bin/next", "start", "-p", String(APP_PORT)], appEnv);
   let fileApp = null; // the local file mode app, started by its test
+  let twilioApp = null; // the Twilio Verify mode app and its mock, started by their test
+  let twilioMock = null;
   try {
     await waitFor(`${LINE}/__control/health`, line);
     await waitFor(`${SMS}/__control/health`, sms);
@@ -1901,13 +1948,104 @@ async function main() {
       await ctx.close();
     });
 
-    await t("no OTP code, deeSMSX token or key appears in server logs", async () => {
+    await t("Twilio Verify mode (TWILIO_VERIFY_SERVICE_SID set): a Thai SMS code from Twilio signs in; refusals give a Thai message and a Twilio alert", async () => {
+      // the same build, a third server: SMS_PROVIDER unset, so the Twilio settings choose Twilio Verify
+      twilioMock = startProcess("mock-twilio", ["tests/mock-twilio.mjs"], {
+        ...baseEnv(),
+        MOCK_TWILIO_PORT: String(TWILIO_PORT),
+        MOCK_TWILIO_ACCOUNT_SID: TW_ACCOUNT,
+        MOCK_TWILIO_AUTH_TOKEN: TW_TOKEN,
+        MOCK_TWILIO_SERVICE_SID: TW_SERVICE,
+      });
+      const twEnv = {
+        ...appEnv,
+        APP_URL: TWILIO_APP,
+        TWILIO_ACCOUNT_SID: TW_ACCOUNT,
+        TWILIO_AUTH_TOKEN: TW_TOKEN,
+        TWILIO_VERIFY_SERVICE_SID: TW_SERVICE,
+        TWILIO_VERIFY_API_URL: `${TWILIO}/v2`,
+      };
+      for (const k of ["SMS_PROVIDER", "DEESMSX_API_KEY", "DEESMSX_SECRET_KEY", "DEESMSX_API_URL"]) delete twEnv[k];
+      twilioApp = startProcess("app-twilio", ["node_modules/next/dist/bin/next", "start", "-p", String(TWILIO_APP_PORT)], twEnv);
+      await waitFor(`${TWILIO}/__control/health`, twilioMock);
+      await waitFor(`${TWILIO_APP}/login`, twilioApp);
+      const deeBefore = (await smsIssued()).length;
+      const tgBefore = (await telegramMessages()).length;
+      const seenTwilio = new Set();
+
+      // 1: Twilio sends the code (in Thai, Locale=th); no reference on screen; a wrong code, then the right one
+      await setIdentity({ sub: SUB_O, name: "หมอสี่" });
+      let ctx = await newContext(browser);
+      let page = await ctx.newPage();
+      await lineLogin(page, undefined, TWILIO_APP);
+      assert(new URL(page.url()).pathname === "/login/verify", `at ${page.url()}`);
+      await page.fill("#phone", fmt(TW_PHONE));
+      await page.click('button[type="submit"]');
+      await page.waitForSelector('[data-testid="otp-info"]');
+      const sms = await waitForTwilioSms(TW_PHONE, seenTwilio);
+      assert(sms.channel === "sms" && sms.locale === "th", `Twilio request: ${JSON.stringify({ channel: sms.channel, locale: sms.locale })}`);
+      assert(/^\d{6}$/.test(sms.code), "a 6-digit code");
+      assert((await page.locator('[data-testid="otp-ref"]').count()) === 0, "Twilio's SMS has no reference, so none is shown");
+      const row = (await db.query("SELECT code_hash, provider_token, ref FROM otp_codes WHERE line_sub = $1", [SUB_O])).rows[0];
+      assert(row.code_hash === null && row.provider_token && !row.provider_token.includes(sms.sid) && !row.ref, "only the sealed verification SID is stored");
+      const wrong = sms.code === "000000" ? "111111" : "000000";
+      await page.fill("#code", wrong);
+      await page.waitForFunction(
+        () => document.querySelector('[data-testid="otp-error"]')?.textContent?.replace(/\u00A0/g, " ").includes("เหลือโอกาสอีก 4 ครั้ง"),
+        undefined,
+        { timeout: 15_000 },
+      );
+      await page.fill("#code", sms.code);
+      await page.waitForURL(`${TWILIO_APP}/login/claim`);
+      await page.waitForSelector('[data-testid="claim-types"]');
+      assert((await db.query("SELECT used_at FROM otp_codes WHERE line_sub = $1", [SUB_O])).rows[0].used_at, "the code is used");
+      await ctx.close();
+
+      // 2: Thailand not allowed in Verify Geo permissions (60605): "not ready", no quota used, an alert naming the fix
+      await setIdentity({ sub: SUB_P, name: "หมอห้า" });
+      ctx = await newContext(browser);
+      page = await ctx.newPage();
+      await lineLogin(page, undefined, TWILIO_APP);
+      const expectError = async (fail, message) => {
+        await twilioFail(fail);
+        await page.fill("#phone", TW_REFUSED);
+        await page.click('button[type="submit"]');
+        await page.waitForFunction(
+          (m) => document.querySelector("#phone-error")?.textContent?.replace(/\u00A0/g, " ").includes(m),
+          message.replace(/\u00A0/g, " "),
+          { timeout: 15_000 },
+        );
+        assert(await page.isVisible("#phone"), `still on the number step after ${fail.code}`);
+      };
+      await expectError({ code: 60605, status: 403 }, "ระบบยังไม่พร้อม กรุณาติดต่อผู้ดูแล");
+      assert((await page.getAttribute("#phone", "aria-invalid")) === null, "settings: the number is not marked invalid");
+      const geo = await waitUntil(
+        async () => (await telegramMessages()).slice(tgBefore).find((m) => m.text.startsWith("🛠 <b>ตั้งค่า SMS ไม่ถูกต้อง ส่งรหัสไม่ได้</b>")),
+        "Twilio settings alert",
+      );
+      assert(geo.text.includes("Twilio ปฏิเสธคำขอ (รหัส 60605)") && geo.text.includes("Geo permissions") && !/deeSMSX/i.test(geo.text), `alert: ${geo.text}`);
+
+      // 3: a number Twilio refuses (60200): marked invalid; a 5xx may have sent: the cooldown runs
+      await expectError({ code: 60200, status: 400 }, "ส่ง SMS ไปที่เบอร์นี้ไม่ได้ กรุณาตรวจสอบเบอร์มือถือ");
+      assert((await page.getAttribute("#phone", "aria-invalid")) === "true", "Twilio refused the number: marked invalid");
+      assert((await db.query("SELECT 1 FROM otp_codes WHERE line_sub = $1", [SUB_P])).rowCount === 0, "refused sends leave no row");
+      await expectError({ code: 20500, status: 500 }, "ส่งรหัสไม่สำเร็จ หากได้รับ SMS ภายหลัง รหัสนั้นใช้ไม่ได้");
+      const kept = await db.query("SELECT provider_token FROM otp_codes WHERE line_sub = $1", [SUB_P]);
+      assert(kept.rows.length === 1 && kept.rows[0].provider_token === null, "a maybe-sent row is kept, unusable");
+      assert((await twilioSent()).length === seenTwilio.size, "no SMS from refused or failed requests");
+      assert((await smsIssued()).length === deeBefore, "Twilio mode never calls deeSMSX");
+      await ctx.close();
+      assert(/\[sms\] Twilio verification failed: HTTP 403, code 60605/.test(twilioApp.log()), "Twilio failures are logged by code");
+    });
+
+    await t("no OTP code, provider token or SID, or key appears in server logs", async () => {
       assert(issuedCodes.length >= 20, `codes and tokens collected: ${issuedCodes.length}`);
-      for (const proc of [app, fileApp].filter(Boolean)) {
+      for (const proc of [app, fileApp, twilioApp].filter(Boolean)) {
         const log = proc.log();
         for (const code of issuedCodes) assert(!log.includes(code), `code or token found in the ${proc.name} log`);
         assert(!log.includes(SESSION_SECRET) && !log.includes(OTP_PEPPER) && !log.includes(TG_TOKEN), `secret in the ${proc.name} log`);
         assert(!log.includes(SMS_API_KEY) && !log.includes(SMS_SECRET_KEY), `deeSMSX key in the ${proc.name} log`);
+        assert(!log.includes(TW_TOKEN), `Twilio Auth Token in the ${proc.name} log`);
         assert(webhookSecret && !log.includes(webhookSecret), `webhook secret in the ${proc.name} log`);
       }
       assert(/\[sms\] deeSMSX OTP request failed: code 102/.test(app.log()), "provider failures are logged by reference code");

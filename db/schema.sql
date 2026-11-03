@@ -6,8 +6,9 @@
 -- out and completed once it was accepted. It is deleted again only when sending certainly failed (so such a failure
 -- costs nobody a quota); when the SMS may have gone out (a timeout, an unreadable answer) it stays as a reservation
 -- that can never be verified but still counts for every limit and the daily cap.
--- Provider mode (deeSMSX) stores the provider's token, encrypted with a key derived from OTP_PEPPER; local mode
--- (development and tests) stores code_hash, an HMAC of the code. ref is the reference shown beside the code.
+-- Provider mode stores the provider's token (deeSMSX) or verification SID (Twilio Verify), encrypted with a key
+-- derived from OTP_PEPPER; local mode (development and tests) stores code_hash, an HMAC of the code. ref is the
+-- reference shown beside the code (none with Twilio).
 CREATE TABLE IF NOT EXISTS otp_codes (
   id              bigserial   PRIMARY KEY,
   phone           text        NOT NULL,

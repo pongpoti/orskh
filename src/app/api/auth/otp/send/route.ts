@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
       dailyCap: cfg.dailyCap,
       transport: smsTransport(cfg),
     });
-    const alerts = alertsAfterSend(result, cfg.dailyCap);
+    const alerts = alertsAfterSend(result, cfg.dailyCap, Date.now(), cfg.kind);
     // After the response: a slow or failing Telegram never delays or breaks the answer.
     if (alerts.length) {
       after(async () => {

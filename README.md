@@ -31,7 +31,7 @@ The look follows the SAKHONMSO P4P dashboard: shadcn/ui's design language with a
 
 ## Stack
 
-Next.js 16, React 19, Tailwind CSS 4, Postgres (Neon in production) through `pg`, `jose` for tokens, [deeSMSX](https://deesmsx.com) for the SMS codes (plain `fetch`, no SDK); the admin page's surgeon list goes through drizzle (`src/db`). The sign-in is the one from skh-or-schedule, restyled for this board.
+Next.js 16, React 19, Tailwind CSS 4, Postgres (Neon in production) through `pg`, `jose` for tokens, [Twilio Verify](https://www.twilio.com/docs/verify) or [deeSMSX](https://deesmsx.com) for the SMS codes (plain `fetch`, no SDK); the admin page's surgeon list goes through drizzle (`src/db`). The sign-in is the one from skh-or-schedule, restyled for this board.
 
 ## Sign-in
 
@@ -43,13 +43,26 @@ Next.js 16, React 19, Tailwind CSS 4, Postgres (Neon in production) through `pg`
 
 The top bar shows the claimed full name from the `users` table, through the number's current claim (or the name given in an approved access request, otherwise the LINE name). The account menu behind the avatar shows the name, the role (`แพทย์ · ออร์โธปิดิกส์`, `พยาบาล · ห้องผ่าตัด`) and the number (`081-234-5678`).
 
-Every number is stored in one form, `0812345678` (`src/lib/phone.ts`; `scripts/phone.mjs`, used by dev-session, repeats the same rules and a test checks that both agree). deeSMSX is sent `66812345678`.
+Every number is stored in one form, `0812345678` (`src/lib/phone.ts`; `scripts/phone.mjs`, used by dev-session, repeats the same rules and a test checks that both agree). deeSMSX is sent `66812345678`, Twilio `+66812345678`.
 
 The live board is [https://orskh.vercel.app](https://orskh.vercel.app). Guests are sent to `/login`.
 
 ### How a code is sent
 
-In production (`SMS_PROVIDER=deesmsx`, the default and the only mode allowed on Vercel) deeSMSX makes the code, sends the SMS and checks the code: the app calls `POST /otp/request` (`to`, `sender`, `lang=th`, `isShowRef`) and stores the returned token encrypted (AES-GCM with a key derived from `OTP_PEPPER`), and on a guess calls `POST /otp/verify` with the token and the typed code. The app enforces its own limits on top (they also count sends whose outcome is unclear, see below), the 5-minute life, the 5 attempts and single use, and never logs the API keys, the token or the code; it logs only deeSMSX's reference code (for example `code 102`).
+Two SMS providers are built in; on Vercel only these two are possible. The app uses `SMS_PROVIDER` when it is `twilio` or `deesmsx`, otherwise Twilio Verify when `TWILIO_VERIFY_SERVICE_SID` is set, otherwise deeSMSX.
+
+**Twilio Verify** makes the code, sends the SMS (in Thai: the app sends `Locale=th`) and checks the code: the app calls `POST /v2/Services/{VA…}/Verifications` (`To=+66…`, `Channel=sms`, `Locale=th`) and stores the returned verification SID encrypted (AES-GCM with a key derived from `OTP_PEPPER`), and on a guess calls `POST /v2/Services/{VA…}/VerificationCheck` with that SID and the typed code (`approved` signs in, `pending` is a wrong code). Twilio's SMS has no reference, so the screen shows none. A refusal (HTTP 4xx) created nothing, so no SMS went out and the row is deleted; a 5xx, a timeout or an unreadable answer is "maybe sent" as below. The app logs only Twilio's error code, never the Auth Token, the SID, the number or the code.
+
+| Twilio answer | Message |
+| --- | --- |
+| 60200, 21211, 21614 (bad number), 60205 (landline) | ส่ง SMS ไปที่เบอร์นี้ไม่ได้ กรุณาตรวจสอบเบอร์มือถือ |
+| 20003 (Account SID or Auth Token), 20404 (no such Verify Service), 60605 (Thailand not allowed in Geo permissions), 21608 (trial account, unverified number), 60223, 60410, 60238, or any 401/403 | ระบบยังไม่พร้อม กรุณาติดต่อผู้ดูแล, plus a Telegram alert that says what to fix |
+| 20005 (account suspended, usually a $0 balance) | ขณะนี้ระบบส่ง SMS ไม่ได้ กรุณาลองใหม่ภายหลัง หรือติดต่อผู้ดูแล, plus a Telegram alert |
+| other 4xx (rate limits such as 60203) | เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง |
+
+When checking, a verification Twilio no longer has (approved, expired, out of attempts: 404, 20404, 60202) is shown as "รหัสหมดอายุหรือใช้ไปแล้ว กรุณาขอรหัสใหม่"; if Twilio cannot be reached, the attempt is not counted.
+
+**deeSMSX** (`SMS_PROVIDER=deesmsx`, or no Twilio settings) makes the code, sends the SMS and checks the code: the app calls `POST /otp/request` (`to`, `sender`, `lang=th`, `isShowRef`) and stores the returned token encrypted (AES-GCM with a key derived from `OTP_PEPPER`), and on a guess calls `POST /otp/verify` with the token and the typed code. The app enforces its own limits on top (they also count sends whose outcome is unclear, see below), the 5-minute life, the 5 attempts and single use, and never logs the API keys, the token or the code; it logs only deeSMSX's reference code (for example `code 102`).
 
 Before deeSMSX is called, a row is reserved in `otp_codes` under a database lock, so the daily cap and the limits hold even for double taps and several servers. What happens to that row depends on whether the SMS may have gone out:
 
@@ -80,9 +93,10 @@ Copy `.env.example` to `.env.local` for local work. Names only here; values live
 | `APP_URL` | yes | Canonical origin, `https://orskh.vercel.app`. Requests to other hosts are redirected to it in production |
 | `LINE_CHANNEL_ID`, `LINE_CHANNEL_SECRET` | yes | LINE Login channel. The secret is server only. The old Auth.js names `AUTH_LINE_ID` and `AUTH_LINE_SECRET` are read when these are unset |
 | `SESSION_SECRET` | yes | 32+ characters (`openssl rand -base64 32`). Signs the session and the other sign-in cookies. Rotating it signs everyone out |
-| `OTP_PEPPER` | yes | 16+ characters. Key for the stored code HMACs and for encrypting deeSMSX tokens at rest |
+| `OTP_PEPPER` | yes | 16+ characters. Key for the stored code HMACs and for encrypting the provider's token or verification SID at rest |
 | `DATABASE_URL` | yes | Postgres (Neon pooled connection string). Server only |
-| `DEESMSX_API_KEY`, `DEESMSX_SECRET_KEY` | yes | deeSMSX API keys (from the API settings in my.deesmsx.com). Server only |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID` | for Twilio | Twilio Verify: the Account SID (`AC…`) and Auth Token from the Twilio Console home page, and the Verify Service SID (`VA…`). Setting `TWILIO_VERIFY_SERVICE_SID` makes Twilio the provider. Server only, sensitive. See Twilio Verify |
+| `DEESMSX_API_KEY`, `DEESMSX_SECRET_KEY` | for deeSMSX | deeSMSX API keys (from the API settings in my.deesmsx.com). Server only |
 | `DEESMSX_SENDER` | no | SMS sender name. Default `deeSMS.OTP`, deeSMSX's shared OTP sender. Set it to `ORSKH` once that name is approved (see deeSMSX) |
 | `SMS_DAILY_CAP` | no | At most this many codes in any 24 hours, for everyone together. Default `300`. See Cost control |
 | `ALLOWED_PHONES` | no | Break-glass list of mobile numbers, comma-separated (any common way of writing them). These stay authorized without a database read. Keep it empty or one administrator. Needs a redeploy to change |
@@ -90,9 +104,10 @@ Copy `.env.example` to `.env.local` for local work. Names only here; values live
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | for name claims | Sign-in alerts, SMS alerts, access-request decisions, and name claims with their undo button. Chat IDs comma-separated; the numeric (person) IDs are also who may approve and undo. Name claims need both settings and at least one numeric ID; without them every new number goes to the access request. Off when either is unset |
 | `BOT_API_TOKEN` | no | Bank of Thailand API token for the Financial Institutions' Holidays API (free, from [portal.api.bot.or.th](https://portal.api.bot.or.th)). Server only. Without it only weekends and `EXTRA_HOLIDAYS` close the board |
 | `EXTRA_HOLIDAYS` | no | Closures the API does not list, comma-separated `YYYY-MM-DD`, each optionally `=name` |
-| `SMS_PROVIDER`, `SMS_OUTBOX_DIR`, `DEESMSX_API_URL`, `LINE_AUTH_URL`, `LINE_API_URL`, `TELEGRAM_API_URL` | dev only | Local SMS mode (`console` or `file`), the mock deeSMSX, mock LINE and Telegram. Ignored when `VERCEL` is set: there the app always uses the real deeSMSX |
+| `SMS_PROVIDER` | no | `twilio` or `deesmsx` picks the provider when both are set up (see How a code is sent). In development also `console` or `file` (local mode), which are ignored when `VERCEL` is set |
+| `SMS_OUTBOX_DIR`, `TWILIO_VERIFY_API_URL`, `DEESMSX_API_URL`, `LINE_AUTH_URL`, `LINE_API_URL`, `TELEGRAM_API_URL` | dev only | Local file mode, the mock Twilio and deeSMSX, mock LINE and Telegram. Ignored when `VERCEL` is set: there the app always calls the real services |
 
-If `DATABASE_URL` or the deeSMSX keys are missing in production, pages still build and serve, the sign-in endpoints answer "ระบบยังไม่พร้อม กรุณาติดต่อผู้ดูแล", and the log names the missing variables.
+If `DATABASE_URL` or the chosen provider's settings are missing or malformed in production, pages still build and serve, the sign-in endpoints answer "ระบบยังไม่พร้อม กรุณาติดต่อผู้ดูแล", and the log names the missing variables.
 
 ### LINE
 
@@ -101,6 +116,19 @@ In the LINE Developers console, open the Login channel and set the callback to:
 `https://orskh.vercel.app/api/auth/line/callback`
 
 While the channel is in Developing mode, only testers and admins can sign in. Publish the channel, or add staff as testers, before a wider rollout. Issue a new channel secret if the current one was ever pasted into a chat, ticket or commit.
+
+### Twilio Verify
+
+Setup, in order:
+
+1. Sign up at [twilio.com](https://www.twilio.com). A **trial** account sends only to numbers you have verified in the Console (error 21608), so **upgrade** (add a payment method and some balance) before staff sign in. Verify charges per successful verification plus the SMS to Thailand; check the current prices on Twilio's pricing page.
+2. In the Console, open **Verify › Services** and create a service. Its **friendly name** appears in the SMS, so call it `ORSKH`. Leave the **code length at 6** (the sign-in form takes 6 digits) and SMS turned on. Copy the **Service SID** (`VA…`).
+3. Open **Verify › Settings › Geo permissions** and allow **Thailand** for SMS (error 60605 otherwise).
+4. From the Console home page copy the **Account SID** (`AC…`) and **Auth Token**.
+5. In Vercel (Settings › Environment Variables, Production, marked **Sensitive**), add `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` and `TWILIO_VERIFY_SERVICE_SID`, then redeploy. With `TWILIO_VERIFY_SERVICE_SID` set the app uses Twilio; the deeSMSX settings can stay or go. Never paste the Auth Token into a chat, ticket or commit; if that happens, rotate it in the Console.
+6. Sign in once yourself: the SMS should be in Thai, show the code and `ORSKH`, and have no link. **Verify › Logs** in the Console shows each attempt and, for a failure, Twilio's reason.
+
+Twilio picks a registered sender for Thailand itself, so there is no sender name to apply for. A verification lives 10 minutes at Twilio; the app stops accepting a code after its own 5 minutes. A new code asked for within those 10 minutes belongs to the same Twilio verification, so the code from the first SMS still works.
 
 ### deeSMSX
 
@@ -129,9 +157,9 @@ What the deeSMSX documentation leaves open, and how the app copes: it says deeSM
 
 Every code is a paid SMS, so sending is capped:
 
-- **Per person**: 3 codes per number per 15 minutes, 6 per number and LINE account per 24 hours, 5 per LINE account per hour, at most 5 different numbers per LINE account per 24 hours, 20 per IP address per hour, 60 s between sends. A send deeSMSX certainly refused counts for none of these; one that may have gone out (a timeout, an unreadable answer) counts like a sent code.
+- **Per person**: 3 codes per number per 15 minutes, 6 per number and LINE account per 24 hours, 5 per LINE account per hour, at most 5 different numbers per LINE account per 24 hours, 20 per IP address per hour, 60 s between sends. A send the provider certainly refused counts for none of these; one that may have gone out (a timeout, an unreadable answer) counts like a sent code.
 - **For everyone together**: `SMS_DAILY_CAP` codes in any 24 hours (default 300, a rolling window). At the cap nobody gets a code: the page says "ระบบส่ง SMS ครบจำนวนของวันนี้แล้ว กรุณาลองใหม่ภายหลัง หรือติดต่อผู้ดูแล" and Telegram is told once an hour. People already bound to their LINE account still sign in, since they need no code. If the cap is reached by real use, raise it in Vercel and redeploy.
-- **Telegram alerts** (when Telegram is set up): when half the cap is used in 24 hours, when the cap is reached, when deeSMSX's credit drops under 100, when credit runs out, when deeSMSX refuses our settings, and when three sends within 15 minutes end without knowing whether the SMS went out. Each kind is sent at most once an hour (credit and volume once every 6 hours) per server.
+- **Telegram alerts** (when Telegram is set up): when half the cap is used in 24 hours, when the cap is reached, when deeSMSX's credit drops under 100 (Twilio reports no balance), when credit runs out or the Twilio account is suspended, when the provider refuses our settings (the Twilio alert names what to fix), and when three sends within 15 minutes end without knowing whether the SMS went out. Each kind is sent at most once an hour (credit and volume once every 6 hours) per server.
 - Access-request decisions send no SMS: the waiting page signs the user in by itself.
 
 ### Telegram (needed for name claims)
@@ -285,6 +313,8 @@ npm run dev                     # http://localhost:3000
 
 For local work set `APP_URL=http://localhost:3000`, `LINE_AUTH_URL=http://localhost:4010/oauth2/v2.1/authorize`, `LINE_API_URL=http://localhost:4010`, `SMS_PROVIDER=file` and `SMS_OUTBOX_DIR=<folder outside the repo>`. No SMS is sent: each code is written as a JSON file `{to, text, code, ref, at}` into that folder (`SMS_PROVIDER=console` prints it in the terminal instead). No deeSMSX keys are needed in local mode.
 
+To try the Twilio path without sending anything, run `node tests/mock-twilio.mjs &` (port 4012) and set `SMS_PROVIDER=twilio`, `TWILIO_VERIFY_API_URL=http://localhost:4012/v2` and any `TWILIO_ACCOUNT_SID` (`AC` and 32 hex digits), `TWILIO_AUTH_TOKEN` (32+ letters and digits) and `TWILIO_VERIFY_SERVICE_SID` (`VA` and 32 hex digits); the mock takes them from `.env.local`, and lists the codes it "sends" at `http://localhost:4012/__control/sms`.
+
 To try the deeSMSX path without sending anything, run the mock instead: `node tests/mock-deesmsx.mjs &` (port 4011), then set `SMS_PROVIDER=deesmsx`, `DEESMSX_API_URL=http://localhost:4011/v1` and any `DEESMSX_API_KEY` / `DEESMSX_SECRET_KEY` (the mock takes them from `.env.local`). The codes it "sends" are listed at `http://localhost:4011/__control/sms`.
 
 To skip the sign-in while working on the UI:
@@ -304,12 +334,12 @@ npm run lint
 npm run typecheck
 npm test            # unit tests (node:test via tsx); Postgres database orskh_test
 npm run build
-npm run test:e2e    # mock LINE + mock deeSMSX + next build/start + Playwright (Chromium)
+npm run test:e2e    # mock LINE + mock deeSMSX + mock Twilio + next build/start + Playwright (Chromium)
 ```
 
-`npm test` reads `TEST_DATABASE_URL` (default `postgres://postgres:postgres@localhost:5432/orskh_test`). It covers the number rules, the users CSV and sync script, the `users` DDL against the production text (and that applying the schema to a filled `users` writes nothing), claims (first claim wins under concurrency, one name per number and per LINE account, claims and requests excluding each other, a claim moving to a corrected row, limits, undo and its 24-hour block, claims off without a Telegram administrator), the deeSMSX adapter against a stubbed `fetch` (every reference code, timeouts, broken answers), local mode, the limits, the daily cap (also under concurrent sends), alerts and the rest of the sign-in.
+`npm test` reads `TEST_DATABASE_URL` (default `postgres://postgres:postgres@localhost:5432/orskh_test`). It covers the number rules, the users CSV and sync script, the `users` DDL against the production text (and that applying the schema to a filled `users` writes nothing), claims (first claim wins under concurrency, one name per number and per LINE account, claims and requests excluding each other, a claim moving to a corrected row, limits, undo and its 24-hour block, claims off without a Telegram administrator), the deeSMSX and Twilio Verify adapters against a stubbed `fetch` (every reference or error code, timeouts, broken answers), local mode, the limits, the daily cap (also under concurrent sends), alerts and the rest of the sign-in.
 
-`npm run test:e2e` reads `E2E_DATABASE_URL` (default database `orskh_e2e`), `E2E_APP_PORT` (3100), `E2E_FILE_APP_PORT` (3101), `E2E_LINE_PORT` (4010), `E2E_SMS_PORT` (4011), `E2E_OUTBOX_DIR`, `E2E_SCREENS_DIR` (both default to the system temp folder) and `E2E_SKIP_BUILD=1`. It drops and recreates the sign-in tables and `users` in that database and loads invented names into `users` with the sync script. The main server runs in deeSMSX mode against the mock (sign-in with a name claim, binding, a second account that finds the name taken, access requests, deactivation, break-glass, the Telegram undo and its 24-hour block, deeSMSX failures and low credit, logout, CSRF, open redirects, the admin gate); a second server on the same build runs in file mode with Telegram sent only to a group (a full sign-in, name claims off, and the daily cap). It saves screenshots of the sign-in pages and the board at 360 and 1280 px wide (the claim steps and the request form also at 320 px). Playwright is pinned to the version whose Chromium is installed.
+`npm run test:e2e` reads `E2E_DATABASE_URL` (default database `orskh_e2e`), `E2E_APP_PORT` (3100), `E2E_FILE_APP_PORT` (3101), `E2E_TWILIO_APP_PORT` (3102), `E2E_LINE_PORT` (4010), `E2E_SMS_PORT` (4011), `E2E_TWILIO_PORT` (4012), `E2E_OUTBOX_DIR`, `E2E_SCREENS_DIR` (both default to the system temp folder) and `E2E_SKIP_BUILD=1`. It drops and recreates the sign-in tables and `users` in that database and loads invented names into `users` with the sync script. The main server runs in deeSMSX mode against the mock (sign-in with a name claim, binding, a second account that finds the name taken, access requests, deactivation, break-glass, the Telegram undo and its 24-hour block, deeSMSX failures and low credit, logout, CSRF, open redirects, the admin gate); a second server on the same build runs in file mode with Telegram sent only to a group (a full sign-in, name claims off, and the daily cap); a third runs in Twilio Verify mode against the mock (a Thai code with `Locale=th`, a wrong code, refusals and their alert). It saves screenshots of the sign-in pages and the board at 360 and 1280 px wide (the claim steps and the request form also at 320 px). Playwright is pinned to the version whose Chromium is installed.
 
 Both test runs drop and truncate tables, `users` among them, and `users` is shared in production (another workstream owns it, with stable ids). So both refuse to start (`tests/db-guard.mjs`) when `TEST_DATABASE_URL` or `E2E_DATABASE_URL` names a host other than `localhost`, `127.0.0.1`, `::1` or a Unix socket, and when `users` in that database already holds more than 50 rows (more than the tests ever insert). Never point them at Neon or at a Neon branch of production. `ALLOW_REMOTE_TEST_DB=1` lifts only the host check, for a remote database that holds nothing you need.
 
@@ -319,9 +349,9 @@ Both test runs drop and truncate tables, `users` among them, and `users` is shar
 
 - `src/proxy.ts`: canonical-host redirect in production, Origin check on every non-GET request, a CSP nonce per request, and a sign-in gate on every route except `/login*`, `/api/auth/*` and `/preview*` (the preview pages answer 404 outside development). Every board page also checks the session itself. The one exception to both checks is `POST /api/telegram/webhook`, which requires Telegram's secret header instead.
 - Session: HS256 JWT (30 days) in an HttpOnly, Secure, SameSite=Lax `__Host-session` cookie, carrying the number in its canonical form (sessions from the email version are refused). The number must still be authorized on every request; when the database is unreachable only `ALLOWED_PHONES` is (fail closed).
-- Codes: 6 digits, 5 minutes, single use, at most 5 attempts (counted before deeSMSX is asked). In deeSMSX mode the code never reaches the app's database; deeSMSX's token is stored encrypted. In local mode the code is stored as an HMAC with `OTP_PEPPER`. The API keys, tokens and codes are never logged. Limits and the daily cap are under Cost control. Every valid number gets a code and the same answer, so the page never shows whether a number is on the list before the code is checked.
+- Codes: 6 digits, 5 minutes, single use, at most 5 attempts (counted before the provider is asked). With Twilio or deeSMSX the code never reaches the app's database; Twilio's verification SID or deeSMSX's token is stored encrypted. In local mode the code is stored as an HMAC with `OTP_PEPPER`. The API keys, tokens and codes are never logged. Limits and the daily cap are under Cost control. Every valid number gets a code and the same answer, so the page never shows whether a number is on the list before the code is checked.
 - `/admin`: a signed-in session whose `sub` is in `AUTH_ADMIN_LINE_IDS`; anyone else gets a 404, and every server action checks the admin list again.
 - Access requests: the `access` cookie (12 hours, own key) never grants a session; names allow only letters, spaces and `. - '`; everything sent to Telegram is escaped.
 - Headers: CSP (nonce and `strict-dynamic`), HSTS, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `X-Frame-Options`, `X-Robots-Tag: noindex`, and `robots.txt` disallowing all.
-- Real names, real phone numbers, the users CSV, deeSMSX keys and other secrets never go in this public repository; examples, tests and screenshots use invented names and numbers only (`*.csv`, `outbox/` and `screens/` are gitignored as a safety net).
+- Real names, real phone numbers, the users CSV, Twilio and deeSMSX keys and other secrets never go in this public repository; examples, tests and screenshots use invented names and numbers only (`*.csv`, `outbox/` and `screens/` are gitignored as a safety net).
 - Name claims: open only while every claim can be announced to a Telegram administrator with an undo button (fail closed, like access requests); one name per number and per LINE account; claims and access requests of one number exclude each other.

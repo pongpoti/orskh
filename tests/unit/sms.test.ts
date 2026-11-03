@@ -259,7 +259,7 @@ describe("provider token sealing", () => {
 });
 
 describe("transport (one interface for provider and local modes)", () => {
-  const deesmsx: SmsConfig = { kind: "deesmsx", ...CFG, outboxDir: "", dailyCap: 300 };
+  const deesmsx: SmsConfig = { kind: "deesmsx", ...CFG, twilio: null, outboxDir: "", dailyCap: 300 };
 
   test("provider mode stores only the sealed token and checks the pin with the provider", async () => {
     const { f, calls } = fakeFetch(OK_REQUEST);
@@ -283,7 +283,7 @@ describe("transport (one interface for provider and local modes)", () => {
 
   test("local file mode writes {to, text, code, ref, at}; only an HMAC is kept", async () => {
     const dir = mkdtempSync(join(tmpdir(), "orskh-sms-"));
-    const t = smsTransport({ kind: "file", apiKey: "", secretKey: "", sender: "x", apiUrl: "", outboxDir: dir, dailyCap: 300 });
+    const t = smsTransport({ kind: "file", apiKey: "", secretKey: "", sender: "x", apiUrl: "", twilio: null, outboxDir: dir, dailyCap: 300 });
     const issued = await t.issue({ phone: "0900000001", sub: "U1", pepper: PEPPER });
     assert.ok(issued.ok);
     const files = readdirSync(dir);
@@ -309,7 +309,7 @@ describe("transport (one interface for provider and local modes)", () => {
       // the outbox "folder" sits below a file, so it cannot be created
       const file = join(mkdtempSync(join(tmpdir(), "orskh-sms-")), "not-a-folder");
       writeFileSync(file, "x");
-      const t = smsTransport({ kind: "file", apiKey: "", secretKey: "", sender: "x", apiUrl: "", outboxDir: join(file, "outbox"), dailyCap: 300 });
+      const t = smsTransport({ kind: "file", apiKey: "", secretKey: "", sender: "x", apiUrl: "", twilio: null, outboxDir: join(file, "outbox"), dailyCap: 300 });
       const r = await t.issue({ phone: "0900000001", sub: "U1", pepper: PEPPER });
       assert.ok(!r.ok && r.reason === "failed");
     } finally {

@@ -112,6 +112,7 @@ describe("OTP rate limits and attempts (database)", () => {
         secretKey: "s",
         sender: "deeSMS.OTP",
         apiUrl: "https://sms.test/v1",
+        twilio: null,
         outboxDir: "",
         dailyCap: CAP,
       },

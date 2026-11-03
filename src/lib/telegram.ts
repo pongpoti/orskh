@@ -138,30 +138,68 @@ export function buildCapAlert(cap: number, at: Date): string {
   ].join("\n");
 }
 
+/** The SMS provider an alert is about (lib/env.ts SMS_PROVIDER). */
+export type AlertProvider = "deesmsx" | "twilio";
+
+/** What to fix when Twilio refuses our settings, by Twilio's error code (lib/sms/twilio.ts). */
+const TWILIO_FIX: Record<number, string> = {
+  20003: "Account SID หรือ Auth Token ไม่ถูกต้อง ตรวจสอบ TWILIO_ACCOUNT_SID และ TWILIO_AUTH_TOKEN ใน Vercel",
+  20404: "ไม่พบ Verify Service ตรวจสอบ TWILIO_VERIFY_SERVICE_SID ใน Vercel",
+  21608: "บัญชีทดลอง (trial) ส่งได้เฉพาะเบอร์ที่ยืนยันไว้ใน Twilio อัปเกรดบัญชีที่ console.twilio.com เพื่อส่งถึงทุกเบอร์",
+  60223: "Verify Service ปิดช่องทาง SMS อยู่ เปิดที่ Twilio Console › Verify › Services",
+  60238: "Twilio บล็อกการส่ง ดู Verify logs ที่ console.twilio.com หรือติดต่อ Twilio Support",
+  60410: "Fraud Guard ของ Twilio บล็อกการส่ง ดู Verify logs ที่ console.twilio.com หรือติดต่อ Twilio Support",
+  60605: "ยังไม่ได้อนุญาตให้ส่ง SMS ไปประเทศไทย เปิดที่ Twilio Console › Verify › Settings › Geo permissions",
+};
+
 /**
- * deeSMSX refused our settings (reference code 9, 100 or 204), has no credit left (102), or repeatedly left it unclear
- * whether a code was sent (`count` such sends in the last 15 minutes).
+ * The provider refused our settings (deeSMSX reference code 9, 100 or 204; Twilio e.g. 20003, 20404, 60605), has no
+ * credit left (deeSMSX 102; Twilio 20005, a suspended account), or repeatedly left it unclear whether a code was sent
+ * (`count` such sends in the last 15 minutes).
  */
 export function buildSmsProblemAlert(
   kind: "misconfigured" | "no_credit" | "uncertain",
   code: number | null,
   at: Date,
   count = 0,
+  provider: AlertProvider = "deesmsx",
 ): string {
   const ref = code === null ? "" : ` (รหัส ${code})`;
-  const what =
-    kind === "no_credit"
-      ? ["💳 <b>เครดิต SMS หมด ส่งรหัสไม่ได้</b>", `deeSMSX แจ้งว่าเครดิตไม่พอ${ref} เติมเครดิตที่ deesmsx.com`]
-      : kind === "uncertain"
-        ? [
-            "⚠️ <b>ส่งรหัสทาง SMS ไม่สำเร็จซ้ำหลายครั้ง</b>",
-            `deeSMSX ไม่ตอบหรือตอบผิดรูปแบบ${ref} ${count} ครั้งใน 15 นาที SMS อาจถูกส่งและตัดเครดิตไปแล้ว ผู้ใช้ต้องขอรหัสใหม่ ตรวจสอบสถานะและเครดิตที่ my.deesmsx.com`,
-          ]
-        : [
-            "🛠 <b>ตั้งค่า SMS ไม่ถูกต้อง ส่งรหัสไม่ได้</b>",
-            `deeSMSX ปฏิเสธคำขอ${ref} ตรวจสอบ DEESMSX_API_KEY, DEESMSX_SECRET_KEY, DEESMSX_SENDER และ OTP Template ที่ my.deesmsx.com`,
-          ];
+  const what = provider === "twilio" ? twilioProblem(kind, code, ref, count) : deesmsxProblem(kind, ref, count);
   return [what[0], HEAD, "", what[1], `🕒 เวลา: ${thaiDateTime(at)}`].join("\n");
+}
+
+function deesmsxProblem(kind: "misconfigured" | "no_credit" | "uncertain", ref: string, count: number): [string, string] {
+  if (kind === "no_credit") return ["💳 <b>เครดิต SMS หมด ส่งรหัสไม่ได้</b>", `deeSMSX แจ้งว่าเครดิตไม่พอ${ref} เติมเครดิตที่ deesmsx.com`];
+  if (kind === "uncertain") {
+    return [
+      "⚠️ <b>ส่งรหัสทาง SMS ไม่สำเร็จซ้ำหลายครั้ง</b>",
+      `deeSMSX ไม่ตอบหรือตอบผิดรูปแบบ${ref} ${count} ครั้งใน 15 นาที SMS อาจถูกส่งและตัดเครดิตไปแล้ว ผู้ใช้ต้องขอรหัสใหม่ ตรวจสอบสถานะและเครดิตที่ my.deesmsx.com`,
+    ];
+  }
+  return [
+    "🛠 <b>ตั้งค่า SMS ไม่ถูกต้อง ส่งรหัสไม่ได้</b>",
+    `deeSMSX ปฏิเสธคำขอ${ref} ตรวจสอบ DEESMSX_API_KEY, DEESMSX_SECRET_KEY, DEESMSX_SENDER และ OTP Template ที่ my.deesmsx.com`,
+  ];
+}
+
+function twilioProblem(kind: "misconfigured" | "no_credit" | "uncertain", code: number | null, ref: string, count: number): [string, string] {
+  if (kind === "no_credit") {
+    return [
+      "💳 <b>บัญชี Twilio ใช้งานไม่ได้ ส่งรหัสไม่ได้</b>",
+      `Twilio แจ้งว่าบัญชีถูกระงับ${ref} ส่วนใหญ่เพราะยอดเงินหมด เติมเงินที่ console.twilio.com`,
+    ];
+  }
+  if (kind === "uncertain") {
+    return [
+      "⚠️ <b>ส่งรหัสทาง SMS ไม่สำเร็จซ้ำหลายครั้ง</b>",
+      `Twilio ไม่ตอบหรือตอบผิดรูปแบบ${ref} ${count} ครั้งใน 15 นาที SMS อาจถูกส่งและคิดเงินไปแล้ว ผู้ใช้ต้องขอรหัสใหม่ ตรวจสอบ Verify logs ที่ console.twilio.com และ status.twilio.com`,
+    ];
+  }
+  const fix =
+    (code !== null && TWILIO_FIX[code]) ||
+    "ตรวจสอบ TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_VERIFY_SERVICE_SID ใน Vercel และ Verify logs ที่ console.twilio.com";
+  return ["🛠 <b>ตั้งค่า SMS ไม่ถูกต้อง ส่งรหัสไม่ได้</b>", `Twilio ปฏิเสธคำขอ${ref} ${fix}`];
 }
 
 /** The balance deeSMSX reports is low (lib/sms/alerts.ts LOW_CREDIT_BELOW). */

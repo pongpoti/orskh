@@ -1,5 +1,8 @@
 import "server-only";
 import { toInternational } from "../phone";
+import { fetchFailure, int, isObject, isTimeout, TIMEOUT_MS, type CallOptions } from "./net";
+
+export type { CallOptions } from "./net";
 
 /**
  * deeSMSX (https://deesmsx.com) OTP API: the provider makes the code, sends it by SMS and checks it.
@@ -27,34 +30,11 @@ export interface DeesmsxConfig {
   apiUrl: string;
 }
 
-export interface CallOptions {
-  /** Tests only: a fetch stand-in. */
-  fetch?: typeof fetch;
-  /** Tests only: shorter than the 10 s default. */
-  timeoutMs?: number;
-}
-
-export const TIMEOUT_MS = 10_000;
-
 /** Reference codes that mean our settings are wrong (key or secret, sender name, OTP template). */
 export const MISCONFIGURED_CODES = new Set([9, 100, 204]);
 
 /** Longest provider token kept (the documented one has 65 characters). */
 export const TOKEN_MAX = 2048;
-
-/**
- * Error codes (Node's fetch: TypeError("fetch failed") with `cause.code`) raised before the request could reach
- * deeSMSX: the SMS certainly did not go out.
- */
-const NOT_SENT_CAUSES = new Set([
-  "ENOTFOUND",
-  "EAI_AGAIN",
-  "ECONNREFUSED",
-  "EHOSTUNREACH",
-  "ENETUNREACH",
-  "UND_ERR_CONNECT_TIMEOUT",
-  "ERR_INVALID_URL",
-]);
 
 export type RequestOutcome =
   | { ok: true; token: string; ref: string; creditBalance: number | null }
@@ -64,17 +44,6 @@ export type RequestOutcome =
 export type VerifyOutcome =
   | { ok: true }
   | { ok: false; reason: "wrong" | "expired" | "misconfigured" | "failed"; code: number | null };
-
-function isObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v);
-}
-
-/** A whole number given as a number or a string of digits; anything else is null. */
-function int(v: unknown): number | null {
-  if (typeof v === "number" && Number.isSafeInteger(v)) return v;
-  if (typeof v === "string" && /^\s*-?\d{1,9}\s*$/.test(v)) return Number(v);
-  return null;
-}
 
 /** The reference code of a response: `error` when it holds a number, else `code`. */
 export function referenceCode(data: Record<string, unknown>): number | null {
@@ -108,13 +77,6 @@ export function cleanRef(v: unknown): string {
 /** `notSent`: the request certainly never reached deeSMSX. */
 type Post = { data: Record<string, unknown> } | { problem: string; notSent: boolean };
 
-/** The low-level error code of a failed fetch (e.cause.code, or e.code), if any. */
-function causeCode(e: unknown): string | null {
-  const err = e as { code?: unknown; cause?: { code?: unknown } } | null;
-  const c = err?.cause?.code ?? err?.code;
-  return typeof c === "string" ? c : null;
-}
-
 async function post(cfg: DeesmsxConfig, path: string, body: Record<string, string>, opts: CallOptions): Promise<Post> {
   const f = opts.fetch ?? fetch;
   let res: Response;
@@ -127,19 +89,13 @@ async function post(cfg: DeesmsxConfig, path: string, body: Record<string, strin
       signal: AbortSignal.timeout(opts.timeoutMs ?? TIMEOUT_MS),
     });
   } catch (e) {
-    // The error's name and low-level code only: messages can carry request details.
-    const name = (e as Error)?.name;
-    if (name === "TimeoutError" || name === "AbortError") return { problem: "timeout", notSent: false };
-    const code = causeCode(e);
-    const notSent = code !== null && NOT_SENT_CAUSES.has(code);
-    return { problem: `network (${name ?? "error"}${code && /^[A-Z0-9_]{1,40}$/.test(code) ? ` ${code}` : ""})`, notSent };
+    return fetchFailure(e);
   }
   let data: unknown;
   try {
     data = await res.json();
   } catch (e) {
-    const name = (e as Error)?.name;
-    return { problem: name === "TimeoutError" || name === "AbortError" ? "timeout" : `HTTP ${res.status}, not JSON`, notSent: false };
+    return { problem: isTimeout(e) ? "timeout" : `HTTP ${res.status}, not JSON`, notSent: false };
   }
   return isObject(data) ? { data } : { problem: `HTTP ${res.status}, unexpected JSON`, notSent: false };
 }

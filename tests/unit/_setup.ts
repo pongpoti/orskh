@@ -15,6 +15,7 @@ export function setTestEnv(): void {
   delete process.env.VERCEL_ENV;
   delete process.env.AUTH_LINE_ID;
   delete process.env.AUTH_LINE_SECRET;
+  for (const k of ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_VERIFY_SERVICE_SID", "TWILIO_VERIFY_API_URL"]) delete process.env[k];
   Object.assign(process.env, {
     APP_URL: "http://localhost:3999",
     SESSION_SECRET: TEST_SESSION_SECRET,

@@ -49,8 +49,9 @@ export async function POST(req: NextRequest) {
   const ua = userAgent(req.headers);
   try {
     const pool = await db();
-    const result = await verifyCode(pool, { phone, sub: pending.sub, code, pepper: otpPepper(), transport: smsTransport(smsConfig()) });
-    const alerts = alertsAfterVerify(result);
+    const cfg = smsConfig();
+    const result = await verifyCode(pool, { phone, sub: pending.sub, code, pepper: otpPepper(), transport: smsTransport(cfg) });
+    const alerts = alertsAfterVerify(result, Date.now(), cfg.kind);
     if (alerts.length) {
       after(async () => {
         for (const html of alerts) await notify(html);

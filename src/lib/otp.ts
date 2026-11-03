@@ -37,7 +37,7 @@ export function codeMatches(pepper: string, phone: string, sub: string, code: st
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-/** What the SMS side keeps for a code: an HMAC of it (local mode) or the provider's sealed token (deeSMSX). */
+/** What the SMS side keeps for a code: an HMAC of it (local mode) or the provider's sealed token (deeSMSX, Twilio). */
 export interface StoredCode {
   codeHash: string | null;
   providerToken: string | null;
@@ -57,7 +57,7 @@ export type CheckResult =
   | { ok: true }
   | { ok: false; reason: "wrong" | "expired" | "misconfigured" | "failed"; providerCode: number | null };
 
-/** Sends and checks codes: deeSMSX, or the local console/file modes (lib/sms). */
+/** Sends and checks codes: deeSMSX, Twilio Verify, or the local console/file modes (lib/sms). */
 export interface OtpTransport {
   issue(args: { phone: string; sub: string; pepper: string }): Promise<IssueResult>;
   check(args: { phone: string; sub: string; pepper: string; code: string; stored: StoredCode }): Promise<CheckResult>;

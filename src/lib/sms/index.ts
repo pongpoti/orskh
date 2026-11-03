@@ -2,13 +2,16 @@ import "server-only";
 import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from "node:crypto";
 import type { SmsConfig } from "../env";
 import { codeMatches, generateCode, hashCode, type OtpTransport } from "../otp";
-import { requestOtp, verifyOtp, type CallOptions } from "./deesmsx";
+import { requestOtp, verifyOtp } from "./deesmsx";
 import { deliverLocal, generateRef } from "./local";
+import type { CallOptions } from "./net";
+import { checkVerification, startVerification } from "./twilio";
 
 /**
  * One interface (OtpTransport in lib/otp.ts) for both ways of sending a code:
- * - provider mode (SMS_PROVIDER=deesmsx, the only one on Vercel): deeSMSX makes, sends and checks the code. Its token
- *   is kept server-side only, encrypted with a key derived from OTP_PEPPER;
+ * - provider mode (deesmsx or twilio, the only ones on Vercel): the provider makes, sends and checks the code. Its
+ *   token (deeSMSX) or verification SID (Twilio Verify) is kept server-side only, encrypted with a key derived from
+ *   OTP_PEPPER;
  * - local mode (console / file, development and tests): the app makes the code, stores HMAC(OTP_PEPPER, phone|sub|code)
  *   and compares in constant time.
  */
@@ -42,6 +45,24 @@ export function openToken(pepper: string, sealed: string): string | null {
 }
 
 export function smsTransport(cfg: SmsConfig, opts: CallOptions = {}): OtpTransport {
+  if (cfg.kind === "twilio") {
+    const twilio = cfg.twilio;
+    if (!twilio) throw new Error("Twilio settings missing");
+    return {
+      async issue({ phone, pepper }) {
+        const r = await startVerification(twilio, phone, opts);
+        if (!r.ok) return { ok: false, reason: r.reason, providerCode: r.code };
+        // Twilio's SMS has no reference code, so the screen shows none.
+        return { ok: true, ref: "", stored: { codeHash: null, providerToken: sealToken(pepper, r.sid) }, creditBalance: null };
+      },
+      async check({ pepper, code, stored }) {
+        const sid = stored.providerToken ? openToken(pepper, stored.providerToken) : null;
+        if (!sid) return { ok: false, reason: "expired", providerCode: null };
+        const r = await checkVerification(twilio, sid, code, opts);
+        return r.ok ? { ok: true } : { ok: false, reason: r.reason, providerCode: r.code };
+      },
+    };
+  }
   if (cfg.kind === "deesmsx") {
     return {
       async issue({ phone, pepper }) {
