@@ -62,9 +62,9 @@ test("no case data is loaded, so today's board is empty and follows this week's 
 });
 
 test("every placed case lands in an OR", () => {
-  const data = fixture([{ dept: "GENSX" }, { day: 2, dept: "ORTHO" }, { day: 4, dept: "EYE", proc: "dressing" }]);
+  const data = fixture([{ dept: "GENSX" }, { day: 2, dept: "ENT" }, { day: 4, dept: "EYE", proc: "dressing" }]);
   for (const day of weekBoard(data)) {
-    for (const item of day.operations) assert.match(item.roomId, /^or-(1[0-3]|[1-9])$/);
+    for (const item of day.operations) assert.match(item.roomId, /^or-[1-5]$/);
   }
   assert.equal(weekBoard(data).reduce((sum, day) => sum + day.operations.length, 0), 3);
 });
@@ -77,23 +77,24 @@ test("keeps no patient fields in the case data", () => {
   }
 });
 
-test("rooms follow the report's rules", () => {
+test("rooms follow the report's rules, in the open rooms only (OR 1 to 5)", () => {
   const data = fixture([
     { proc: "Dressing wound", dept: "GENSX" },
-    { emergency: true, dept: "ORTHO" },
+    { emergency: true, dept: "GENSX" },
     { emergency: true, dept: "OBGYN" },
     { dept: "EYE" },
     { dept: "ORTHO" },
     { dept: "GENSX", surgeon: GENSX_SURGEON, proc: "colonoscopy" },
   ]);
-  // Monday: dressing OR 1, emergency OR 8, OBGYN stays in one of its own rooms, EYE OR 11, ORTHO OR 12 or 13, SCOPE OR 3.
-  const rooms = roomsOf(data);
-  assert.equal(rooms[0], "or-1");
-  assert.equal(rooms[1], "or-8");
-  assert.ok(["or-4", "or-6"].includes(rooms[2]), rooms[2]);
-  assert.equal(rooms[3], "or-11");
-  assert.ok(["or-12", "or-13"].includes(rooms[4]), rooms[4]);
-  assert.equal(rooms[5], "or-3");
+  // Monday: dressing OR 1, SCOPE OR 3. OR 8 (emergencies) is closed, so an emergency goes to its department's open room
+  // (GENSX OR 2 or 5, OBGYN OR 4). EYE (OR 11) and ORTHO (OR 10, 12, 13) hold only closed rooms: left off the board.
+  const ops = weekBoard(data)[0].operations;
+  assert.equal(ops.length, 4);
+  assert.equal(ops[0].roomId, "or-1");
+  assert.equal(ops[3].roomId, "or-3");
+  assert.ok(["or-2", "or-5"].includes(ops[1].roomId), ops[1].roomId);
+  assert.equal(ops[2].roomId, "or-4");
+  assert.ok(ops.every((item) => /^or-[1-5]$/.test(item.roomId)));
 });
 
 test("a department with several rooms is pooled across them", () => {

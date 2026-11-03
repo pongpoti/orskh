@@ -513,7 +513,7 @@ async function main() {
   // loaded once the app has created them, as in production: loadUsers() after the servers are up).
   const db = new pg.Pool({ connectionString: DB_URL, max: 2 });
   await assertDisposableUsers((sql) => db.query(sql), "E2E_DATABASE_URL"); // users holding real data: stop before the DROP
-  await db.query("DROP TABLE IF EXISTS otp_codes, line_bindings, login_events, user_claims, users, access_requests");
+  await db.query("DROP TABLE IF EXISTS otp_codes, line_bindings, login_events, cases, user_claims, users, access_requests");
 
   const appEnv = {
     ...baseEnv(),

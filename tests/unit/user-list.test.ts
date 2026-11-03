@@ -94,7 +94,7 @@ describe("users and claims (database)", () => {
   const usersSnapshot = async () => (await pool.query("SELECT * FROM users ORDER BY id")).rows;
 
   async function load() {
-    await pool.query("TRUNCATE user_claims, users, line_bindings, login_events, access_requests RESTART IDENTITY");
+    await pool.query("TRUNCATE cases, user_claims, users, line_bindings, login_events, access_requests RESTART IDENTITY");
     const { rows } = await pool.query<{ id: string; key: string }>(
       `INSERT INTO users (first_name, last_name, type, subtype, active) VALUES
          ('สมชาย', 'ใจดี', 'DR', 'ORTHO', true),
@@ -118,7 +118,7 @@ describe("users and claims (database)", () => {
     await load();
   });
   after(async () => {
-    await pool.query("TRUNCATE user_claims, users, line_bindings, login_events, access_requests RESTART IDENTITY");
+    await pool.query("TRUNCATE cases, user_claims, users, line_bindings, login_events, access_requests RESTART IDENTITY");
     await pool.end();
   });
 

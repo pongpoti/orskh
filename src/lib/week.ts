@@ -2,6 +2,7 @@ import { WEEK_DATA } from "../data/week-data.ts";
 import { allocationFor, type DeptCode } from "./allocation.ts";
 import { DAY_KEYS, DAY_NAMES, weekDates, workdayIndex, type DayKey } from "./days.ts";
 import { listPhysicians, teamOf } from "./physicians.ts";
+import { isOpenRoom } from "./rooms.ts";
 import type { CaseStatus, Operation, Shift } from "./schedule.ts";
 
 /** One row of the OR system export, reduced to what the board shows. Built by scripts/build_week.py. */
@@ -87,17 +88,19 @@ export function isScopeCase(procedure: string, team: string | null): boolean {
  *
  * The SCOPE room is exclusive: only a GENSX-labelled surgeon's endoscopic case enters it, and such a
  * case goes nowhere else. Other general-surgery cases use the GENSX rooms.
+ *
+ * Closed rooms (lib/rooms.ts) take no case: with OR 8 closed an emergency case goes to its department's room.
  */
 function inferRoom(item: WeekCase, date: string, load: Map<string, number>, team: string | null): string | null {
-  if (isDressingCase(item.proc)) return "or-1";
-  if (item.emergency && item.dept !== "OBGYN") return "or-8";
+  if (isDressingCase(item.proc) && isOpenRoom("or-1")) return "or-1";
+  if (item.emergency && item.dept !== "OBGYN" && isOpenRoom("or-8")) return "or-8";
   const dept = isScopeCase(item.proc, team) ? "SCOPE" : item.dept === "SCOPE" ? "GENSX" : item.dept;
   if (!dept) return null;
 
   const rooms: string[] = [];
   for (let n = 1; n <= 13; n += 1) {
+    if (n === 1 || !isOpenRoom(`or-${n}`)) continue; // OR 1 is for dressing cases only
     const allocation = allocationFor(`or-${n}`, date);
-    if (n === 1) continue; // OR 1 is for dressing cases only
     if (allocation?.am?.code === dept || allocation?.pm?.code === dept) rooms.push(`or-${n}`);
   }
   if (rooms.length === 0) return null;

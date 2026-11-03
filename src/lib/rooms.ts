@@ -37,8 +37,31 @@ export function roomLabel(room: Room): string {
   return room.kind === "or" ? `OR ${room.number}` : `RR ${room.number}`;
 }
 
+/**
+ * The operating rooms in use. OR 6 to 13 are closed (Pong, 3 Nov 2026): the plan draws them grey with ปิด, they cannot
+ * be opened, and no case is placed in or added to them. Open a room again by adding its id here.
+ */
+export const OPEN_ROOM_IDS: readonly string[] = ["or-1", "or-2", "or-3", "or-4", "or-5"];
+
+/** An operating room that is in use. */
+export function isOpenRoom(room: Room | string): boolean {
+  const id = typeof room === "string" ? room : room.id;
+  return OPEN_ROOM_IDS.includes(id);
+}
+
+/** An operating room that is closed (see OPEN_ROOM_IDS). */
+export function isClosedRoom(room: Room): boolean {
+  return room.kind === "or" && !isOpenRoom(room);
+}
+
+/** Only open operating rooms can be chosen on the plan. */
 export function isSelectableRoom(room: Room): boolean {
-  return room.kind === "or";
+  return room.kind === "or" && isOpenRoom(room);
+}
+
+/** The open operating rooms, in number order. */
+export function openRooms(): Room[] {
+  return ROOMS.filter((room) => room.kind === "or" && isOpenRoom(room));
 }
 
 export type RoomBounds = { minX: number; minY: number; maxX: number; maxY: number };

@@ -130,3 +130,21 @@ BEGIN
     ALTER TABLE access_requests ADD CONSTRAINT access_requests_position_check CHECK (position IN ('DR', 'RN', 'PN', 'PCA'));
   END IF;
 END $$;
+
+-- Cases a doctor added on the board (lib/cases.ts, the board's เพิ่มเคส button). Only a signed-in doctor (a current claim on
+-- an active users row of type DR) adds them, and the surgeon is always that doctor. op_date is the operation's day in
+-- Thailand; room_id is an operating room (lib/rooms.ts: only open rooms are offered); shift is in (ในเวลา) or out
+-- (นอกเวลา). A removed case keeps its row with removed_at set, so the history stays.
+CREATE TABLE IF NOT EXISTS cases (
+  id          bigserial   PRIMARY KEY,
+  op_date     date        NOT NULL,
+  room_id     text        NOT NULL CHECK (room_id ~ '^or-([1-9]|1[0-3])$'),
+  operation   text        NOT NULL CHECK (btrim(operation) <> '' AND char_length(operation) <= 300),
+  shift       text        NOT NULL DEFAULT 'in' CHECK (shift IN ('in', 'out')),
+  surgeon_id  integer     NOT NULL REFERENCES users (id),
+  line_sub    text        NOT NULL,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  removed_at  timestamptz
+);
+CREATE INDEX IF NOT EXISTS cases_day_idx ON cases (op_date, created_at) WHERE removed_at IS NULL;
+CREATE INDEX IF NOT EXISTS cases_surgeon_idx ON cases (surgeon_id, op_date) WHERE removed_at IS NULL;

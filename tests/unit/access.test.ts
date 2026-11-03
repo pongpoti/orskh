@@ -110,7 +110,7 @@ describe("access requests (database)", () => {
   const person = { lineName: "LINE คน", firstName: "สมหญิง", lastName: "ใจดี", position: "RN" as const, ip: "203.0.113.9" };
 
   before(async () => {
-    await pool.query("DROP TABLE IF EXISTS otp_codes, line_bindings, login_events, user_claims, users, access_requests");
+    await pool.query("DROP TABLE IF EXISTS otp_codes, line_bindings, login_events, cases, user_claims, users, access_requests");
     await ensureSchema(pool);
   });
   beforeEach(async () => {

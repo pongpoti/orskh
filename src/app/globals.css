@@ -64,6 +64,8 @@
   --fp-muted: var(--ink-3);
   --fp-active: #157f3d;
   --fp-delayed: #d98c00;
+  --fp-closed: #ebe6df;
+  --fp-closed-line: #e0d9cf;
 
   --background: var(--canvas);
   --foreground: var(--ink);
@@ -590,7 +592,17 @@ dialog[open]::backdrop {
 .fp-or,
 .fp-recovery { cursor: pointer; }
 .fp-recovery.is-static,
-.fp-recovery.is-static .fp-floor { cursor: default; }
+.fp-recovery.is-static .fp-floor,
+.fp-or.is-closed,
+.fp-or.is-closed .fp-floor { cursor: default; }
+/* A closed room is not a control: no hover or press tint, a softer wall and greyed number. */
+.fp-or.is-closed .fp-floor,
+.fp-or.is-closed:hover .fp-floor,
+.fp-or.is-closed:active .fp-floor { filter: none; }
+.fp-or.is-closed .fp-wall { stroke: var(--fp-wall-outer); }
+.fp-or.is-closed .fp-badge { stroke: var(--fp-wall-outer); }
+.fp-or.is-closed .fp-label { fill: var(--fp-muted); }
+.fp-closed-text { fill: var(--fp-muted); }
 /* An OR takes its department's colour from --rf (set per room); tan when the schedule is silent. */
 .fp-or .fp-floor { fill: var(--rf, var(--fp-or)); transition: filter 0.15s ease; }
 /* Hover only where a pointer exists, so a tap does not leave the room tinted. */
