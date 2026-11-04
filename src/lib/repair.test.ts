@@ -4,7 +4,7 @@ import { checkCase, roomForSubtype, withAddedCases, type AddedCase } from "./add
 import { allocationFor, DEPARTMENTS, readableTextOn } from "./allocation.ts";
 import { REPAIR_COLOR, REPAIR_HALVES, repairNote, repairOn } from "./repair.ts";
 import { getRoom, isRecoveryUse, isSelectableRoom, numberRanges, openRooms, roomUse, unusedRoomsText } from "./rooms.ts";
-import { weekBoard, type WeekCase, type WeekFile } from "./week.ts";
+import { boardFor, weekBoard, type WeekCase, type WeekFile } from "./week.ts";
 
 // The repair: 8 Dec 2026 to 7 Mar 2027, two halves of 45 days. Dates below are weekdays unless noted.
 const BEFORE = "2026-12-07"; // Monday
@@ -168,6 +168,26 @@ test("imported cases follow the repair's rooms", () => {
   assert.deepEqual(first.operations.map((item) => item.roomId), ["or-1", "or-2", "or-3", "or-4", "or-2", "or-5"]);
   const second = weekBoard(weekOf(["2027-01-25", "2027-01-26", "2027-01-27", "2027-01-28", "2027-01-29"], cases))[0];
   assert.deepEqual(second.operations.map((item) => item.roomId), ["or-11", "or-12", "or-13", "or-10", "or-12", "or-10"]);
+});
+
+test("the board is dated today even when the loaded export is from another week, so the repair's rooms apply", () => {
+  const cases: Partial<WeekCase>[] = [{ day: 1, dept: "GENSX" }, { day: 1, dept: "EYE" }];
+  // An export of 24-28 Nov 2026 (before the repair) still loaded on Tuesday 8 Dec and Tuesday 26 Jan.
+  const stale = weekOf(["2026-11-23", "2026-11-24", "2026-11-25", "2026-11-26", "2026-11-27"], cases);
+  const first = boardFor(FIRST_DAY, undefined, stale)!;
+  assert.equal(first.date, FIRST_DAY);
+  assert.deepEqual(first.operations.map((item) => item.roomId), ["or-2", "or-4"]);
+  const second = boardFor("2027-01-26", undefined, stale)!;
+  assert.equal(second.date, "2027-01-26");
+  assert.deepEqual(second.operations.map((item) => item.roomId), ["or-12", "or-10"]);
+  // An export from the second half still loaded after the repair: back to OR 1 to 5.
+  const late = weekOf(["2027-03-01", "2027-03-02", "2027-03-03", "2027-03-04", "2027-03-05"], cases);
+  const after = boardFor("2027-03-09", undefined, late)!;
+  assert.equal(after.date, "2027-03-09");
+  assert.equal(repairOn(after.date), null);
+  assert.deepEqual(after.operations.map((item) => item.roomId), ["or-2"], "EYE holds only closed OR 11 again");
+  // weekBoard alone still dates the export's own week.
+  assert.equal(weekBoard(stale)[1].date, "2026-11-24");
 });
 
 test("the board's note names the half and its last day", () => {

@@ -121,12 +121,13 @@ function inferRoom(item: WeekCase, date: string, load: Map<string, number>, team
 }
 
 /**
- * Each weekday's cases in their rooms. The dates are the export's week, or `week` when the data has none.
+ * Each weekday's cases in their rooms. The dates are the export's week, or `week` when the data has none or when
+ * `onWeek` is set (the board for a real calendar week: the export's cases are placed by that week's rooms).
  * A case whose department holds no room that day is left off the board.
  */
-export function weekBoard(data: WeekFile = WEEK_DATA, week: readonly string[] = data.meta.days): DayBoard[] {
+export function weekBoard(data: WeekFile = WEEK_DATA, week: readonly string[] = data.meta.days, onWeek = false): DayBoard[] {
   return DAY_KEYS.map((key, day) => {
-    const date = data.meta.days[day] ?? week[day];
+    const date = (onWeek ? week[day] : undefined) ?? data.meta.days[day] ?? week[day];
     const rows = data.cases.filter((item) => item.day === day);
     const load = new Map<string, number>();
     const placed = new Map<WeekCase, string | null>();
@@ -164,9 +165,10 @@ export function weekBoard(data: WeekFile = WEEK_DATA, week: readonly string[] = 
 
 /**
  * The board for a calendar date: the export week's cases for that weekday, or null at the weekend.
- * The export covers one week only, so every Monday shows its Monday, and so on. With no export loaded the
- * board is empty and dated in this week, so the plan shows this week's allocation.
+ * The export covers one week only, so every Monday shows its Monday, and so on. The board is always dated in the
+ * real week of `iso`, even when the export is from another week, so the rooms in use, their departments and the
+ * doctors' added cases all follow the real day (the ventilation repair changes the rooms by date).
  */
 export function boardFor(iso: string, index: number | null = workdayIndex(iso), data: WeekFile = WEEK_DATA): DayBoard | null {
-  return index === null ? null : weekBoard(data, weekDates(iso))[index];
+  return index === null ? null : weekBoard(data, weekDates(iso), true)[index];
 }

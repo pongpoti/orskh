@@ -78,8 +78,8 @@ export function AddCase({
   const opRef = useRef<HTMLInputElement>(null);
   const firstDay = nextWorkday(todayClosed ? addDays(today, 1) : today);
   const [date, setDate] = useState(firstDay);
-  const [roomId, setRoomId] = useState<string>("");
-  const [roomPicked, setRoomPicked] = useState(false);
+  // The room the doctor chose (from a room's list or in the grid), or null to follow their department's room.
+  const [picked, setPicked] = useState<string | null>(null);
   const [operation, setOperation] = useState("");
   const [shift, setShift] = useState<Shift>("in");
   const [error, setError] = useState("");
@@ -100,11 +100,8 @@ export function AddCase({
   if (prevRequest !== request) {
     setPrevRequest(request);
     if (request) {
-      // A room asked for from a room's list counts only if it is open on the form's first day.
-      const asked = request.roomId && isOpenRoom(request.roomId, firstDay) ? request.roomId : null;
       setDate(firstDay);
-      setRoomId(asked ?? roomForSubtype(doctor.subtype, firstDay) ?? "");
-      setRoomPicked(asked !== null);
+      setPicked(request.roomId);
       setOperation("");
       setShift("in");
       setError("");
@@ -124,13 +121,6 @@ export function AddCase({
     setDate(value);
     setError("");
     setDone("");
-    if (!ISO.test(value)) return;
-    // Until the doctor picks a room, follow their department's room on the new day. A picked room that is not open
-    // on the new day (the ventilation repair moves the rooms) is dropped the same way.
-    if (!roomPicked || !isOpenRoom(roomId, value)) {
-      setRoomPicked(false);
-      setRoomId(roomForSubtype(doctor.subtype, value) ?? "");
-    }
   }
 
   function apply(result: CaseResult) {
@@ -192,6 +182,10 @@ export function AddCase({
   const roomDay = ISO.test(date) ? date : firstDay;
   const repair = repairOn(roomDay);
   const unused = unusedRoomsText(roomDay);
+  // Worked out from the day on each render, so a date passing through other days while it is typed never loses the
+  // doctor's pick: a picked room counts while it is open that day; otherwise the department's room (the ventilation
+  // repair moves the rooms by date), or none.
+  const roomId = picked && isOpenRoom(picked, roomDay) ? picked : (roomForSubtype(doctor.subtype, roomDay) ?? "");
 
   return (
     // While a save runs the dialog stays open (Escape too), so its answer lands in the dialog that sent it.
@@ -259,8 +253,7 @@ export function AddCase({
                       value={room.id}
                       checked={roomId === room.id}
                       onChange={() => {
-                        setRoomId(room.id);
-                        setRoomPicked(true);
+                        setPicked(room.id);
                         setError("");
                         setDone("");
                       }}

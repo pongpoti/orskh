@@ -64,7 +64,18 @@ function DeptText({
  * Room number in a white badge, with the owning department(s) beside it, ปิด for a closed room, or RR for a room
  * used as a recovery room during the ventilation repair.
  */
-function RoomLabel({ room, allocation, use }: { room: Room; allocation: RoomAllocation | null; use: RoomUse }) {
+function RoomLabel({
+  room,
+  allocation,
+  use,
+  suiteOpen,
+}: {
+  room: Room;
+  allocation: RoomAllocation | null;
+  use: RoomUse;
+  /** The suite runs a list today (not a weekend or holiday), so rooms take their colour. */
+  suiteOpen: boolean;
+}) {
   const { minX, maxX, minY, maxY } = roomBounds(room);
   const { labelX: x, labelY: y } = room;
   const width = maxX - minX - 48;
@@ -84,7 +95,8 @@ function RoomLabel({ room, allocation, use }: { room: Room; allocation: RoomAllo
           x={x}
           y={y + (short ? 44 : 54)}
           dy="0.35em"
-          style={{ fontSize: DEPT_SIZE, fill: closed ? undefined : readableTextOn(REPAIR_COLOR) }}
+          // A recovery room is in the repair's colour on working days; on a closed day it is plain, like every room.
+          style={{ fontSize: DEPT_SIZE, fill: closed ? undefined : suiteOpen ? readableTextOn(REPAIR_COLOR) : "var(--fp-ink)" }}
         >
           {closed ? "ปิด" : RECOVERY_USE.label}
         </text>
@@ -188,7 +200,8 @@ export function FloorPlan({
           const recovery = use === "recovery";
           const allocation = allocations[room.id] ?? null;
           const empty = room.kind === "or" && (cases[room.id] ?? 0) === 0;
-          const fill = closed ? "url(#fp-closed)" : recovery ? REPAIR_COLOR : floorFill(room, allocation);
+          // On a closed day (weekend, holiday) no room takes a colour, a recovery room included.
+          const fill = closed ? "url(#fp-closed)" : recovery ? (date ? REPAIR_COLOR : undefined) : floorFill(room, allocation);
           const bounds = roomBounds(room);
           const parts = [roomLabel(room)];
           if (allocation) parts.push(allocationText(allocation));
@@ -225,7 +238,7 @@ export function FloorPlan({
                 }
               />
               <path className={room.kind === "or" ? "fp-wall" : "fp-wall fp-thin"} d={room.d} pointerEvents="none" />
-              {room.kind === "or" ? <RoomLabel room={room} allocation={allocation} use={use} /> : null}
+              {room.kind === "or" ? <RoomLabel room={room} allocation={allocation} use={use} suiteOpen={date !== null} /> : null}
               {mark && selectable ? (
                 <StatusMark
                   kind={mark}
