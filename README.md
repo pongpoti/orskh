@@ -20,15 +20,15 @@ Room allocation comes from the proposed OR schedule (ตารางห้อง
 
 ### Open rooms
 
-Only **OR 1 to 5 are in use** (since 3 Nov 2026). OR 6 to 13 are drawn grey with stripes and ปิด, cannot be opened (a `?room=` link to one is ignored), take no imported case, and cannot be chosen for a new case. With OR 8 closed, an imported emergency case goes to its department's open room instead. The list is `OPEN_ROOM_IDS` in `src/lib/rooms.ts`; add a room's id there to open it again. Which rooms are open always depends on the day (`roomUse(room, date)`), because of the repair below.
+Outside the ventilation repair below, only **OR 1 to 5 are in use** (3 Nov 2026, and again after the repair). OR 6 to 13 are drawn grey with stripes and ปิด, cannot be opened (a `?room=` link to one is ignored), take no imported case, and cannot be chosen for a new case. With OR 8 closed, an imported emergency case goes to its department's open room instead. The list is `OPEN_ROOM_IDS` in `src/lib/rooms.ts`; add a room's id there to open it again. Which rooms are open always depends on the day (`roomUse(room, date)`), because of the repair below.
 
-### Ventilation repair (8 Dec 2026 to 7 Mar 2027)
+### Ventilation repair rooms (4 Nov 2026 to 7 Mar 2027)
 
-The air-ventilation system is repaired for 90 days from **8 Dec 2026**, in two halves of 45 days (`src/lib/repair.ts`). While it runs the weekly schedule is set aside: each room in use has one fixed use every working day, morning and afternoon.
+The air-ventilation system is repaired for 90 days from 8 Dec 2026, in two halves of 45 days (`src/lib/repair.ts`). The repair's rooms are used from **4 Nov 2026** (Pong's call), so the first half runs from then to 21 Jan. While they apply the weekly schedule is set aside: each room in use has one fixed use every working day, morning and afternoon.
 
 | | Operating | Recovery rooms (RR) | Closed |
 | --- | --- | --- | --- |
-| 1st half, 8 Dec – 21 Jan | OR 1 dressing, OR 2 GENSX, OR 3 ORTHO, OR 4 and 5 คละแผนก (OTHER) | OR 6, 7, 8 | OR 9–13 |
+| 1st half, 4 Nov – 21 Jan | OR 1 dressing, OR 2 GENSX, OR 3 ORTHO, OR 4 and 5 คละแผนก (OTHER) | OR 6, 7, 8 | OR 9–13 |
 | 2nd half, 22 Jan – 7 Mar | OR 10 คละแผนก (OTHER), OR 11 dressing, OR 12 GENSX, OR 13 ORTHO | OR 9 | OR 1–8 |
 
 Every room in use is drawn in one colour (the app's brown, `REPAIR_COLOR`) with its department's code as the label, not in its department's colour; the room's sheet and the add-case form show the department in that colour too. A recovery room reads RR and cannot be opened; closed rooms look as above. On a weekend or holiday every room is plain, the recovery rooms still reading RR. The board is always dated today, so an OR export from another week is placed in today's rooms. The board shows a one-line note with the half and its last day ("ปิดซ่อมห้องผ่าตัด ช่วงที่ 1 · ถึง 21 ม.ค. 2570"). A doctor's room in the add-case form is their department's room, or the first คละแผนก room when their department has none; only rooms operating on the chosen day are offered, and a case already saved for a room that does not operate that day is marked in the doctor's list and left off the board. Imported cases follow the same rooms (dressing to the dressing room, any department without a room, emergencies included, to a คละแผนก room). If the repair runs longer, move the second half's `to` date. After it ends the board goes back to `OPEN_ROOM_IDS` and the weekly schedule. In development, `/preview?date=2026-12-14` shows the board as on any date.

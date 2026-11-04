@@ -1,7 +1,8 @@
 import type { DeptCode } from "./allocation.ts";
 
 /**
- * The air-ventilation repair (Pong, 4 Nov 2026). It starts on 8 Dec 2026 and lasts 90 days, in two halves of 45 days.
+ * The air-ventilation repair (Pong, 4 Nov 2026). The works start on 8 Dec 2026 and last 90 days, in two halves of 45
+ * days, but Pong asked for the first half's rooms to be used from 4 Nov 2026 on, so the first half here starts then.
  * While it runs the weekly OR schedule (lib/allocation.ts) is set aside: each room in use has one fixed use every
  * working day, the rooms are all drawn in one colour with the department's code as the label, and every other OR is
  * closed.
@@ -29,7 +30,7 @@ export type RepairHalf = {
 export const REPAIR_HALVES: readonly RepairHalf[] = [
   {
     half: 1,
-    from: "2026-12-08",
+    from: "2026-11-04",
     to: "2027-01-21",
     rooms: {
       "or-1": "INFECT",
