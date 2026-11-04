@@ -170,8 +170,8 @@ test("imported cases follow the repair's rooms", () => {
   assert.deepEqual(second.operations.map((item) => item.roomId), ["or-11", "or-12", "or-13", "or-10", "or-12", "or-10"]);
 });
 
-test("the board's note names the half and its dates", () => {
-  assert.equal(repairNote(repairOn(FIRST_DAY)!), "ซ่อมระบบระบายอากาศ ช่วงที่ 1 · 8 ธ.ค. 2569 – 21 ม.ค. 2570");
-  assert.equal(repairNote(repairOn(SECOND_DAY)!), "ซ่อมระบบระบายอากาศ ช่วงที่ 2 · 22 ม.ค. 2570 – 7 มี.ค. 2570");
+test("the board's note names the half and its last day", () => {
+  assert.equal(repairNote(repairOn(FIRST_DAY)!), "ปิดซ่อมห้องผ่าตัด ช่วงที่ 1 · ถึง 21 ม.ค. 2570");
+  assert.equal(repairNote(repairOn(SECOND_DAY)!), "ปิดซ่อมห้องผ่าตัด ช่วงที่ 2 · ถึง 7 มี.ค. 2570");
   assert.equal(numberRanges([6, 7, 8, 10, 12, 13]), "6–8, 10, 12–13");
 });

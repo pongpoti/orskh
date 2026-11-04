@@ -285,7 +285,7 @@ export function AddCase({
             </div>
             {unused ? (
               <p className="mt-1 text-xs text-muted" data-testid="case-rooms-note">
-                {repair ? `ช่วงซ่อมระบบระบายอากาศ · ${unused}` : unused}
+                {repair ? `ช่วงปิดซ่อมห้องผ่าตัด · ${unused}` : unused}
               </p>
             ) : null}
           </fieldset>

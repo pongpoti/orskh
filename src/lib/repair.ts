@@ -79,7 +79,10 @@ export function shortThaiDate(iso: string): string {
   );
 }
 
-/** The board's note while the repair runs, e.g. "ซ่อมระบบระบายอากาศ ช่วงที่ 1 · 8 ธ.ค. 2569 – 21 ม.ค. 2570". */
+/**
+ * The board's note while the repair runs, e.g. "ปิดซ่อมห้องผ่าตัด ช่วงที่ 1 · ถึง 21 ม.ค. 2570" (short enough for one line on
+ * a 360px phone; the top bar already shows today's date).
+ */
 export function repairNote(half: RepairHalf): string {
-  return `ซ่อมระบบระบายอากาศ ช่วงที่ ${half.half} · ${shortThaiDate(half.from)} – ${shortThaiDate(half.to)}`;
+  return `ปิดซ่อมห้องผ่าตัด ช่วงที่ ${half.half} · ถึง ${shortThaiDate(half.to)}`;
 }
