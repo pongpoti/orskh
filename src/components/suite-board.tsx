@@ -8,6 +8,7 @@ import { FloorPlan, UNALLOCATED_FILL } from "@/components/floor-plan";
 import type { AddedCase } from "@/lib/added-cases";
 import { allocationFor, readableTextOn, type Department } from "@/lib/allocation";
 import { boardHref } from "@/lib/days";
+import { repairNote, repairOn } from "@/lib/repair";
 import { getRoom, isSelectableRoom, roomLabel } from "@/lib/rooms";
 import { casesForRoom, roomMark, type CaseStatus, type Operation } from "@/lib/schedule";
 import type { DayBoard } from "@/lib/week";
@@ -67,6 +68,7 @@ function Owner({ dept, part }: { dept: Department | null; part?: string }) {
 
 export function SuiteBoard({
   board,
+  today,
   holiday = null,
   roomId = null,
   pathname = "/",
@@ -75,6 +77,8 @@ export function SuiteBoard({
 }: {
   /** Today's cases, or null when the suite is closed (the weekend or a holiday). */
   board: DayBoard | null;
+  /** Today in Thailand, YYYY-MM-DD: decides which rooms are in use when there is no board. */
+  today: string;
   /** The name of today's Thai public or special holiday, if it is one. */
   holiday?: string | null;
   roomId?: string | null;
@@ -85,8 +89,11 @@ export function SuiteBoard({
   casesUnavailable?: boolean;
 }) {
   const router = useRouter();
+  // The day whose rooms are shown: the board's own date, or today when the suite is closed.
+  const day = board?.date ?? today;
+  const repair = repairOn(day);
   const found = getRoom(roomId);
-  const urlRoom = found && isSelectableRoom(found) ? found.id : null;
+  const urlRoom = found && isSelectableRoom(found, day) ? found.id : null;
   const [selectedId, setSelectedId] = useState<string | null>(urlRoom);
   const [prevUrl, setPrevUrl] = useState(urlRoom);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -113,16 +120,16 @@ export function SuiteBoard({
     for (const item of operations) {
       if (next[item.roomId]) continue;
       const target = getRoom(item.roomId);
-      if (!target || !isSelectableRoom(target)) continue;
+      if (!target || !isSelectableRoom(target, day)) continue;
       next[item.roomId] = roomMark(casesForRoom(operations, item.roomId));
     }
     return next;
-  }, [operations]);
+  }, [operations, day]);
 
   function choose(id: string | null) {
     if (id) {
       const next = getRoom(id);
-      if (!next || !isSelectableRoom(next)) return;
+      if (!next || !isSelectableRoom(next, day)) return;
     }
     setSelectedId(id);
     startTransition(() => {
@@ -162,16 +169,21 @@ export function SuiteBoard({
     <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="relative mx-auto flex min-h-0 w-full max-w-[120rem] flex-1 flex-col overflow-hidden sm:px-3 lg:flex-row lg:gap-6 lg:px-6 lg:pt-3 lg:pb-4">
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-          {board === null || casesUnavailable ? (
+          {board === null || casesUnavailable || repair ? (
             <div className="flex shrink-0 flex-wrap items-center gap-2 px-3 pt-3 pb-1 lg:px-0 lg:pt-0 lg:pb-3">
               {board === null ? (
                 <p className="pill px-4">{holiday ? `วันหยุด ${holiday} · ไม่มีตารางผ่าตัด` : "วันนี้เป็นวันหยุด ไม่มีตารางผ่าตัด"}</p>
+              ) : null}
+              {repair ? (
+                <p className="pill px-4" data-testid="repair-note">
+                  {repairNote(repair)}
+                </p>
               ) : null}
               {casesUnavailable ? <p className="pill px-4 text-[var(--stop)]">โหลดเคสที่แพทย์เพิ่มไม่สำเร็จ ลองรีเฟรช</p> : null}
             </div>
           ) : null}
           <div className="flex min-h-0 flex-1 justify-center overflow-hidden p-1 lg:p-0">
-            <FloorPlan selectedId={selectedId} marks={marks} cases={counts} date={planDate} onSelect={onSelect} />
+            <FloorPlan selectedId={selectedId} marks={marks} cases={counts} date={planDate} day={day} onSelect={onSelect} />
           </div>
           {adding ? (
             // Below the plan's corner on every screen; on phones the room sheet covers it and carries its own button.

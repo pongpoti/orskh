@@ -594,11 +594,17 @@ dialog[open]::backdrop {
 .fp-recovery.is-static,
 .fp-recovery.is-static .fp-floor,
 .fp-or.is-closed,
-.fp-or.is-closed .fp-floor { cursor: default; }
-/* A closed room is not a control: no hover or press tint, a softer wall and greyed number. */
+.fp-or.is-closed .fp-floor,
+.fp-or.is-rr,
+.fp-or.is-rr .fp-floor { cursor: default; }
+/* A closed room, or an OR used as a recovery room during the repair, is not a control: no hover or press tint.
+   A closed room also gets a softer wall and greyed number. */
 .fp-or.is-closed .fp-floor,
 .fp-or.is-closed:hover .fp-floor,
-.fp-or.is-closed:active .fp-floor { filter: none; }
+.fp-or.is-closed:active .fp-floor,
+.fp-or.is-rr .fp-floor,
+.fp-or.is-rr:hover .fp-floor,
+.fp-or.is-rr:active .fp-floor { filter: none; }
 .fp-or.is-closed .fp-wall { stroke: var(--fp-wall-outer); }
 .fp-or.is-closed .fp-badge { stroke: var(--fp-wall-outer); }
 .fp-or.is-closed .fp-label { fill: var(--fp-muted); }

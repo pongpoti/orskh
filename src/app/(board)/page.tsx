@@ -68,6 +68,7 @@ export default async function BoardPage({
       />
       <SuiteBoard
         board={board}
+        today={today}
         holiday={holiday?.name}
         roomId={params.room ?? null}
         adding={adding}

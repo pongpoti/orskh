@@ -1,6 +1,6 @@
 import { allocationFor } from "./allocation.ts";
 import { workdayIndex } from "./days.ts";
-import { isOpenRoom, OPEN_ROOM_IDS } from "./rooms.ts";
+import { openRooms, roomUse } from "./rooms.ts";
 import type { Operation, Shift } from "./schedule.ts";
 import { subtypeLabel } from "./user-labels.ts";
 import type { DayBoard } from "./week.ts";
@@ -73,7 +73,9 @@ export function checkCase(input: unknown, today: string): CheckedCase {
 
   const roomId = raw.roomId;
   if (typeof roomId !== "string" || !roomId) return { ok: false, error: "เลือกห้องผ่าตัด" };
-  if (!isOpenRoom(roomId)) return { ok: false, error: "ห้องนี้ปิดอยู่ เลือกห้องอื่น" };
+  const use = roomUse(roomId, date);
+  if (use === "recovery") return { ok: false, error: "ห้องนี้ใช้เป็นห้องพักฟื้นในวันที่เลือก เลือกห้องอื่น" };
+  if (use !== "open") return { ok: false, error: "ห้องนี้ปิดในวันที่เลือก เลือกห้องอื่น" };
 
   if (typeof raw.operation !== "string") return { ok: false, error: "ใส่ชื่อการผ่าตัด" };
   const operation = cleanOperation(raw.operation);
@@ -86,19 +88,25 @@ export function checkCase(input: unknown, today: string): CheckedCase {
   return { ok: true, value: { date, roomId, operation, shift } };
 }
 
-/** The open room the doctor's department holds on `date` (morning or afternoon), or null. */
+/**
+ * The open room the doctor's department holds on `date` (morning or afternoon). During the ventilation repair a
+ * department with no room of its own gets the first mixed-department room. Null when there is neither.
+ */
 export function roomForSubtype(subtype: string | null | undefined, date: string): string | null {
   if (!subtype) return null;
-  for (const id of OPEN_ROOM_IDS) {
-    const allocation = allocationFor(id, date);
-    if (allocation?.am?.code === subtype || allocation?.pm?.code === subtype) return id;
+  let mixed: string | null = null;
+  for (const room of openRooms(date)) {
+    const allocation = allocationFor(room.id, date);
+    if (allocation?.am?.code === subtype || allocation?.pm?.code === subtype) return room.id;
+    if (!mixed && allocation?.am?.code === "MIXED") mixed = room.id;
   }
-  return null;
+  return mixed;
 }
 
 /**
  * The board with the doctors' added cases for its day after the imported ones in each room, in the order they were
- * added. Cases in a room that has since closed are left off.
+ * added. Cases in a room that is not in use for operations that day (closed, or a recovery room during the repair)
+ * are left off.
  */
 export function withAddedCases(board: DayBoard, added: readonly AddedCase[]): DayBoard {
   const order = new Map<string, number>();
@@ -106,7 +114,7 @@ export function withAddedCases(board: DayBoard, added: readonly AddedCase[]): Da
 
   const operations: Operation[] = [...board.operations];
   for (const item of added) {
-    if (item.date !== board.date || !isOpenRoom(item.roomId)) continue;
+    if (item.date !== board.date || roomUse(item.roomId, board.date) !== "open") continue;
     const slot = (order.get(item.roomId) ?? 0) + 1;
     order.set(item.roomId, slot);
     operations.push({

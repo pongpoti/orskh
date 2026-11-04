@@ -80,40 +80,54 @@ export function isScopeCase(procedure: string, team: string | null): boolean {
   return team === "GENSX" && SCOPE_INCLUDE.test(procedure) && !SCOPE_EXCLUDE.test(procedure);
 }
 
+/** The operating rooms in use on `date` whose department that day (morning or afternoon) is `code`, in number order. */
+function roomsHeldBy(code: DeptCode, date: string): string[] {
+  const rooms: string[] = [];
+  for (let n = 1; n <= 13; n += 1) {
+    const id = `or-${n}`;
+    if (!isOpenRoom(id, date)) continue;
+    const allocation = allocationFor(id, date);
+    if (allocation?.am?.code === code || allocation?.pm?.code === code) rooms.push(id);
+  }
+  return rooms;
+}
+
 /**
- * Where a case goes, by the report's rules alone (the export's room column is ignored): dressing cases use OR 1,
- * emergency cases OR 8 (obstetrics-gynaecology stays in its own room), and anything else
- * the room its department holds that day. A department with several rooms is pooled, so
- * the case goes to the one with the fewest cases so far.
+ * Where a case goes, by the report's rules alone (the export's room column is ignored): dressing cases use the
+ * dressing room (OR 1), emergency cases the emergency room (OR 8; obstetrics-gynaecology stays in its own room), and
+ * anything else the room its department holds that day. A department with several rooms is pooled, so the case goes
+ * to the one with the fewest cases so far.
  *
  * The SCOPE room is exclusive: only a GENSX-labelled surgeon's endoscopic case enters it, and such a
  * case goes nowhere else. Other general-surgery cases use the GENSX rooms.
  *
- * Closed rooms (lib/rooms.ts) take no case: with OR 8 closed an emergency case goes to its department's room.
+ * Closed rooms (lib/rooms.ts) take no case: with OR 8 closed an emergency case goes to its department's room. During
+ * the ventilation repair (lib/repair.ts) the dressing room moves to OR 11 in the second half, and a department with
+ * no room of its own (SCOPE included) uses the mixed-department rooms.
  */
 function inferRoom(item: WeekCase, date: string, load: Map<string, number>, team: string | null): string | null {
-  if (isDressingCase(item.proc) && isOpenRoom("or-1")) return "or-1";
-  if (item.emergency && item.dept !== "OBGYN" && isOpenRoom("or-8")) return "or-8";
+  const dressing = roomsHeldBy("INFECT", date);
+  if (isDressingCase(item.proc) && dressing.length > 0) return dressing[0];
+  const emergency = roomsHeldBy("EMER", date);
+  if (item.emergency && item.dept !== "OBGYN" && emergency.length > 0) return emergency[0];
   const dept = isScopeCase(item.proc, team) ? "SCOPE" : item.dept === "SCOPE" ? "GENSX" : item.dept;
   if (!dept) return null;
 
-  const rooms: string[] = [];
-  for (let n = 1; n <= 13; n += 1) {
-    if (n === 1 || !isOpenRoom(`or-${n}`)) continue; // OR 1 is for dressing cases only
-    const allocation = allocationFor(`or-${n}`, date);
-    if (allocation?.am?.code === dept || allocation?.pm?.code === dept) rooms.push(`or-${n}`);
-  }
+  // The dressing room takes dressing cases only.
+  let rooms = roomsHeldBy(dept, date).filter((room) => !dressing.includes(room));
+  if (rooms.length === 0) rooms = roomsHeldBy("MIXED", date);
   if (rooms.length === 0) return null;
   return rooms.reduce((best, room) => ((load.get(room) ?? 0) < (load.get(best) ?? 0) ? room : best));
 }
 
 /**
- * Each weekday's cases in their rooms. The dates are the export's week, or `week` when the data has none.
+ * Each weekday's cases in their rooms. The dates are the export's week, or `week` when the data has none or when
+ * `onWeek` is set (the board for a real calendar week: the export's cases are placed by that week's rooms).
  * A case whose department holds no room that day is left off the board.
  */
-export function weekBoard(data: WeekFile = WEEK_DATA, week: readonly string[] = data.meta.days): DayBoard[] {
+export function weekBoard(data: WeekFile = WEEK_DATA, week: readonly string[] = data.meta.days, onWeek = false): DayBoard[] {
   return DAY_KEYS.map((key, day) => {
-    const date = data.meta.days[day] ?? week[day];
+    const date = (onWeek ? week[day] : undefined) ?? data.meta.days[day] ?? week[day];
     const rows = data.cases.filter((item) => item.day === day);
     const load = new Map<string, number>();
     const placed = new Map<WeekCase, string | null>();
@@ -151,9 +165,10 @@ export function weekBoard(data: WeekFile = WEEK_DATA, week: readonly string[] = 
 
 /**
  * The board for a calendar date: the export week's cases for that weekday, or null at the weekend.
- * The export covers one week only, so every Monday shows its Monday, and so on. With no export loaded the
- * board is empty and dated in this week, so the plan shows this week's allocation.
+ * The export covers one week only, so every Monday shows its Monday, and so on. The board is always dated in the
+ * real week of `iso`, even when the export is from another week, so the rooms in use, their departments and the
+ * doctors' added cases all follow the real day (the ventilation repair changes the rooms by date).
  */
 export function boardFor(iso: string, index: number | null = workdayIndex(iso), data: WeekFile = WEEK_DATA): DayBoard | null {
-  return index === null ? null : weekBoard(data, weekDates(iso))[index];
+  return index === null ? null : weekBoard(data, weekDates(iso), true)[index];
 }

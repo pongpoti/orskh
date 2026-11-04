@@ -1,3 +1,5 @@
+import { REPAIR_COLOR, repairOn } from "./repair.ts";
+
 /**
  * Which department owns each operating room, Monday to Friday.
  *
@@ -26,6 +28,7 @@ export type DeptCode =
   | "INFECT"
   | "EMER"
   | "MINOR"
+  | "MIXED"
   | "UNK";
 
 export type Department = {
@@ -43,30 +46,32 @@ function dept(code: DeptCode, name: string, color: string, label: string = code)
 }
 
 /**
- * Department names and colours. The colours were redesigned from scratch on 30 Oct 2026, at Pong's request, to sit
- * with the app's brown and tan theme: muted, slightly warm tones of even weight, each dark enough that its white
- * label clears 4.5:1 (the tests check this). Hues are spread round the wheel so neighbouring rooms differ.
+ * Department names and colours. The colours are taken from Pong's proposed-schedule image of 4 Nov 2026 (one flat
+ * colour per department chip); CHEST, MINOR and UNK are not in it and keep the colours of the 30 Oct redesign. Each
+ * is dark enough that its white label clears 4.5:1 (the tests check this).
  */
 export const DEPARTMENTS: Record<DeptCode, Department> = {
-  GENSX: dept("GENSX", "ศัลยกรรมทั่วไป", "#116370"),
-  SCOPE: dept("SCOPE", "ส่องกล้องทางเดินอาหาร", "#9B4630"),
-  VASCULAR: dept("VASCULAR", "ศัลยกรรมหลอดเลือด", "#A72B48", "VAS"),
-  ORTHO: dept("ORTHO", "ออร์โธปิดิกส์", "#503983"),
-  OBGYN: dept("OBGYN", "สูติ-นรีเวชกรรม", "#822F5C"),
-  EYE: dept("EYE", "จักษุ", "#3C7A9E"),
-  URO: dept("URO", "ศัลยกรรมทางเดินปัสสาวะ", "#2D6D42"),
-  PLASTIC: dept("PLASTIC", "ศัลยกรรมตกแต่ง", "#AA5F04", "PLAST"),
-  ENT: dept("ENT", "โสต ศอ นาสิก", "#315A97"),
-  NEPHRO: dept("NEPHRO", "อายุรกรรมโรคไต", "#5C732D", "NEPHR"),
+  GENSX: dept("GENSX", "ศัลยกรรมทั่วไป", "#0E5E6F"),
+  SCOPE: dept("SCOPE", "ส่องกล้องทางเดินอาหาร", "#B04A3A"),
+  VASCULAR: dept("VASCULAR", "ศัลยกรรมหลอดเลือด", "#B94769", "VAS"),
+  ORTHO: dept("ORTHO", "ออร์โธปิดิกส์", "#4F3D8C"),
+  OBGYN: dept("OBGYN", "สูติ-นรีเวชกรรม", "#8C3B6E"),
+  EYE: dept("EYE", "จักษุ", "#0F7FA0"),
+  URO: dept("URO", "ศัลยกรรมทางเดินปัสสาวะ", "#2E7D5B"),
+  PLASTIC: dept("PLASTIC", "ศัลยกรรมตกแต่ง", "#B45E04", "PLAST"),
+  ENT: dept("ENT", "โสต ศอ นาสิก", "#2F5FA8"),
+  NEPHRO: dept("NEPHRO", "อายุรกรรมโรคไต", "#667924", "NEPHR"),
   /** Not in the schedule: the pulmonologists in the admin list. */
   CHEST: dept("CHEST", "อายุรกรรมโรคปอด", "#6367BC"),
-  PEDSX: dept("PEDSX", "ศัลยกรรมเด็ก", "#8D6F18"),
-  NEURO: dept("NEURO", "ศัลยกรรมระบบประสาท", "#5C3D27"),
-  CVT: dept("CVT", "ศัลยกรรมหัวใจและทรวงอก", "#566572"),
-  MAXILLO: dept("MAXILLO", "แม็กซิลโลเฟเชียล", "#82608A", "MAXI"),
-  INFECT: dept("INFECT", "เคสทำแผล (ทุกสาขา)", "#7B6C54", "D/S"),
-  EMER: dept("EMER", "เคสฉุกเฉิน (ทุกสาขา)", "#28201B"),
+  PEDSX: dept("PEDSX", "ศัลยกรรมเด็ก", "#937000"),
+  NEURO: dept("NEURO", "ศัลยกรรมระบบประสาท", "#8A5A22"),
+  CVT: dept("CVT", "ศัลยกรรมหัวใจและทรวงอก", "#5E6A73"),
+  MAXILLO: dept("MAXILLO", "แม็กซิลโลเฟเชียล", "#7E5C92", "MAXI"),
+  INFECT: dept("INFECT", "เคสทำแผล (ทุกสาขา)", "#7B7252", "D/S"),
+  EMER: dept("EMER", "เคสฉุกเฉิน (ทุกสาขา)", "#1C1C1C"),
   MINOR: dept("MINOR", "เคส LA ทุกแผนก", "#6B7377"),
+  /** Not in the schedule: a room for any department during the ventilation repair (lib/repair.ts). */
+  MIXED: dept("MIXED", "คละแผนก", "#6E5A4B", "OTHER"),
   /** Not in the schedule: the colour of a room that has cases but no department. */
   UNK: dept("UNK", "ไม่ทราบสาขา", "#78746F"),
 };
@@ -119,6 +124,8 @@ export type RoomAllocation = {
   pm: Department | null;
   /** Morning and afternoon belong to different departments. */
   split: boolean;
+  /** The ventilation repair's fixed use, not the weekly schedule; the department comes in the repair's one colour. */
+  repair: boolean;
 };
 
 /** 0 = Monday … 6 = Sunday, or null for anything that is not a calendar date. */
@@ -151,6 +158,9 @@ function owner(slot: Slot, nth: number): Department | null {
 /**
  * Who holds `roomId` on `date` (YYYY-MM-DD). Null when the schedule says nothing:
  * a weekend, an unknown room, or an invalid date.
+ *
+ * During the ventilation repair (lib/repair.ts) the weekly schedule is set aside: a room in use holds its one
+ * department all day, given in the repair's single colour, and a recovery or closed room holds none.
  */
 export function allocationFor(roomId: string, date: string): RoomAllocation | null {
   const plan = PLAN[roomId];
@@ -158,9 +168,17 @@ export function allocationFor(roomId: string, date: string): RoomAllocation | nu
   const nth = weekOfMonth(date);
   if (!plan || day === null || nth === null || day > 4) return null;
 
+  const repair = repairOn(date);
+  if (repair) {
+    const use = repair.rooms[roomId];
+    if (!use || use === "RR") return null;
+    const dept = { ...DEPARTMENTS[use], color: REPAIR_COLOR };
+    return { am: dept, pm: dept, split: false, repair: true };
+  }
+
   const am = owner(plan.am[day], nth);
   const pm = owner(plan.pm[day], nth);
-  return { am, pm, split: am?.code !== pm?.code };
+  return { am, pm, split: am?.code !== pm?.code, repair: false };
 }
 
 /** Plain-text owner for labels and tooltips, e.g. "เช้า ศัลยกรรมทางเดินปัสสาวะ · บ่าย ศัลยกรรมตกแต่ง". */

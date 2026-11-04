@@ -15,7 +15,8 @@ import {
 } from "@/lib/added-cases";
 import { allocationFor, readableTextOn, type Department } from "@/lib/allocation";
 import { thaiDate, workdayIndex } from "@/lib/days";
-import { getRoom, openRooms, roomLabel } from "@/lib/rooms";
+import { repairOn } from "@/lib/repair";
+import { getRoom, isOpenRoom, openRooms, roomLabel, roomUse, unusedRoomsText } from "@/lib/rooms";
 import type { Shift } from "@/lib/schedule";
 import { subtypeLabel } from "@/lib/user-labels";
 
@@ -43,8 +44,10 @@ function DeptTag({ dept }: { dept: Department | null }) {
   );
 }
 
+const ISO = /^\d{4}-\d{2}-\d{2}$/;
+
 /**
- * The doctor's form for a new case, in a dialog: day, room (open rooms only, each with its department that day),
+ * The doctor's form for a new case, in a dialog: day, room (rooms open that day only, each with its department),
  * operation name, and in or out of hours. The surgeon is always the signed-in doctor. Below it, the doctor's own
  * cases from today on, each removable. `request` opens it (with a room picked when it came from a room's list).
  */
@@ -75,8 +78,8 @@ export function AddCase({
   const opRef = useRef<HTMLInputElement>(null);
   const firstDay = nextWorkday(todayClosed ? addDays(today, 1) : today);
   const [date, setDate] = useState(firstDay);
-  const [roomId, setRoomId] = useState<string>("");
-  const [roomPicked, setRoomPicked] = useState(false);
+  // The room the doctor chose (from a room's list or in the grid), or null to follow their department's room.
+  const [picked, setPicked] = useState<string | null>(null);
   const [operation, setOperation] = useState("");
   const [shift, setShift] = useState<Shift>("in");
   const [error, setError] = useState("");
@@ -98,8 +101,7 @@ export function AddCase({
     setPrevRequest(request);
     if (request) {
       setDate(firstDay);
-      setRoomId(request.roomId ?? roomForSubtype(doctor.subtype, firstDay) ?? "");
-      setRoomPicked(request.roomId !== null);
+      setPicked(request.roomId);
       setOperation("");
       setShift("in");
       setError("");
@@ -119,8 +121,6 @@ export function AddCase({
     setDate(value);
     setError("");
     setDone("");
-    // Until the doctor picks a room, follow their department's room on the new day.
-    if (!roomPicked && value) setRoomId(roomForSubtype(doctor.subtype, value) ?? "");
   }
 
   function apply(result: CaseResult) {
@@ -176,8 +176,16 @@ export function AddCase({
     });
   }
 
-  const weekend = date !== "" && /^\d{4}-\d{2}-\d{2}$/.test(date) && workdayIndex(date) === null;
+  const weekend = date !== "" && ISO.test(date) && workdayIndex(date) === null;
   const specialty = subtypeLabel("DR", doctor.subtype);
+  // The day whose rooms the form offers: the chosen day, or the first open day while the field is being typed.
+  const roomDay = ISO.test(date) ? date : firstDay;
+  const repair = repairOn(roomDay);
+  const unused = unusedRoomsText(roomDay);
+  // Worked out from the day on each render, so a date passing through other days while it is typed never loses the
+  // doctor's pick: a picked room counts while it is open that day; otherwise the department's room (the ventilation
+  // repair moves the rooms by date), or none.
+  const roomId = picked && isOpenRoom(picked, roomDay) ? picked : (roomForSubtype(doctor.subtype, roomDay) ?? "");
 
   return (
     // While a save runs the dialog stays open (Escape too), so its answer lands in the dialog that sent it.
@@ -235,7 +243,7 @@ export function AddCase({
           <fieldset>
             <legend className="text-sm font-semibold text-ink">ห้องผ่าตัด</legend>
             <div className="mt-1.5 grid grid-cols-5 gap-1.5" data-testid="case-rooms">
-              {openRooms().map((room) => {
+              {openRooms(roomDay).map((room) => {
                 const allocation = date && !weekend ? allocationFor(room.id, date) : null;
                 return (
                   <label key={room.id} className={OPTION}>
@@ -245,8 +253,7 @@ export function AddCase({
                       value={room.id}
                       checked={roomId === room.id}
                       onChange={() => {
-                        setRoomId(room.id);
-                        setRoomPicked(true);
+                        setPicked(room.id);
                         setError("");
                         setDone("");
                       }}
@@ -269,7 +276,11 @@ export function AddCase({
                 );
               })}
             </div>
-            <p className="mt-1 text-xs text-muted">OR 6–13 ปิดอยู่</p>
+            {unused ? (
+              <p className="mt-1 text-xs text-muted" data-testid="case-rooms-note">
+                {repair ? `ช่วงปิดซ่อมห้องผ่าตัด · ${unused}` : unused}
+              </p>
+            ) : null}
           </fieldset>
 
           <label className="block">
@@ -356,12 +367,15 @@ export function AddCase({
             {mine.map((item) => {
               const room = getRoom(item.roomId);
               const asking = confirming === item.id;
+              // A case whose room is not in use that day (the ventilation repair moves the rooms) is not on the board.
+              const offBoard = roomUse(item.roomId, item.date) !== "open";
               return (
                 <li key={item.id} className="flex items-center gap-3 px-3 py-2.5">
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-semibold text-ink-2">
                       {thaiDate(item.date, "short")} · {room ? roomLabel(room) : item.roomId}
                       {item.shift === "out" ? <span className="badge badge-warning ml-1.5 align-middle">นอกเวลา</span> : null}
+                      {offBoard ? <span className="badge badge-warning ml-1.5 align-middle">ห้องนี้ไม่เปิดวันนั้น</span> : null}
                     </p>
                     <p className="text-sm font-semibold break-words text-ink">{item.operation}</p>
                   </div>
