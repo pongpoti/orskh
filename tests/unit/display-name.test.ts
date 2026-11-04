@@ -9,7 +9,7 @@ import { setTestEnv } from "./_setup";
 describe("name shown on the board (displayNameFor)", () => {
   before(async () => {
     const pool = await db();
-    await pool.query("TRUNCATE user_claims, users, access_requests RESTART IDENTITY");
+    await pool.query("TRUNCATE cases, user_claims, users, access_requests RESTART IDENTITY");
     await pool.query(
       `INSERT INTO users (first_name, last_name, type, subtype, active) VALUES
          ('สมชาย', 'ใจดี', 'DR', 'ORTHO', true),
@@ -50,7 +50,7 @@ describe("name shown on the board (displayNameFor)", () => {
   after(async () => {
     setTestEnv();
     const pool = await db();
-    await pool.query("TRUNCATE user_claims, users, access_requests RESTART IDENTITY");
+    await pool.query("TRUNCATE cases, user_claims, users, access_requests RESTART IDENTITY");
     await pool.end();
   });
 

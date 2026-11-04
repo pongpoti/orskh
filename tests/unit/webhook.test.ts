@@ -559,7 +559,7 @@ describe("Telegram webhook and Bot API (mock)", () => {
   }
 
   test("claim messages go to every chat with the undo button", async () => {
-    await (await db()).query("TRUNCATE user_claims, users RESTART IDENTITY");
+    await (await db()).query("TRUNCATE cases, user_claims, users RESTART IDENTITY");
     const { claim, user } = await newClaim("0900000031", "U-c1", "ส่งข้อความ");
     const sent = await sendClaimMessages(user, claim);
     assert.equal(sent.length, 3);
@@ -573,7 +573,7 @@ describe("Telegram webhook and Bot API (mock)", () => {
   });
 
   test("undo by someone not in TELEGRAM_CHAT_ID: refused, the claim stands", async () => {
-    await (await db()).query("TRUNCATE user_claims, users RESTART IDENTITY");
+    await (await db()).query("TRUNCATE cases, user_claims, users RESTART IDENTITY");
     const { claim } = await newClaim("0900000032", "U-c2", "คนแปลก");
     for (const from of [333, Number(GROUP), "111", null]) {
       assert.equal((await post(tap(claimCallbackData(claim.id), from))).status, 200);
@@ -586,7 +586,7 @@ describe("Telegram webhook and Bot API (mock)", () => {
   });
 
   test("undo: the name is freed, the binding deleted, this instance's cache drops the number, each message says who undid it", async () => {
-    await (await db()).query("TRUNCATE user_claims, users RESTART IDENTITY");
+    await (await db()).query("TRUNCATE cases, user_claims, users RESTART IDENTITY");
     const { claim, user } = await newClaim("0900000033", "U-c3", "ยกเลิก");
     const usersBefore = (await (await db()).query("SELECT * FROM users ORDER BY id")).rows;
     await upsertBinding(await db(), "U-c3", "0900000033", "Som");
@@ -638,7 +638,7 @@ describe("Telegram webhook and Bot API (mock)", () => {
   });
 
   test("undo of an ended claim (released by hand, the name claimed again) and of an unknown claim change nothing", async () => {
-    await (await db()).query("TRUNCATE user_claims, users RESTART IDENTITY");
+    await (await db()).query("TRUNCATE cases, user_claims, users RESTART IDENTITY");
     const pool = await db();
     const first = await newClaim("0900000034", "U-c4", "เก่า");
     await pool.query("UPDATE user_claims SET undone_at = now(), undo_reason = 'manual' WHERE id = $1", [first.claim.id]);
@@ -657,7 +657,7 @@ describe("Telegram webhook and Bot API (mock)", () => {
   });
 
   test("undo of a number that stays authorized another way (approved request, ALLOWED_PHONES) says so instead of 'signed out'", async () => {
-    await (await db()).query("TRUNCATE user_claims, users RESTART IDENTITY");
+    await (await db()).query("TRUNCATE cases, user_claims, users RESTART IDENTITY");
     const pool = await db();
     // an approved request made before claims and requests excluded each other (or set by hand)
     const { claim } = await newClaim("0900000036", "U-c6", "ยังเข้าได้");
@@ -677,7 +677,7 @@ describe("Telegram webhook and Bot API (mock)", () => {
   });
 
   test("a claim announcement that reaches no chat is tried once more", async () => {
-    await (await db()).query("TRUNCATE user_claims, users RESTART IDENTITY");
+    await (await db()).query("TRUNCATE cases, user_claims, users RESTART IDENTITY");
     const { claim, user } = await newClaim("0900000037", "U-c8", "ส่งซ้ำ");
     const waits: number[] = [];
     failing.add("sendMessage");

@@ -106,7 +106,7 @@ describe("test database guard: host", () => {
 describe("test database guard: rows in users", () => {
   const pool = createPool(TEST_DB);
   after(async () => {
-    await pool.query("TRUNCATE user_claims, users RESTART IDENTITY");
+    await pool.query("TRUNCATE cases, user_claims, users RESTART IDENTITY");
     await pool.end();
   });
   const fakeQuery = (n: number | null) => async (sql: string) =>
@@ -123,7 +123,7 @@ describe("test database guard: rows in users", () => {
 
   test("counts the real table; the synchronous form refuses a filled users table and lets an unreachable one through", async () => {
     await ensureSchema(pool);
-    await pool.query("TRUNCATE user_claims, users RESTART IDENTITY");
+    await pool.query("TRUNCATE cases, user_claims, users RESTART IDENTITY");
     assert.equal(await countUsers((sql: string) => pool.query(sql)), 0);
     assert.doesNotThrow(() => assertDisposableUsersSync(TEST_DB, "TEST_DATABASE_URL"));
     await pool.query(

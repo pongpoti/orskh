@@ -3,7 +3,7 @@
 import type { CSSProperties } from "react";
 import { FloorScenery } from "@/components/floor-scenery";
 import { allocationFor, allocationText, DEPARTMENTS, readableTextOn, type Department, type RoomAllocation } from "@/lib/allocation";
-import { isSelectableRoom, roomBounds, roomLabel, ROOMS, type Room } from "@/lib/rooms";
+import { isClosedRoom, isSelectableRoom, roomBounds, roomLabel, ROOMS, type Room } from "@/lib/rooms";
 import type { RoomMark } from "@/lib/schedule";
 
 /** A room the schedule gives to no department: the list's "unknown department" gray. */
@@ -59,11 +59,27 @@ function DeptText({
   );
 }
 
-/** Room number in a white badge, with the owning department(s) beside it. */
-function RoomLabel({ room, allocation }: { room: Room; allocation: RoomAllocation | null }) {
+/** Room number in a white badge, with the owning department(s) beside it, or ปิด for a closed room. */
+function RoomLabel({ room, allocation, closed = false }: { room: Room; allocation: RoomAllocation | null; closed?: boolean }) {
   const { minX, maxX, minY, maxY } = roomBounds(room);
   const { labelX: x, labelY: y } = room;
   const width = maxX - minX - 48;
+
+  if (closed) {
+    const short = maxY - minY < 170;
+    const badgeY = y - (short ? 30 : 36);
+    return (
+      <>
+        <circle className="fp-badge" cx={x} cy={badgeY} r={short ? 36 : 47} />
+        <text className="fp-label" x={x} y={badgeY} dy="0.35em" style={short ? { fontSize: 44 } : undefined}>
+          {room.number}
+        </text>
+        <text className="fp-dept fp-closed-text" x={x} y={y + (short ? 44 : 54)} dy="0.35em" style={{ fontSize: DEPT_SIZE }}>
+          ปิด
+        </text>
+      </>
+    );
+  }
 
   if (allocation?.split) {
     // Two bands (morning above, afternoon below) with the badge on the seam.
@@ -120,13 +136,19 @@ export function FloorPlan({
 }) {
   const allocations: Record<string, RoomAllocation | null> = {};
   for (const room of ROOMS) {
-    if (room.kind === "or") allocations[room.id] = date ? allocationFor(room.id, date) : null;
+    // A closed room belongs to no department.
+    if (room.kind === "or") allocations[room.id] = date && !isClosedRoom(room) ? allocationFor(room.id, date) : null;
   }
 
   return (
     <svg viewBox="0 0 1207 1706" preserveAspectRatio="xMidYMin meet" className="h-full w-auto max-w-none" role="group" aria-label="แปลนห้องผ่าตัด">
       <FloorScenery />
       <defs>
+        {/* Closed rooms: thin diagonal stripes on a plain floor. */}
+        <pattern id="fp-closed" width="28" height="28" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <rect width="28" height="28" fill="var(--fp-closed)" />
+          <line x1="0" y1="0" x2="0" y2="28" stroke="var(--fp-closed-line)" strokeWidth="6" />
+        </pattern>
         {ROOMS.map((room) => {
           const allocation = allocations[room.id];
           if (!allocation?.split) return null;
@@ -143,9 +165,10 @@ export function FloorPlan({
           const selected = room.id === selectedId;
           const mark = marks[room.id];
           const selectable = isSelectableRoom(room);
+          const closed = isClosedRoom(room);
           const allocation = allocations[room.id] ?? null;
           const empty = room.kind === "or" && (cases[room.id] ?? 0) === 0;
-          const fill = floorFill(room, allocation);
+          const fill = closed ? "url(#fp-closed)" : floorFill(room, allocation);
           const bounds = roomBounds(room);
           const parts = [roomLabel(room)];
           if (allocation) parts.push(allocationText(allocation));
@@ -156,17 +179,17 @@ export function FloorPlan({
               key={room.id}
               id={room.id}
               data-zone={room.zone}
-              className={`${room.kind === "or" ? "fp-or" : "fp-recovery"}${selected ? " is-selected" : ""}${selectable ? "" : " is-static"}`}
+              className={`${room.kind === "or" ? "fp-or" : "fp-recovery"}${selected ? " is-selected" : ""}${selectable ? "" : " is-static"}${closed ? " is-closed" : ""}`}
               style={fill ? ({ "--rf": fill } as CSSProperties) : undefined}
             >
               <path
                 className="fp-floor"
                 d={room.d}
-                role={selectable ? "button" : undefined}
                 tabIndex={selectable ? 0 : undefined}
                 aria-pressed={selectable ? selected : undefined}
-                aria-label={selectable ? parts.join(" · ") : undefined}
-                aria-hidden={selectable ? undefined : true}
+                aria-label={selectable ? parts.join(" · ") : closed ? `${roomLabel(room)} · ปิด` : undefined}
+                aria-hidden={selectable || closed ? undefined : true}
+                role={selectable ? "button" : closed ? "img" : undefined}
                 onClick={selectable ? () => onSelect(room.id) : undefined}
                 onKeyDown={
                   selectable
@@ -180,7 +203,7 @@ export function FloorPlan({
                 }
               />
               <path className={room.kind === "or" ? "fp-wall" : "fp-wall fp-thin"} d={room.d} pointerEvents="none" />
-              {room.kind === "or" ? <RoomLabel room={room} allocation={allocation} /> : null}
+              {room.kind === "or" ? <RoomLabel room={room} allocation={allocation} closed={closed} /> : null}
               {mark && selectable ? (
                 <StatusMark
                   kind={mark}

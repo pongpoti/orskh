@@ -2,7 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { startTransition, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import type { CaseResult } from "@/app/(board)/actions";
+import { AddCase, type Doctor } from "@/components/add-case";
 import { FloorPlan, UNALLOCATED_FILL } from "@/components/floor-plan";
+import type { AddedCase } from "@/lib/added-cases";
 import { allocationFor, readableTextOn, type Department } from "@/lib/allocation";
 import { boardHref } from "@/lib/days";
 import { getRoom, isSelectableRoom, roomLabel } from "@/lib/rooms";
@@ -19,6 +22,22 @@ const STATUS_LABEL: Record<CaseStatus, string> = {
 };
 
 const NONE: Operation[] = [];
+
+/** What a doctor needs to add cases (null for everyone else). */
+export type CaseAdding = {
+  doctor: Doctor;
+  /** Today in Thailand, YYYY-MM-DD. */
+  today: string;
+  mine: readonly AddedCase[];
+  onAdd: (input: unknown) => Promise<CaseResult>;
+  onRemove: (id: string) => Promise<CaseResult>;
+};
+
+const PLUS = (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+    <path d="M12 5v14M5 12h14" />
+  </svg>
+);
 
 /** Whether a popover (the account menu) is open. False where the Popover API is missing, since nothing can be open. */
 function isPopoverOpen(): boolean {
@@ -51,6 +70,8 @@ export function SuiteBoard({
   holiday = null,
   roomId = null,
   pathname = "/",
+  adding = null,
+  casesUnavailable = false,
 }: {
   /** Today's cases, or null when the suite is closed (the weekend or a holiday). */
   board: DayBoard | null;
@@ -58,6 +79,10 @@ export function SuiteBoard({
   holiday?: string | null;
   roomId?: string | null;
   pathname?: string;
+  /** Shown to doctors: the เพิ่มเคส button and its form. */
+  adding?: CaseAdding | null;
+  /** The doctors' added cases could not be loaded, so the board shows the imported ones only. */
+  casesUnavailable?: boolean;
 }) {
   const router = useRouter();
   const found = getRoom(roomId);
@@ -65,6 +90,7 @@ export function SuiteBoard({
   const [selectedId, setSelectedId] = useState<string | null>(urlRoom);
   const [prevUrl, setPrevUrl] = useState(urlRoom);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const [addRequest, setAddRequest] = useState<{ roomId: string | null } | null>(null);
   const menuWasOpen = useRef(false);
 
   if (prevUrl !== urlRoom) {
@@ -111,6 +137,8 @@ export function SuiteBoard({
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
+      // Escape in the add-case dialog closes the dialog only.
+      if (addRequest) return;
       // Escape belongs to an open popover (the account menu) first.
       if (isPopoverOpen()) return;
       choose(null);
@@ -134,14 +162,29 @@ export function SuiteBoard({
     <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="relative mx-auto flex min-h-0 w-full max-w-[120rem] flex-1 flex-col overflow-hidden sm:px-3 lg:flex-row lg:gap-6 lg:px-6 lg:pt-3 lg:pb-4">
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-          {board === null ? (
+          {board === null || casesUnavailable ? (
             <div className="flex shrink-0 flex-wrap items-center gap-2 px-3 pt-3 pb-1 lg:px-0 lg:pt-0 lg:pb-3">
-              <p className="pill px-4">{holiday ? `วันหยุด ${holiday} · ไม่มีตารางผ่าตัด` : "วันนี้เป็นวันหยุด ไม่มีตารางผ่าตัด"}</p>
+              {board === null ? (
+                <p className="pill px-4">{holiday ? `วันหยุด ${holiday} · ไม่มีตารางผ่าตัด` : "วันนี้เป็นวันหยุด ไม่มีตารางผ่าตัด"}</p>
+              ) : null}
+              {casesUnavailable ? <p className="pill px-4 text-[var(--stop)]">โหลดเคสที่แพทย์เพิ่มไม่สำเร็จ ลองรีเฟรช</p> : null}
             </div>
           ) : null}
           <div className="flex min-h-0 flex-1 justify-center overflow-hidden p-1 lg:p-0">
             <FloorPlan selectedId={selectedId} marks={marks} cases={counts} date={planDate} onSelect={onSelect} />
           </div>
+          {adding ? (
+            // Below the plan's corner on every screen; on phones the room sheet covers it and carries its own button.
+            <button
+              type="button"
+              className="btn btn-primary absolute right-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[5] rounded-full px-5 shadow-[0_8px_24px_-6px_rgb(41_29_20/0.45)] lg:right-0 lg:bottom-0"
+              onClick={() => setAddRequest({ roomId: null })}
+              data-testid="add-case-button"
+            >
+              {PLUS}
+              เพิ่มเคส
+            </button>
+          ) : null}
         </div>
 
         {open ? (
@@ -195,6 +238,18 @@ export function SuiteBoard({
                       </div>
                     ) : null}
                   </div>
+                  {adding && room ? (
+                    <button
+                      type="button"
+                      className="btn btn-secondary ml-auto min-h-11 shrink-0 px-3.5"
+                      onClick={() => setAddRequest({ roomId: room.id })}
+                      aria-label={`เพิ่มเคสใน ${roomLabel(room)}`}
+                      data-testid="room-add-case"
+                    >
+                      {PLUS}
+                      <span>เพิ่มเคส</span>
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     className="btn btn-ghost size-11 min-h-0 shrink-0 rounded-full p-0 lg:hidden"
@@ -247,6 +302,18 @@ export function SuiteBoard({
           )}
         </aside>
       </div>
+      {adding ? (
+        <AddCase
+          request={addRequest}
+          onClosed={() => setAddRequest(null)}
+          doctor={adding.doctor}
+          today={adding.today}
+          todayClosed={board === null}
+          initialMine={adding.mine}
+          onAdd={adding.onAdd}
+          onRemove={adding.onRemove}
+        />
+      ) : null}
     </main>
   );
 }
