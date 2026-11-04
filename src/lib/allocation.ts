@@ -1,3 +1,5 @@
+import { REPAIR_COLOR, repairOn } from "./repair.ts";
+
 /**
  * Which department owns each operating room, Monday to Friday.
  *
@@ -26,6 +28,7 @@ export type DeptCode =
   | "INFECT"
   | "EMER"
   | "MINOR"
+  | "MIXED"
   | "UNK";
 
 export type Department = {
@@ -67,6 +70,8 @@ export const DEPARTMENTS: Record<DeptCode, Department> = {
   INFECT: dept("INFECT", "เคสทำแผล (ทุกสาขา)", "#7B7252", "D/S"),
   EMER: dept("EMER", "เคสฉุกเฉิน (ทุกสาขา)", "#1C1C1C"),
   MINOR: dept("MINOR", "เคส LA ทุกแผนก", "#6B7377"),
+  /** Not in the schedule: a room for any department during the ventilation repair (lib/repair.ts). */
+  MIXED: dept("MIXED", "คละแผนก", "#6E5A4B", "OTHER"),
   /** Not in the schedule: the colour of a room that has cases but no department. */
   UNK: dept("UNK", "ไม่ทราบสาขา", "#78746F"),
 };
@@ -119,6 +124,8 @@ export type RoomAllocation = {
   pm: Department | null;
   /** Morning and afternoon belong to different departments. */
   split: boolean;
+  /** The ventilation repair's fixed use, not the weekly schedule; the department comes in the repair's one colour. */
+  repair: boolean;
 };
 
 /** 0 = Monday … 6 = Sunday, or null for anything that is not a calendar date. */
@@ -151,6 +158,9 @@ function owner(slot: Slot, nth: number): Department | null {
 /**
  * Who holds `roomId` on `date` (YYYY-MM-DD). Null when the schedule says nothing:
  * a weekend, an unknown room, or an invalid date.
+ *
+ * During the ventilation repair (lib/repair.ts) the weekly schedule is set aside: a room in use holds its one
+ * department all day, given in the repair's single colour, and a recovery or closed room holds none.
  */
 export function allocationFor(roomId: string, date: string): RoomAllocation | null {
   const plan = PLAN[roomId];
@@ -158,9 +168,17 @@ export function allocationFor(roomId: string, date: string): RoomAllocation | nu
   const nth = weekOfMonth(date);
   if (!plan || day === null || nth === null || day > 4) return null;
 
+  const repair = repairOn(date);
+  if (repair) {
+    const use = repair.rooms[roomId];
+    if (!use || use === "RR") return null;
+    const dept = { ...DEPARTMENTS[use], color: REPAIR_COLOR };
+    return { am: dept, pm: dept, split: false, repair: true };
+  }
+
   const am = owner(plan.am[day], nth);
   const pm = owner(plan.pm[day], nth);
-  return { am, pm, split: am?.code !== pm?.code };
+  return { am, pm, split: am?.code !== pm?.code, repair: false };
 }
 
 /** Plain-text owner for labels and tooltips, e.g. "เช้า ศัลยกรรมทางเดินปัสสาวะ · บ่าย ศัลยกรรมตกแต่ง". */

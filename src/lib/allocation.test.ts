@@ -132,10 +132,11 @@ test("uses the department colours of the 4 Nov 2026 schedule image", () => {
   const list = {
     GENSX: "#0E5E6F", EYE: "#0F7FA0", ENT: "#2F5FA8", CVT: "#5E6A73", ORTHO: "#4F3D8C", MAXILLO: "#7E5C92",
     OBGYN: "#8C3B6E", VASCULAR: "#B94769", SCOPE: "#B04A3A", PLASTIC: "#B45E04", PEDSX: "#937000", NEURO: "#8A5A22",
-    INFECT: "#7B7252", NEPHRO: "#667924", CHEST: "#6367BC", URO: "#2E7D5B", EMER: "#1C1C1C", MINOR: "#6B7377", UNK: "#78746F",
+    INFECT: "#7B7252", NEPHRO: "#667924", CHEST: "#6367BC", URO: "#2E7D5B", EMER: "#1C1C1C", MINOR: "#6B7377", MIXED: "#6E5A4B",
+    UNK: "#78746F",
   };
   assert.deepEqual(Object.fromEntries(Object.values(DEPARTMENTS).map((dept) => [dept.code, dept.color])), list);
-  assert.equal(new Set(Object.values(DEPARTMENTS).map((dept) => dept.color)).size, 19);
+  assert.equal(new Set(Object.values(DEPARTMENTS).map((dept) => dept.color)).size, 20);
 });
 
 test("picks white or ink text, whichever reads better", () => {
