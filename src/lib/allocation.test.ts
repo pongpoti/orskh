@@ -128,11 +128,11 @@ test("keeps the plan labels short", () => {
   for (const dept of Object.values(DEPARTMENTS)) assert.ok(dept.label.length <= 5, dept.code);
 });
 
-test("uses the redesigned department colours", () => {
+test("uses the department colours of the 4 Nov 2026 schedule image", () => {
   const list = {
-    GENSX: "#116370", EYE: "#3C7A9E", ENT: "#315A97", CVT: "#566572", ORTHO: "#503983", MAXILLO: "#82608A",
-    OBGYN: "#822F5C", VASCULAR: "#A72B48", SCOPE: "#9B4630", PLASTIC: "#AA5F04", PEDSX: "#8D6F18", NEURO: "#5C3D27",
-    INFECT: "#7B6C54", NEPHRO: "#5C732D", CHEST: "#6367BC", URO: "#2D6D42", EMER: "#28201B", MINOR: "#6B7377", UNK: "#78746F",
+    GENSX: "#0E5E6F", EYE: "#0F7FA0", ENT: "#2F5FA8", CVT: "#5E6A73", ORTHO: "#4F3D8C", MAXILLO: "#7E5C92",
+    OBGYN: "#8C3B6E", VASCULAR: "#B94769", SCOPE: "#B04A3A", PLASTIC: "#B45E04", PEDSX: "#937000", NEURO: "#8A5A22",
+    INFECT: "#7B7252", NEPHRO: "#667924", CHEST: "#6367BC", URO: "#2E7D5B", EMER: "#1C1C1C", MINOR: "#6B7377", UNK: "#78746F",
   };
   assert.deepEqual(Object.fromEntries(Object.values(DEPARTMENTS).map((dept) => [dept.code, dept.color])), list);
   assert.equal(new Set(Object.values(DEPARTMENTS).map((dept) => dept.color)).size, 19);
