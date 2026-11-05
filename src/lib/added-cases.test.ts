@@ -46,7 +46,7 @@ test("next workday and the department's room", () => {
   assert.equal(nextWorkday("2026-11-07"), "2026-11-09");
   assert.equal(nextWorkday("2026-11-04"), "2026-11-04");
   assert.equal(roomForSubtype("GENSX", "2026-11-02"), "or-2"); // Monday
-  // The weekly schedule's rooms, before the ventilation repair (lib/repair.test.ts covers the repair's rooms).
+  // The weekly schedule's rooms (lib/repair.test.ts covers the stored repair layout).
   assert.equal(roomForSubtype("ENT", "2026-10-28"), "or-4"); // Wednesday
   assert.equal(roomForSubtype("PEDSX", "2026-10-13"), "or-5"); // 2nd Tuesday
   assert.equal(roomForSubtype("URO", "2026-10-28"), null); // URO holds OR 7, which is closed

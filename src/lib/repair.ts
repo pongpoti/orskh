@@ -1,16 +1,17 @@
 import type { DeptCode } from "./allocation.ts";
 
 /**
- * The air-ventilation repair (Pong, 4 Nov 2026). The works start on 8 Dec 2026 and last 90 days, in two halves of 45
- * days, but Pong asked for the first half's rooms to be used from 4 Nov 2026 on, so the first half here starts then.
- * While it runs the weekly OR schedule (lib/allocation.ts) is set aside: each room in use has one fixed use every
- * working day, the rooms are all drawn in one colour with the department's code as the label, and every other OR is
- * closed.
+ * The air-ventilation repair layout (Pong, 4 Nov 2026). The works were planned from 8 Dec 2026 for 90 days, in two
+ * halves of 45 days. While the layout is in use the weekly OR schedule (lib/allocation.ts) is set aside: each room in
+ * use has one fixed use every working day, the rooms are all drawn in one colour with the department's code as the
+ * label, and every other OR is closed.
  *
  * - First half: OR 1 dressing, OR 2 GENSX, OR 3 ORTHO, OR 4 and 5 mixed departments, OR 6 to 8 recovery; OR 9 to 13 closed.
  * - Second half: OR 9 recovery, OR 10 mixed departments, OR 11 dressing, OR 12 GENSX, OR 13 ORTHO; OR 1 to 8 closed.
  *
- * The repair may run longer than 90 days ("at least"): move `to` of the second half to keep its layout.
+ * SWITCHED OFF: the layout was used on 4 and 5 Nov 2026, then Pong asked for the normal rooms again and for the layout
+ * to be kept for later. To use it again, set the halves' dates below and REPAIR_IN_USE to true. If the repair runs
+ * longer than 90 days ("at least"), move `to` of the second half.
  */
 
 /** What a room is used for while the repair runs: a department's operating room, or a recovery room ("RR"). */
@@ -30,7 +31,7 @@ export type RepairHalf = {
 export const REPAIR_HALVES: readonly RepairHalf[] = [
   {
     half: 1,
-    from: "2026-11-04",
+    from: "2026-12-08",
     to: "2027-01-21",
     rooms: {
       "or-1": "INFECT",
@@ -66,9 +67,26 @@ export const REPAIR_COLOR = "#54402F";
 /** Thai name of a room used as a recovery room during the repair, and its label on the plan. */
 export const RECOVERY_USE = { name: "ห้องพักฟื้น (RR)", label: "RR" } as const;
 
-/** The half of the repair that `date` (YYYY-MM-DD) falls in, or null outside the repair or for a malformed date. */
+/**
+ * Whether the board uses the repair layout on the dates in REPAIR_HALVES. Off since 5 Nov 2026 (Pong: "revert to
+ * normal OR", keep the layout for later); the board shows the normal rooms (lib/rooms.ts OPEN_ROOM_IDS) and the weekly
+ * schedule on every date.
+ */
+export const REPAIR_IN_USE: boolean = false;
+
+let inUse = REPAIR_IN_USE;
+
+/** Tests only: check the stored layout as if REPAIR_IN_USE were set. */
+export function setRepairInUseForTests(on: boolean): void {
+  inUse = on;
+}
+
+/**
+ * The half of the repair that `date` (YYYY-MM-DD) falls in, or null when the layout is not in use, outside the repair,
+ * or for a malformed date.
+ */
 export function repairOn(date: string | null | undefined): RepairHalf | null {
-  if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  if (!inUse || typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
   return REPAIR_HALVES.find((half) => date >= half.from && date <= half.to) ?? null;
 }
 

@@ -8,7 +8,7 @@ test("rooms have kinds and zones", () => {
   assert.equal(getRoom("lift"), null);
 });
 
-// Tuesday 3 November 2026, the last day before the ventilation repair's rooms.
+// Tuesday 3 November 2026.
 const NOV = "2026-11-03";
 
 test("open OR rooms are selectable and labeled OR N", () => {
