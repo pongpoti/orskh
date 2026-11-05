@@ -3,10 +3,11 @@ import { REPAIR_COLOR, repairOn } from "./repair.ts";
 /**
  * Which department owns each operating room, Monday to Friday.
  *
- * Source: the proposed OR schedule (ตารางห้องผ่าตัดที่เสนอ, 27 Oct 2026). Each room has one department
- * all day, except OR 10 on Friday (vascular in the morning, nephrology in the afternoon) and OR 5 on
- * Tuesday, which alternates by week of the month. Periods the schedule marks as over quota (*) count
- * as the department's like any other.
+ * Source: the new proposed OR schedule (ตารางผ่าตัดใหม่ที่นำเสนอ, Pong, 4 Nov 2026). Each room has one department
+ * all day, except OR 5 on Tuesday (paediatric surgery in the morning, general surgery in the afternoon) and OR 11 on
+ * Friday (vascular in the morning, nephrology in the afternoon). On Mondays OR 11 and OR 13 alternate by week of the
+ * month: weeks 1, 3 and 5 CVT in OR 11 and ORTHO in OR 13, weeks 2 and 4 the other way round. Periods the schedule
+ * marks as over quota (*) count as the department's like any other.
  */
 
 export type DeptCode =
@@ -86,6 +87,12 @@ type WeekPlan = readonly [Slot, Slot, Slot, Slot, Slot];
 const one = (code: DeptCode): Slot => [{ dept: code }];
 const always = (code: DeptCode): WeekPlan => [one(code), one(code), one(code), one(code), one(code)];
 
+/** Monday's turns in OR 11 and OR 13: `odd` in weeks 1, 3 and 5 of the month, `even` in weeks 2 and 4. */
+const mondayTurns = (odd: DeptCode, even: DeptCode): Slot => [
+  { dept: odd, nth: [1, 3, 5] },
+  { dept: even, nth: [2, 4] },
+];
+
 type RoomPlan = { am: WeekPlan; pm: WeekPlan };
 const whole = (plan: WeekPlan): RoomPlan => ({ am: plan, pm: plan });
 
@@ -94,27 +101,21 @@ const PLAN: Record<string, RoomPlan> = {
   "or-2": whole(always("GENSX")),
   "or-3": whole(always("SCOPE")),
   "or-4": whole([one("OBGYN"), one("ENT"), one("ENT"), one("ENT"), one("ENT")]),
-  "or-5": whole([
-    one("GENSX"),
-    [
-      { dept: "PEDSX", nth: [2, 4] },
-      { dept: "GENSX", nth: [1, 3, 5] },
-    ],
-    one("PEDSX"),
-    one("GENSX"),
-    one("GENSX"),
-  ]),
+  "or-5": {
+    am: [one("GENSX"), one("PEDSX"), one("PEDSX"), one("GENSX"), one("GENSX")],
+    pm: [one("GENSX"), one("GENSX"), one("PEDSX"), one("GENSX"), one("GENSX")],
+  },
   "or-6": whole(always("OBGYN")),
   "or-7": whole(always("URO")),
   "or-8": whole(always("EMER")),
   "or-9": whole([one("PLASTIC"), one("MAXILLO"), one("PLASTIC"), one("PLASTIC"), one("OBGYN")]),
-  "or-10": {
-    am: [one("CVT"), one("ORTHO"), one("ORTHO"), one("ORTHO"), one("VASCULAR")],
-    pm: [one("CVT"), one("ORTHO"), one("ORTHO"), one("ORTHO"), one("NEPHRO")],
+  "or-10": whole(always("EYE")),
+  "or-11": {
+    am: [mondayTurns("CVT", "ORTHO"), one("ORTHO"), one("ORTHO"), one("ORTHO"), one("VASCULAR")],
+    pm: [mondayTurns("CVT", "ORTHO"), one("ORTHO"), one("ORTHO"), one("ORTHO"), one("NEPHRO")],
   },
-  "or-11": whole(always("EYE")),
   "or-12": whole([one("ORTHO"), one("NEURO"), one("ORTHO"), one("NEURO"), one("ORTHO")]),
-  "or-13": whole([one("ORTHO"), one("ORTHO"), one("CVT"), one("ORTHO"), one("ORTHO")]),
+  "or-13": whole([mondayTurns("ORTHO", "CVT"), one("ORTHO"), one("CVT"), one("ORTHO"), one("ORTHO")]),
 };
 
 export type RoomAllocation = {

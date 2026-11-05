@@ -86,13 +86,14 @@ test("rooms follow the report's rules, with every OR open", () => {
     { dept: "ORTHO" },
     { dept: "GENSX", surgeon: GENSX_SURGEON, proc: "colonoscopy" },
   ]);
-  // Monday: dressing OR 1, emergency OR 8, OBGYN stays in one of its own rooms, EYE OR 11, ORTHO OR 12 or 13, SCOPE OR 3.
+  // Monday 28 Sep (4th Monday): dressing OR 1, emergency OR 8, OBGYN stays in one of its own rooms, EYE OR 10,
+  // ORTHO OR 11 or 12 (CVT has OR 13 in weeks 2 and 4), SCOPE OR 3.
   const rooms = roomsOf(data);
   assert.equal(rooms[0], "or-1");
   assert.equal(rooms[1], "or-8");
   assert.ok(["or-4", "or-6"].includes(rooms[2]), rooms[2]);
-  assert.equal(rooms[3], "or-11");
-  assert.ok(["or-12", "or-13"].includes(rooms[4]), rooms[4]);
+  assert.equal(rooms[3], "or-10");
+  assert.ok(["or-11", "or-12"].includes(rooms[4]), rooms[4]);
   assert.equal(rooms[5], "or-3");
 });
 
