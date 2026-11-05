@@ -40,11 +40,12 @@ export function roomLabel(room: Room): string {
 }
 
 /**
- * The operating rooms in use outside the ventilation repair. OR 6 to 13 are closed (Pong, 3 Nov 2026): the plan draws
- * them grey with ปิด, they cannot be opened, and no case is placed in or added to them. Open a room again by adding
- * its id here. While the repair runs (lib/repair.ts) its own list of rooms decides instead.
+ * The operating rooms in use outside the ventilation repair: all of OR 1 to 13, each holding the department the weekday
+ * OR schedule gives it (lib/allocation.ts). This is the normal OR (Pong, 5 Nov 2026: "all OR open according to workday
+ * OR schedule"). To close a room, take its id out: the plan then draws it grey with ปิด, it cannot be opened, and no
+ * case is placed in or added to it. While the repair layout is in use (lib/repair.ts) its own list of rooms decides.
  */
-export const OPEN_ROOM_IDS: readonly string[] = ["or-1", "or-2", "or-3", "or-4", "or-5"];
+export const OPEN_ROOM_IDS: readonly string[] = ROOMS.filter((room) => room.kind === "or").map((room) => room.id);
 
 /** What an operating room is on a day: in use for operations, a recovery room (during the repair), or closed. */
 export type RoomUse = "open" | "recovery" | "closed";

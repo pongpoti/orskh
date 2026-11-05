@@ -20,7 +20,7 @@ Room allocation comes from the proposed OR schedule (ตารางห้อง
 
 ### Open rooms
 
-Only **OR 1 to 5 are in use** (since 3 Nov 2026; the ventilation-repair layout below is switched off). OR 6 to 13 are drawn grey with stripes and ปิด, cannot be opened (a `?room=` link to one is ignored), take no imported case, and cannot be chosen for a new case. With OR 8 closed, an imported emergency case goes to its department's open room instead. The list is `OPEN_ROOM_IDS` in `src/lib/rooms.ts`; add a room's id there to open it again. Which rooms are open depends on the day (`roomUse(room, date)`), for when the repair layout below is in use.
+**All of OR 1 to 13 are open (the normal OR)**, each holding the department the weekday OR schedule gives it (Pong, 5 Nov 2026). Every OR can be opened on the plan, takes imported cases by the rules above, and can be chosen for a new case. Closing a room is still possible: the open list is `OPEN_ROOM_IDS` in `src/lib/rooms.ts`, and a room taken out of it is drawn grey with stripes and ปิด, cannot be opened (a `?room=` link to one is ignored), takes no imported case and cannot be chosen for a new case (OR 6 to 13 were closed this way in early November 2026). With OR 8 closed, an imported emergency case would go to its department's open room instead. Which rooms are open depends on the day (`roomUse(room, date)`), for when the repair layout below is in use.
 
 ### Ventilation repair layout (switched off, kept for later)
 
