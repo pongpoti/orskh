@@ -212,7 +212,7 @@ withRepair("the board is dated today even when the loaded export is from another
   const after = boardFor("2027-03-09", undefined, late)!;
   assert.equal(after.date, "2027-03-09");
   assert.equal(repairOn(after.date), null);
-  assert.deepEqual(after.operations.map((item) => item.roomId), ["or-2", "or-11"], "EYE back in OR 11");
+  assert.deepEqual(after.operations.map((item) => item.roomId), ["or-2", "or-10"], "EYE back in OR 10");
   // weekBoard alone still dates the export's own week.
   assert.equal(weekBoard(stale)[1].date, "2026-11-24");
 });
