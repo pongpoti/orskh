@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { getRoom, isClosedRoom, isOpenRoom, isSelectableRoom, openRooms, roomLabel } from "./rooms.ts";
+import { getRoom, isClosedRoom, isOpenRoom, isSelectableRoom, OPEN_ROOM_IDS, openRooms, roomLabel, unusedRoomsText } from "./rooms.ts";
 
 test("rooms have kinds and zones", () => {
   assert.equal(getRoom("or-7")?.zone, 2);
@@ -20,19 +20,19 @@ test("open OR rooms are selectable and labeled OR N", () => {
   assert.equal(isSelectableRoom(rr1!, NOV), false);
 });
 
-test("outside the repair OR 1 to 5 are open and OR 6 to 13 are closed", () => {
-  for (const date of [NOV, "2027-03-08"]) {
-    assert.deepEqual(
-      openRooms(date).map((room) => room.id),
-      ["or-1", "or-2", "or-3", "or-4", "or-5"],
-      date,
-    );
-    for (let n = 6; n <= 13; n += 1) {
-      const room = getRoom(`or-${n}`)!;
-      assert.equal(isClosedRoom(room, date), true, `OR ${n} ${date}`);
-      assert.equal(isSelectableRoom(room, date), false, `OR ${n} ${date}`);
-      assert.equal(isOpenRoom(room.id, date), false, `OR ${n} ${date}`);
+test("the normal OR: all of OR 1 to 13 are open, every date", () => {
+  const all = Array.from({ length: 13 }, (_, i) => `or-${i + 1}`);
+  assert.deepEqual([...OPEN_ROOM_IDS], all, "Pong, 5 Nov 2026: all OR open according to the workday OR schedule");
+  for (const date of [NOV, "2026-11-05", "2026-12-08", "2027-01-22", "2027-03-08"]) {
+    assert.deepEqual(openRooms(date).map((room) => room.id), all, date);
+    for (const id of all) {
+      const room = getRoom(id)!;
+      assert.equal(isClosedRoom(room, date), false, `${id} ${date}`);
+      assert.equal(isSelectableRoom(room, date), true, `${id} ${date}`);
+      assert.equal(isOpenRoom(room.id, date), true, `${id} ${date}`);
     }
+    assert.equal(unusedRoomsText(date), "", date);
   }
   assert.equal(isClosedRoom(getRoom("r-1")!, NOV), false);
+  assert.equal(isSelectableRoom(getRoom("r-1")!, NOV), false);
 });

@@ -29,9 +29,9 @@ test("dates: today up to 60 days ahead, weekdays only", () => {
   assert.equal(checkCase({ ...ok, date: "2026-11-05" }, TODAY).ok, true);
 });
 
-test("only open rooms (OR 1 to 5) take a case", () => {
-  for (const roomId of ["or-1", "or-3", "or-5"]) assert.equal(checkCase({ ...ok, roomId }, TODAY).ok, true, roomId);
-  for (const roomId of ["or-6", "or-8", "or-13", "r-1", "", "x"]) assert.equal(checkCase({ ...ok, roomId }, TODAY).ok, false, roomId);
+test("every OR (1 to 13) takes a case; recovery-area rooms and unknown ids do not", () => {
+  for (const roomId of ["or-1", "or-3", "or-5", "or-6", "or-8", "or-13"]) assert.equal(checkCase({ ...ok, roomId }, TODAY).ok, true, roomId);
+  for (const roomId of ["r-1", "", "x"]) assert.equal(checkCase({ ...ok, roomId }, TODAY).ok, false, roomId);
 });
 
 test("the operation is required and at most 300 characters", () => {
@@ -49,7 +49,8 @@ test("next workday and the department's room", () => {
   // The weekly schedule's rooms (lib/repair.test.ts covers the stored repair layout).
   assert.equal(roomForSubtype("ENT", "2026-10-28"), "or-4"); // Wednesday
   assert.equal(roomForSubtype("PEDSX", "2026-10-13"), "or-5"); // 2nd Tuesday
-  assert.equal(roomForSubtype("URO", "2026-10-28"), null); // URO holds OR 7, which is closed
+  assert.equal(roomForSubtype("URO", "2026-10-28"), "or-7"); // Wednesday
+  assert.equal(roomForSubtype("EYE", "2026-11-05"), "or-11"); // Thursday
   assert.equal(roomForSubtype(null, "2026-10-28"), null);
 });
 
@@ -67,7 +68,7 @@ test("added cases join the board after its own, numbered per room", () => {
     { ...base, id: "1", date: TODAY, roomId: "or-2" },
     { ...base, id: "2", date: TODAY, roomId: "or-3", shift: "out" },
     { ...base, id: "3", date: "2026-11-05", roomId: "or-2" }, // another day
-    { ...base, id: "4", date: TODAY, roomId: "or-9" }, // a closed room
+    { ...base, id: "4", date: TODAY, roomId: "or-9" },
     { ...base, id: "5", date: TODAY, roomId: "or-2" },
   ];
   const ops = withAddedCases(board, added).operations;
@@ -77,6 +78,7 @@ test("added cases join the board after its own, numbered per room", () => {
       ["a", "or-2", 1, "in"],
       ["case-1", "or-2", 2, "in"],
       ["case-2", "or-3", 1, "out"],
+      ["case-4", "or-9", 1, "in"],
       ["case-5", "or-2", 3, "in"],
     ],
   );
