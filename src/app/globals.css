@@ -204,6 +204,21 @@ body {
     min-height: 36px;
     padding: 4px 16px;
     font-size: 1.0625rem;
+    min-width: 0;
+    max-width: 100%;
+    white-space: nowrap;
+  }
+  /* A split room's two badges (morning and afternoon) share one line. */
+  .chip-split {
+    padding: 4px 8px;
+    font-size: 0.875rem;
+  }
+  /* Always one line: a name too long for the header ends in an ellipsis (the chip's title holds it in full). */
+  .chip-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .btn {
