@@ -49,17 +49,19 @@ function isPopoverOpen(): boolean {
   }
 }
 
-function Owner({ dept, part }: { dept: Department | null; part?: string }) {
+function Owner({ dept, part, split = false }: { dept: Department | null; part?: string; split?: boolean }) {
+  // Two badges share the line in a split room, so each is a little smaller there.
+  const size = split ? "chip-lg chip-split" : "chip-lg";
   return (
-    <span className="inline-flex items-center gap-1.5">
-      {part ? <span className="text-sm font-semibold text-ink-2">{part}</span> : null}
+    <span className="inline-flex min-w-0 items-center gap-1">
+      {part ? <span className="shrink-0 text-sm font-semibold whitespace-nowrap text-ink-2">{part}</span> : null}
       {dept ? (
-        <span className="chip chip-lg" style={{ "--chip": dept.color, color: readableTextOn(dept.color) } as CSSProperties}>
-          {dept.name}
+        <span className={`chip ${size}`} title={dept.name} style={{ "--chip": dept.color, color: readableTextOn(dept.color) } as CSSProperties}>
+          <span className="chip-text">{dept.name}</span>
         </span>
       ) : (
-        <span className="chip chip-lg" style={{ "--chip": UNALLOCATED_FILL, color: readableTextOn(UNALLOCATED_FILL) } as CSSProperties}>
-          ไม่จัดสรร
+        <span className={`chip ${size}`} style={{ "--chip": UNALLOCATED_FILL, color: readableTextOn(UNALLOCATED_FILL) } as CSSProperties}>
+          <span className="chip-text">ไม่จัดสรร</span>
         </span>
       )}
     </span>
@@ -227,8 +229,8 @@ export function SuiteBoard({
             <div className="flex min-h-0 flex-1 flex-col">
               <div className="sheet-head shrink-0 border-b border-line" style={wash ? ({ "--wash": wash } as CSSProperties) : undefined}>
                 <span aria-hidden className="mx-auto mt-2 block h-1 w-10 rounded-full bg-line-strong lg:hidden" />
-                <div className="flex items-start justify-between gap-3 px-5 pt-1.5 pb-3.5 lg:pt-4">
-                  <div className="min-w-0">
+                <div className="flex items-start justify-between gap-3 px-5 pt-1.5 lg:pt-4">
+                  <div className="min-w-0 flex-1">
                     <div className="flex min-h-11 items-center gap-2.5">
                       <h2 ref={headingRef} tabIndex={-1} className="text-xl leading-snug font-bold text-ink outline-none">
                         {room ? roomLabel(room) : null}
@@ -237,31 +239,7 @@ export function SuiteBoard({
                         <span className="tabular-nums">{cases.length}</span> รายการ
                       </span>
                     </div>
-                    {allocation ? (
-                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
-                        {allocation.split ? (
-                          <>
-                            <Owner part="เช้า" dept={allocation.am} />
-                            <Owner part="บ่าย" dept={allocation.pm} />
-                          </>
-                        ) : (
-                          <Owner dept={allocation.am} />
-                        )}
-                      </div>
-                    ) : null}
                   </div>
-                  {adding && room ? (
-                    <button
-                      type="button"
-                      className="btn btn-secondary ml-auto min-h-11 shrink-0 px-3.5"
-                      onClick={() => setAddRequest({ roomId: room.id })}
-                      aria-label={`เพิ่มเคสใน ${roomLabel(room)}`}
-                      data-testid="room-add-case"
-                    >
-                      {PLUS}
-                      <span>เพิ่มเคส</span>
-                    </button>
-                  ) : null}
                   <button
                     type="button"
                     className="btn btn-ghost size-11 min-h-0 shrink-0 rounded-full p-0 lg:hidden"
@@ -273,6 +251,17 @@ export function SuiteBoard({
                       <path d="M6 6l12 12M18 6L6 18" />
                     </svg>
                   </button>
+                </div>
+                {/* The department badges always sit on one line, across the sheet's full width. */}
+                <div className="flex min-w-0 flex-nowrap items-center gap-x-2.5 px-5 pt-1 pb-3.5 text-sm">
+                  {allocation?.split ? (
+                    <>
+                      <Owner part="เช้า" dept={allocation.am} split />
+                      <Owner part="บ่าย" dept={allocation.pm} split />
+                    </>
+                  ) : allocation ? (
+                    <Owner dept={allocation.am} />
+                  ) : null}
                 </div>
               </div>
               {cases.length === 0 ? (
